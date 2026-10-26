@@ -275,3 +275,9 @@ Studio saves edited scenario inputs locally after a short pause and on page exit
 An explicit parcel link opens that parcel without an automatic tour. If it differs from the saved plan, Undo recovers the saved plan; that save is not replaced until an actual edit. The Hazelwood tour uses temporary inputs and does not write its parcel to the URL or overwrite the personal save. Exit remains available while calculations run.
 
 Pending calculations hide stale transit values. Placement eligibility, missing weighted evidence and all-zero priorities have distinct explanations. Routine confirmations expire; errors remain dismissible.
+
+## Current Studio interface
+
+Build, Compare, Priorities and Advanced share a resizable sidebar. Changing sections keeps the chosen width and restores section scroll position. **Widen / Reset** are explicit controls; the divider also supports arrow keys, Home/End and Enter. The skip link opens and focuses planning controls. Housing stays in 3D by default, while Transit and Streets retain their intentional top-down starting view.
+
+**Find sites** filters existing records, sorts lots or record flags and paginates every result. Unknown values remain unknown. **Advanced → Household costs** includes the official HUD household-size income reference and exact proposed costs. A score requires confirmed cost assumptions; each placed building retains its own confirmation. Unconfirmed placed buildings are identified so they can be edited individually. Comparison totals are modeled preferences, with missing zoning checks shown alongside, and no validated claim that a small gap establishes a better project.
