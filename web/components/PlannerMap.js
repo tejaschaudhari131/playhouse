@@ -16,13 +16,14 @@ import { mapSourceDiff } from '../lib/mapSourceDiff.js'
 import { networkDisplayIndex } from '../lib/networkDisplay.js'
 import { recordedBuildingRef, retainedBuildings } from '../lib/redevelopment.js'
 import { playDemolitionEffect } from '../lib/demolitionEffect.js'
+import { playConstructionEffect } from '../lib/constructionEffect.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
 const fc = features => ({ type: 'FeatureCollection', features })
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport }) {
+export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -35,6 +36,7 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
   const loadedMap = useRef(null)
   const uploaded = useRef(new Map())
   const consumedDemolition = useRef(null)
+  const constructionRun = useRef(null), constructionRequest = useRef(null), consumedConstruction = useRef(null)
   const roadIndex = useMemo(() => tool === 'network' && network ? networkDisplayIndex(network, neighborhoods) : null, [tool, network, neighborhoods])
   const visibleKey = visibleNeighborhoodIds.join('|')
   const visibleRoads = useMemo(() => detail && roadIndex ? roadIndex.query(renderBounds, visibleKey.split('|').filter(Boolean)) : [], [roadIndex, detail, renderBounds, visibleKey])
@@ -283,6 +285,32 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
     if (!map) return
     map.getSource('placed-buildings').setData(fc(placedBuildings.filter(b => b.massing.geometry).map(b => ({ type: 'Feature', geometry: b.massing.geometry, properties: { id: b.id, pin: b.pin, height: b.height, color: placedBuildingColor(b.typeId), valid: b.eligible } }))))
   }, [ready, placedBuildings])
+
+  useEffect(() => {
+    // A request removed before evaluation finishes is consumed too: Undo/Redo
+    // must not replay construction, even if the building never reached the map.
+    if (constructionRequest.current && constructionRequest.current !== constructionEffect?.id) consumedConstruction.current = constructionRequest.current
+    constructionRequest.current = constructionEffect?.id || null
+    const map = readyMap(), active = constructionRun.current
+    const valid = map && detail && constructionEffect && selected?.properties.pin === constructionEffect.pin
+    if (active && (!valid || active.id !== constructionEffect.id || active.map !== map)) {
+      active.stop()
+      if (constructionRun.current === active) constructionRun.current = null
+    }
+    if (!valid) { if (constructionEffect) consumedConstruction.current = constructionEffect.id; return }
+    if (constructionRun.current?.id === constructionEffect.id || consumedConstruction.current === constructionEffect.id) return
+    // Keep the accepted preview until the completed building is available for
+    // the handoff. Score/chunk updates may replace this array during animation.
+    if (!placedBuildings.some(b => b.id === constructionEffect.id && b.pin === constructionEffect.pin)) return
+    consumedConstruction.current = constructionEffect.id
+    const run = { id: constructionEffect.id, map, stop: () => {} }
+    constructionRun.current = run
+    const done = () => { if (constructionRun.current === run) constructionRun.current = null }
+    const stop = playConstructionEffect(map, constructionEffect, done)
+    if (stop) run.stop = stop
+    else done()
+  }, [ready, constructionEffect, placedBuildings, detail, selected?.properties.pin])
+  useEffect(() => () => { constructionRun.current?.stop(); constructionRun.current = null }, [])
 
   useEffect(() => {
     const map = readyMap()

@@ -164,6 +164,7 @@ function Studio({ data }) {
   const [showExisting, setShowExisting] = useState(true)
   const [selectedBuilding, setSelectedBuilding] = useState(null)
   const [demolitionEffect, setDemolitionEffect] = useState(null)
+  const [constructionEffect, setConstructionEffect] = useState(null)
   const [focusRequest, setFocusRequest] = useState(0)
   const [highlightEmpty, setHighlightEmpty] = useState(false)
   const [networkData, setNetworkData] = useState(null), [networkError, setNetworkError] = useState(null), [networkAttempt, setNetworkAttempt] = useState(0)
@@ -304,6 +305,10 @@ function Studio({ data }) {
   const input = useMemo(() => ({ feature: selected, zoning, scenario, stop, existingBuildings: nearbyBuildings, infrastructureBuildings: scenario.connections.length || scenario.parks.length ? context?.buildings.features ?? null : undefined, areaSites }), [selected, zoning, scenario, stop, nearbyBuildings, context, areaSites])
   const evaluation = useEvaluation(input, network)
   const result = evaluation.pin === scenario.pin ? evaluation.result : null
+  const renderedBuildings = useMemo(() => {
+    const ids = new Set(scenario.buildings.map(b => b.id))
+    return (result?.committed?.[proposed ? 'proposal' : 'baseline'] || []).filter(b => ids.has(b.id))
+  }, [result?.committed, proposed, scenario.buildings])
   const options = result ? (proposed ? result.proposal : result.baseline) : null
   const option = scenario.draft, evaluated = options?.[option.typeId]
   const zoningInputs = scenario.zoningInputsByPin?.[scenario.pin] || {}
@@ -386,7 +391,9 @@ function Studio({ data }) {
   function addBuilding(massing = result?.proposal?.[option.typeId]?.massing) {
     if (evaluation.pending || result?.infrastructureErrors?.length || !massing?.fits || massing.collisions !== 0 || screenPlacement(massing).conflict) { setNotice('Cannot add: physical fit or a supported zoning check conflicts. Check the red preview and zoning details.'); return }
     if ((scenario.buildings || []).length >= 40) { setNotice('This local plan supports 40 buildings.'); return }
-    dispatch({ type: 'addBuilding', building: { id: crypto.randomUUID(), pin: scenario.pin, option: { ...option, placement: massing.placement }, targetIncome: scenario.targetIncome, stopId: scenario.stopId } })
+    const id = crypto.randomUUID()
+    setConstructionEffect({ id, pin: scenario.pin, geometry: massing.geometry, height: option.height, typeId: option.typeId })
+    dispatch({ type: 'addBuilding', building: { id, pin: scenario.pin, option: { ...option, placement: massing.placement }, targetIncome: scenario.targetIncome, stopId: scenario.stopId } })
     setProposed(true); setPlacing(false); setNotice('Building added to your plan. Undo is available.')
   }
   function placeProposal(coordinates) {
@@ -462,7 +469,7 @@ function Studio({ data }) {
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
-        <PlannerMap parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={result?.committed?.[proposed ? 'proposal' : 'baseline'] || []} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
+        <PlannerMap parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
         <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
         {placing && <div className="placement-banner" role="status">Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <button onClick={() => setPlacing(false)}>Cancel placement</button></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
