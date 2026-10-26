@@ -11,7 +11,7 @@ export default function TitleNineChecks({ result, compact = false }) {
   const excluded = result.checks.filter(c => ['unknown', 'conditional'].includes(c.status))
   const irrelevant = result.checks.filter(c => c.status === 'not_applicable')
   return <details className={`planner-details zoning-checks ${compact ? 'compact' : ''}`}>
-    <summary>{result.conflict ? 'Zoning conflict' : `${assessed.length} zoning checks assessed`}<span>{excluded.length} not assessed</span></summary>
+    <summary>{result.conflict ? 'Zoning conflict' : excluded.length ? 'Zoning review incomplete' : 'Supported zoning checks completed'}<span>{assessed.length} checked · {excluded.length} not checked</span></summary>
     <p className="compact-help">Supported conflicts remove the housing score. Checks without enough evidence are excluded. A score is not zoning approval.</p>
     <ul>{[...assessed].sort((a, b) => Number(b.status === 'conflict') - Number(a.status === 'conflict')).map(c => <Rule key={c.id} check={c}/>)}</ul>
     {!!excluded.length && <details><summary>Not assessed ({excluded.length})</summary><ul>{excluded.map(c => <Rule key={c.id} check={c}/>)}</ul></details>}

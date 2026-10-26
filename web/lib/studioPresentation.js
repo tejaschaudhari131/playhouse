@@ -1,13 +1,13 @@
 import { INITIAL_WEIGHTS } from './plannerState.js'
 import { passesRecordFilters, DEFAULT_SITE_FILTERS, typePermission } from './sites.js'
 import { resolveZoning } from './zoning.js'
-export const FACTOR_LABELS = { demand: 'Market fit', physical: 'Physical fit', affordability: 'Affordability', displacement: 'Lower displacement risk', capacity: 'Transit capacity', access: 'Access', carbon: 'Carbon proxy' }
+export const FACTOR_LABELS = { demand: 'Market fit', physical: 'Physical fit', affordability: 'Housing-cost burden', displacement: 'Lower neighborhood displacement risk', capacity: 'Assumed transit capacity', access: 'Access', carbon: 'Carbon estimate' }
 export const STUDIO_PRESETS = [
- { id:'balanced', label:'Balanced', weights:{...INITIAL_WEIGHTS} },
- { id:'resident', label:'Resident', weights:{demand:5,physical:15,affordability:25,displacement:30,capacity:5,access:15,carbon:5} },
- { id:'cdc', label:'CDC', weights:{demand:5,physical:10,affordability:40,displacement:20,capacity:5,access:15,carbon:5} },
- { id:'developer', label:'Developer', weights:{demand:40,physical:25,affordability:10,displacement:5,capacity:10,access:5,carbon:5} },
- { id:'climate', label:'Carbon-first', weights:{demand:5,physical:10,affordability:15,displacement:10,capacity:5,access:20,carbon:35} },
+ { id:'balanced', label:'Balanced', description:'Spreads weight across the seven factors, with more weight on market fit and housing costs. This is a starting point, not an agreed public priority.', weights:{...INITIAL_WEIGHTS} },
+ { id:'resident', label:'Costs & stability', description:'Emphasizes lower housing-cost burden and lower existing neighborhood displacement vulnerability. It does not estimate tenant protection or the displacement caused by a project.', weights:{demand:5,physical:15,affordability:25,displacement:30,capacity:5,access:15,carbon:5} },
+ { id:'cdc', label:'Housing costs first', description:'Gives housing-cost burden the largest share. Lower neighborhood vulnerability also raises the score; this is not a strategy for directing investment to the highest-need communities.', weights:{demand:5,physical:10,affordability:40,displacement:20,capacity:5,access:15,carbon:5} },
+ { id:'developer', label:'Market & fit', description:'Emphasizes the market proxy and physical fit. It does not estimate construction cost, financing, profit or developer preferences.', weights:{demand:40,physical:25,affordability:10,displacement:5,capacity:10,access:5,carbon:5} },
+ { id:'climate', label:'Carbon & access', description:'Emphasizes the relative carbon proxy and modeled access. Neither measures a project’s actual emissions or travel behavior.', weights:{demand:5,physical:10,affordability:15,displacement:10,capacity:5,access:20,carbon:35} },
 ]
 /** Exact relative contributions against the best other eligible template, no invented outcomes. */
 export function templateTradeoffs(entry, entries, factors, state) {

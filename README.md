@@ -73,6 +73,12 @@ The hackathon asks for housing alternatives, explained tradeoffs, adjustable pri
 
 **Evidence, proxies and assumptions are labeled.** Supported zoning conflicts and failed physical fit remove the Studio housing score. Missing evidence stays unassessed. Infrastructure changes update supported calculations, such as walking access and available land. Rankings may stay the same when improvements benefit every housing type equally.
 
+## Reading the results
+
+Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin.
+
+Priority presets are team-authored examples, not surveyed stakeholder preferences. Their descriptions explain what they reward. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
+
 ## Coverage and limits
 
 - **All 90 Pittsburgh neighborhoods:** 142,571 identified parcels plus 294 shared-ground/anonymous polygons.
