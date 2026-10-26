@@ -10,21 +10,25 @@ export function playDemolitionEffect(map, feature) {
   const origin = map.project(center)
   const corners = [[bounds[0], bounds[1]], [bounds[0], bounds[3]], [bounds[2], bounds[1]], [bounds[2], bounds[3]]].map(p => map.project(p))
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
-  const width = clamp(Math.max(...corners.map(p => p.x)) - Math.min(...corners.map(p => p.x)), 12, 72)
-  const depth = clamp(Math.max(...corners.map(p => p.y)) - Math.min(...corners.map(p => p.y)), 8, 44)
+  // Cover the visible building extent, including large footprints. Bound the
+  // particle count, not the effect's footprint; cubes stay the same screen size.
+  const width = Math.max(12, Math.max(...corners.map(p => p.x)) - Math.min(...corners.map(p => p.x)))
+  const depth = Math.max(8, Math.max(...corners.map(p => p.y)) - Math.min(...corners.map(p => p.y)))
+  const columns = clamp(Math.ceil(width / 24), 3, 7), rows = clamp(Math.ceil(depth / 24), 3, 7)
   const metre = map.project([center[0] + 1 / (111320 * Math.cos(center[1] * Math.PI / 180)), center[1]])
-  const height = clamp((Number(feature.properties?.height_m) || 6) * Math.hypot(metre.x - origin.x, metre.y - origin.y) * Math.sin(map.getPitch() * Math.PI / 180), 0, 60)
+  const height = Math.max(0, (Number(feature.properties?.height_m) || 6) * Math.hypot(metre.x - origin.x, metre.y - origin.y) * Math.sin(map.getPitch() * Math.PI / 180))
   const root = document.createElement('div')
   root.className = 'demolition-effect'
   root.setAttribute('aria-hidden', 'true')
   root.style.setProperty('--debris-color', feature.properties?.use_color || '#94a3b8')
-  root.style.setProperty('--debris-size', `${clamp(width / 4, 6, 13)}px`)
+  root.style.setProperty('--debris-size', '10px')
   const svgNS = 'http://www.w3.org/2000/svg'
-  for (let i = 0; i < 9; i++) {
-    const x = i % 3 - 1, y = Math.floor(i / 3) - 1
-    const startX = x * width * .25, startY = y * depth * .2 - height * (.2 + (i % 3) * .2)
-    const driftX = x * (9 + (i % 2) * 4) + (x ? 0 : (i % 2 ? 4 : -4))
-    const driftY = y * 6 + 12
+  for (let i = 0; i < columns * rows; i++) {
+    const x = clamp((i % columns) / (columns - 1) * 2 - 1 + Math.sin(i * 2.4) * .35 / columns, -1, 1)
+    const y = clamp(Math.floor(i / columns) / (rows - 1) * 2 - 1 + Math.cos(i * 2.4) * .35 / rows, -1, 1)
+    const startX = x * width * .42, startY = y * depth * .42 - height * (.2 + (i % 3) * .2)
+    const driftX = x * Math.max(9, width * .18) + (x ? 0 : (i % 2 ? 4 : -4))
+    const driftY = y * Math.max(6, depth * .18) + 12
     const block = document.createElement('span')
     block.className = 'demolition-block'
     for (const [key, value] of Object.entries({ sx: startX, sy: startY, mx: startX + driftX * .55, my: startY - 5, ex: startX + driftX, ey: startY + driftY })) block.style.setProperty(`--${key}`, `${value}px`)
