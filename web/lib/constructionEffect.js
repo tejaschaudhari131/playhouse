@@ -34,7 +34,7 @@ export function constructionCells(geometry) {
   }))
 }
 
-/** One tiny source and native paint transitions; no animation-frame data uploads. */
+/** One tiny source; bounded block placements change feature state, never geometry. */
 export function playConstructionEffect(map, event, onDone) {
   const motion = globalThis.window?.matchMedia?.('(prefers-reduced-motion: reduce)')
   const cells = constructionCells(event?.geometry), height = Number(event?.height)
@@ -44,6 +44,8 @@ export function playConstructionEffect(map, event, onDone) {
   }
   const sourceId = `construction-effect-${++sequence}`, layers = [], filters = [], visibility = [], timers = new Set()
   const bands = height > 10 ? 4 : 3, step = height / bands
+  const cellIds = cells.features.map(feature => feature.id), blockCount = cellIds.length * bands
+  const interval = Math.max(8, 420 / (blockCount - 1))
   const container = map.getContainer()
   let disposed = false, removed = false, uploaded = false, waitingForRender = false
   const later = (callback, delay) => timers.add(setTimeout(() => { if (!disposed) callback() }, delay))
@@ -73,12 +75,16 @@ export function playConstructionEffect(map, event, onDone) {
     map.off('render', begin)
     if (disposed) return
     container.dataset.constructionPhase = 'building'
-    layers.forEach((id, band) => later(() => {
-      if (!map.getLayer(id)) { cleanup(); return }
-      map.setPaintProperty(id, 'fill-extrusion-opacity', .96)
-      map.setPaintProperty(id, 'fill-extrusion-height', step * (band + 1))
-    }, band * 90))
-    later(cleanup, (bands - 1) * 90 + 160)
+    layers.forEach((id, band) => {
+      // Sweep back across the next level, so each block rests on a completed level.
+      const order = band % 2 ? [...cellIds].reverse() : cellIds
+      order.forEach((cellId, index) => later(() => {
+        if (!map.getLayer(id)) { cleanup(); return }
+        if (!index) map.setPaintProperty(id, 'fill-extrusion-opacity', .96)
+        map.setFeatureState({ source: sourceId, id: cellId }, { builtLevels: band + 1 })
+      }, (band * cellIds.length + index) * interval))
+    })
+    later(cleanup, (blockCount - 1) * interval + 60)
   }
   const ready = () => {
     if (disposed || !uploaded || waitingForRender || !map.getSource(sourceId) || !map.isSourceLoaded(sourceId) ||
@@ -111,11 +117,13 @@ export function playConstructionEffect(map, event, onDone) {
     const minzoom = map.getLayer('placed-buildings-fill')?.minzoom ?? 0
     for (let band = 0; band < bands; band++) {
       const id = `${sourceId}-${band}`, base = step * band + (band ? Math.min(.08, step * .015) : 0)
+      const built = ['>=', ['coalesce', ['feature-state', 'builtLevels'], 0], band + 1]
       map.addLayer({ id, type: 'fill-extrusion', source: sourceId, minzoom, paint: {
         'fill-extrusion-color': placedBuildingColor(event.typeId), 'fill-extrusion-opacity': 0,
         'fill-extrusion-opacity-transition': { duration: 0, delay: 0 },
-        'fill-extrusion-base': base, 'fill-extrusion-height': base,
-        'fill-extrusion-height-transition': { duration: 120, delay: 0 },
+        'fill-extrusion-base': ['case', built, base, 0],
+        'fill-extrusion-height': ['case', built, step * (band + 1), 0],
+        'fill-extrusion-height-transition': { duration: 0, delay: 0 },
       } })
       layers.push(id)
     }

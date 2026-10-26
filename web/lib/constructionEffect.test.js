@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createPropertyExpression, latest } from '@maplibre/maplibre-gl-style-spec'
 import { constructionCells, playConstructionEffect } from './constructionEffect.js'
 import { placedBuildingColor } from './buildingUses.js'
 
@@ -49,6 +50,9 @@ class FakeMap {
     this.handlers = new Map()
     this.container = { dataset: {} }
     this.uploads = []
+    this.states = new Map()
+    this.placements = []
+    this.paintUpdates = []
     this.sourceLoaded = true
     this.repaints = 0
   }
@@ -58,7 +62,8 @@ class FakeMap {
   setFilter(id, value) { this.getLayer(id).filter = value }
   getLayoutProperty(id, key) { return this.getLayer(id).layout[key] }
   setLayoutProperty(id, key, value) { this.getLayer(id).layout[key] = value }
-  setPaintProperty(id, key, value) { this.getLayer(id).paint[key] = value }
+  setPaintProperty(id, key, value) { this.getLayer(id).paint[key] = value; this.paintUpdates.push({ id, key, value }) }
+  setFeatureState(target, state) { this.states.set(target.id, state); this.placements.push({ ...target, ...state }) }
   addLayer(layer) { this.layers.set(layer.id, layer) }
   removeLayer(id) { this.layers.delete(id) }
   addSource(id) { this.sources.set(id, { setData: data => { this.uploads.push(data); return this.rejectUpload ? Promise.reject(new Error('source failed')) : Promise.resolve() } }) }
@@ -80,8 +85,13 @@ function setup(t, reduced = false) {
 }
 const flush = async () => { await Promise.resolve(); await Promise.resolve() }
 const temporaryLayers = map => [...map.layers.values()].filter(layer => layer.id.startsWith('construction-effect-'))
+function paintValue(layer, key, state = {}) {
+  const expression = createPropertyExpression(layer.paint[key], key, latest['paint_fill-extrusion'][key])
+  assert.equal(expression.result, 'success', 'MapLibre accepts the state-driven paint expression')
+  return expression.value.evaluate({ zoom: 18 }, { properties: {} }, state)
+}
 
-test('one upload becomes a bottom-to-top native transition only after source readiness and a render, then restores the map', async t => {
+test('one upload builds individual blocks bottom-to-top after source readiness and a render, then restores the map', async t => {
   const { map, listeners } = setup(t), input = event(), before = structuredClone(input)
   const originalFilter = map.getFilter('placed-buildings-outline')
   let done = 0
@@ -95,7 +105,8 @@ test('one upload becomes a bottom-to-top native transition only after source rea
   assert.deepEqual(map.getFilter('placed-buildings-fill'), ['any', ['!=', ['to-string', ['get', 'id']], 'new'], ['!=', ['to-string', ['get', 'pin']], 'parcel']])
   for (const layer of layers) {
     assert.equal(layer.paint['fill-extrusion-color'], placedBuildingColor(input.typeId))
-    assert.equal(layer.paint['fill-extrusion-height'], layer.paint['fill-extrusion-base'])
+    assert.equal(paintValue(layer, 'fill-extrusion-height'), 0)
+    assert.equal(paintValue(layer, 'fill-extrusion-base'), 0)
     assert.equal(layer.paint['fill-extrusion-opacity'], 0, 'upper rows have no floating top faces before their turn')
     assert.equal(layer.minzoom, 14)
   }
@@ -106,20 +117,31 @@ test('one upload becomes a bottom-to-top native transition only after source rea
   map.emit('sourcedata', { sourceId: [...map.sources.keys()][0] })
   assert.equal(map.repaints, 1)
   t.mock.timers.tick(100)
-  assert.equal(layers[0].paint['fill-extrusion-height'], 0, 'the first paint needs a render boundary')
+  assert.equal(map.placements.length, 0, 'the first paint needs a render boundary')
   map.emit('render')
   t.mock.timers.tick(0)
-  assert.equal(layers[0].paint['fill-extrusion-height'], 3)
+  assert.equal(map.placements.length, 1, 'only one block appears on the first step')
+  assert.equal(paintValue(layers[0], 'fill-extrusion-height', map.states.get(0)), 3)
+  assert.equal(paintValue(layers[0], 'fill-extrusion-height', map.states.get(1)), 0, 'the next block has not appeared yet')
   assert.equal(layers[0].paint['fill-extrusion-opacity'], .96)
   assert.equal(layers[1].paint['fill-extrusion-opacity'], 0)
-  assert.equal(layers[1].paint['fill-extrusion-height'], layers[1].paint['fill-extrusion-base'])
-  t.mock.timers.tick(90)
-  assert.equal(layers[1].paint['fill-extrusion-height'], 6)
-  t.mock.timers.tick(180)
-  assert.equal(layers[3].paint['fill-extrusion-height'], 12)
-  t.mock.timers.tick(160)
+  t.mock.timers.tick(9)
+  assert.equal(map.placements.length, 2, 'the next step places a second block instead of a complete floor')
+  t.mock.timers.tick(91)
+  assert.equal(map.placements.length, 12)
+  assert.ok(map.placements.every(placement => placement.builtLevels === 1))
+  assert.equal(layers[1].paint['fill-extrusion-opacity'], 0)
+  t.mock.timers.tick(8)
+  assert.equal(map.placements.at(-1).id, 11, 'the sweep reverses at the next level')
+  assert.equal(paintValue(layers[1], 'fill-extrusion-height', map.states.get(11)), 6)
+  assert.equal(paintValue(layers[1], 'fill-extrusion-height', map.states.get(0)), 0)
+  assert.equal(paintValue(layers[1], 'fill-extrusion-base', map.states.get(0)), 0, 'unbuilt upper blocks have no floating top faces')
+  t.mock.timers.tick(312)
+  assert.equal(map.placements.length, 48)
+  assert.equal(paintValue(layers[3], 'fill-extrusion-height', map.states.get(0)), 12)
+  t.mock.timers.tick(60)
   assert.equal(done, 1)
-  assert.equal(map.uploads.length, 1, 'animation updates only native paint values')
+  assert.equal(map.uploads.length, 1, 'geometry is never re-uploaded during the animation')
   assert.equal(temporaryLayers(map).length, 0)
   assert.equal(map.sources.size, 0)
   assert.deepEqual(map.getFilter('placed-buildings-outline'), originalFilter)
@@ -129,6 +151,42 @@ test('one upload becomes a bottom-to-top native transition only after source rea
   assert.deepEqual(map.container.dataset, {})
   assert.equal(listeners.size, 0)
   assert.deepEqual(input, before)
+})
+
+test('even the largest effect stays within 64 small state updates, four paint updates, and 600 ms', async t => {
+  const { map } = setup(t)
+  let done = 0
+  playConstructionEffect(map, { ...event(), geometry: footprint(200, 150), height: 40 }, () => done++)
+  await flush()
+  map.emit('render')
+  t.mock.timers.tick(564)
+  assert.equal(done, 1)
+  assert.equal(map.uploads.length, 1)
+  assert.equal(map.placements.length, 64)
+  assert.equal(map.paintUpdates.length, 4)
+  for (let band = 1; band <= 4; band++) {
+    const placements = map.placements.slice((band - 1) * 16, band * 16)
+    assert.equal(new Set(placements.map(placement => placement.id)).size, 16)
+    assert.ok(placements.every(placement => placement.builtLevels === band))
+  }
+  t.mock.timers.tick(2000)
+  assert.equal(map.placements.length, 64)
+})
+
+test('undo during construction stops every remaining block placement', async t => {
+  const { map } = setup(t)
+  let done = 0
+  const cancel = playConstructionEffect(map, event(), () => done++)
+  await flush()
+  map.emit('render')
+  t.mock.timers.tick(100)
+  const placed = map.placements.length
+  assert.ok(placed > 0 && placed < 48)
+  cancel()
+  t.mock.timers.tick(2000)
+  assert.equal(map.placements.length, placed)
+  assert.equal(done, 1)
+  assert.equal(map.sources.size, 0)
 })
 
 test('cancel/undo clears pending work once, and late source readiness cannot replay the effect', async t => {
