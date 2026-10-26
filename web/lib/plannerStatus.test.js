@@ -24,3 +24,10 @@ test('pending and error states cannot expose an old score or permit placement', 
   assert.deepEqual(draftStatus({ evaluated, proposal: evaluated, pending: true }), { title: 'Checking…', detail: 'Calculating fit and tradeoffs', placement: 'Checking placement…', canPlace: false })
   assert.equal(draftStatus({ evaluated, proposal: evaluated, error: 'Worker stopped' }).title, 'Results unavailable')
 })
+test('next-draft overlap explains that already placed buildings remain in the plan', () => {
+  const blocked = { ...evaluated, eligible: false, physicalEligible: false, massing: { collisions: 1 }, gate: 'Building or infrastructure overlap' }
+  const state = draftStatus({ evaluated: blocked, proposal: blocked, weights: {}, hasPlacedBuildings: true })
+  assert.match(state.detail, /placed plan is retained/)
+  assert.match(state.detail, /next-building draft overlaps/)
+  assert.equal(state.canPlace, false)
+})

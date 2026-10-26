@@ -394,7 +394,7 @@ function Studio({ data }) {
   }, [result?.committed, proposed, scenario.buildings])
   const options = result ? (proposed ? result.proposal : result.baseline) : null
   const option = scenario.draft, evaluated = options?.[option.typeId]
-  const draftState = draftStatus({ evaluated, proposal: result?.proposal?.[option.typeId], weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors })
+  const draftState = draftStatus({ evaluated, proposal: result?.proposal?.[option.typeId], weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors, hasPlacedBuildings: scenario.buildings.length > 0 })
   const zoningInputs = scenario.zoningInputsByPin?.[scenario.pin] || {}
   function setZoningInput(key, value) { set('zoningInputsByPin', { ...scenario.zoningInputsByPin, [scenario.pin]: { ...zoningInputs, [key]: value } }) }
   const matches = useMemo(() => query.trim().length > 1 ? [...catalogue.values()].filter(f => `${f.properties.address} ${f.properties.pin}`.toLowerCase().includes(query.toLowerCase().trim())).slice(0, 6) : [], [query, catalogue, parcels])

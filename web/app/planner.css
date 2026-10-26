@@ -233,7 +233,7 @@
 .shortlist-entries { list-style: none; padding: 0; margin: 15px 0; display: grid; gap: 10px; }
 .shortlist-entries > li { padding: 11px; background: #fff; border: 1px solid #e0e6db; border-radius: 6px; }
 .shortlist-entries > li.shortlist-leading { border-color: #89ad82; }
-.shortlist-entry-heading { display: flex; align-items: start; justify-content: space-between; gap: 7px; }
+.shortlist-entry-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 7px; }
 .shortlist-entry-heading h4 { margin: 0; font-size: 12px; font-weight: 600; line-height: 1.4; }
 .shortlist-entry-heading .data-badge { white-space: nowrap; }
 .shortlist-dimensions { color: #67765e; font-size: 10px; margin: 6px 0 9px; }
