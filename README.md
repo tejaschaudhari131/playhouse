@@ -24,7 +24,7 @@ https://github.com/user-attachments/assets/041714fe-86ed-4cd0-b937-b1fbd1365784
 
 
 
-Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F00338000000), and compare housing options side by side. No sign-in needed.
+Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F00338000000), and compare housing options side by side. Address search covers the city and loads a small index only when you type. No sign-in needed.
 
 ![A single-family proposal previewed among existing buildings on Wylie Avenue in Middle Hill](docs/images/studio-housing.jpg)
 
@@ -100,6 +100,7 @@ Follow [City housing policy updates](https://engage.pittsburghpa.gov/implementin
 - **All 90 Pittsburgh neighborhoods:** 142,571 identified parcels plus 294 shared-ground/anonymous polygons.
 - **116,502 building outlines:** recorded locations with estimated heights. Colours show recorded use, not recommended redevelopment.
 - **Public sources:** county parcels/assessments, Census ACS, HUD CHAS, PRT schedules, OpenStreetMap, zoning and environmental layers. [Sources and provenance](docs/DATA_SOURCES.md).
+- **Small address search:** the initial manifest is about 140 KB; a search fetches one address-only file (largest 99 KB). No citywide parcel details are downloaded for search. Records without searchable addresses remain accessible by parcel ID.
 - **Fast browsing:** detailed geometry loads for the selected neighborhood and visible adjoining neighborhoods. Zooming out hides detail without simplifying the source geometry.
 - **Responsive controls:** priorities reuse existing calculations, map movement updates only changed features, and empty-site candidates are prepared with the data.
 
