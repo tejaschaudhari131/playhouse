@@ -23,7 +23,7 @@ export function typologyCards({ draft, options, code, zoning }) {
       width: option.width, depth: option.depth, floors: option.floors ?? spec.floors,
       permission: { category: permission.category, label: PERMISSION_SHORT[permission.category] || PERMISSION_SHORT.unknown, detail: permission.label },
       status, score: status === 'scored' ? evaluated.total : null,
-      statusText: status === 'scored' ? `${Math.round(evaluated.total)} / 100` : status === 'review' ? 'Needs review' : status === 'noscore' ? 'No score' : 'Not scored yet',
+      statusText: status === 'scored' ? `${Math.round(evaluated.total)} / 100` : status === 'review' ? Number.isFinite(evaluated.suitability) ? `Review · ${Math.round(evaluated.suitability)} underlying` : 'Needs review' : status === 'noscore' ? 'No score' : 'Not scored yet',
     }
   })
 }

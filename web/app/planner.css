@@ -732,3 +732,19 @@
 .impact-panel dt { display: flex; align-items: center; gap: 6px; font-weight: 650; color: #34483b; }
 .impact-panel dd { margin: 3px 0 0; color: #3f4d43; }
 .impact-panel > small { display: block; color: #6d6a58; font-size: 11px; }
+
+/* Compare: underlying scores, zoning status and reform simulation */
+.zoning-badge { display: inline-block; margin: 4px 0 2px; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.4; background: #eef0ea; color: #56614f; }
+.zoning-badge.permitted { background: #dff0e3; color: #22603a; }
+.zoning-badge.special { background: #fbf0d9; color: #7d5715; }
+.zoning-badge.reform { background: #fbe4dc; color: #8f3b1f; }
+.zoning-badge.conflict { background: #f8d9d9; color: #8a1f1f; }
+.comparison-total td.score-underlying strong { color: #7a877c; }
+.comparison-total td.score-reform strong { color: #8f3b1f; }
+.comparison-total .score-kind { font-weight: 600; }
+.comparison-factor.ineligible { opacity: .55; }
+.reform-toggle { display: flex; gap: 9px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; border: 1px dashed #d9b98a; border-radius: 9px; background: #fffaf2; font-size: 12px; line-height: 1.45; cursor: pointer; }
+.reform-toggle input { margin-top: 2px; width: 16px; height: 16px; accent-color: #8f3b1f; }
+.reform-toggle strong { display: block; font-size: 13px; }
+.reform-toggle small { display: block; color: #6d5f49; font-size: 11px; }
+.draft-result .zoning-badge { display: inline-block; }

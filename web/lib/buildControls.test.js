@@ -33,6 +33,8 @@ test('typology cards list every type with units, dimensions, zoning badge and on
   const scored = typologyCards({ draft: input.scenario.draft, options: all.proposal, code: 'TEST', zoning: input.zoning })
   assert.ok(scored.every(c => c.status !== 'unscored'))
   assert.equal(scored.find(c => c.typeId === 'small_apartment').status, 'review', 'a use-table conflict is never shown as a score')
+  assert.equal(scored.find(c => c.typeId === 'small_apartment').statusText, `Review · ${Math.round(all.proposal.small_apartment.suitability)} underlying`)
+  assert.equal(scored.find(c => c.typeId === 'small_apartment').score, null)
   assert.equal(typologyCards({ draft: input.scenario.draft, options: null, code: 'NONE', zoning: input.zoning })[0].permission.label, 'Zoning unknown')
 })
 

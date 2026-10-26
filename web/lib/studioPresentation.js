@@ -16,3 +16,23 @@ export function templateTradeoffs(entry, entries, factors, state) {
  const changes=factors.filter(f=>f.included).map(f=>({id:f.id,label:FACTOR_LABELS[f.id],points:(candidate.scores[f.id]-reference[state].scores[f.id])*f.effectiveWeight}))
  return {reference:reference[state].label,pros:changes.filter(f=>f.points>=.05).sort((a,b)=>b.points-a.points).slice(0,2),cons:changes.filter(f=>f.points<=-.05).sort((a,b)=>a.points-b.points).slice(0,2)}
 }
+
+/** Zoning status shown beside every compared score. Proposed use is read against mapped zoning only. */
+export function zoningBadge(option) {
+  const conflicts = (option?.titleNine?.checks || []).filter(c => c.status === 'conflict')
+  const others = conflicts.filter(c => c.id !== 'use')
+  if (conflicts.length > others.length) return { tone: 'reform', text: `Requires zoning variance / reform: Proposed use${others.length ? ` + ${others.length} other ${others.length === 1 ? 'conflict' : 'conflicts'}` : ''}` }
+  if (others.length) return { tone: 'conflict', text: `Zoning conflict: ${others[0].label}${others.length > 1 ? ` + ${others.length - 1} more` : ''}` }
+  const category = option?.permission?.category
+  if (category === 'permitted') return { tone: 'permitted', text: 'Permitted' }
+  if (category === 'special') return { tone: 'special', text: 'Needs special approval (not a variance)' }
+  if (category === 'partial') return { tone: 'special', text: 'Permitted for some unit counts' }
+  return { tone: 'unknown', text: 'Proposed use not reviewed' }
+}
+
+/** Headline number for a compared type. A simulated by-right score is labelled as such and never ranks. */
+export function comparisonScore(option, reform = false) {
+  if (option?.eligible && Number.isFinite(option.total)) return { value: option.total, kind: 'score' }
+  if (reform && option?.reformEligible && Number.isFinite(option.reformTotal)) return { value: option.reformTotal, kind: 'reform' }
+  return { value: Number.isFinite(option?.suitability) ? option.suitability : null, kind: 'underlying' }
+}
