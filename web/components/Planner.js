@@ -36,6 +36,8 @@ import { createPlannerEvaluator, sameEvaluationContext } from '../lib/plannerEva
 import { EXAMPLES, PLANNER_FACTORS, MASSING_DEFAULTS, optionFor, initialStudioScenario, historyFor, scenarioReducer, scenarioExport } from '../lib/plannerState.js'
 import { readSavedPlan, savePlan, restorePlanContext, validPlanPin, shouldSavePlan } from '../lib/planPersistence.js'
 import { draftStatus } from '../lib/plannerStatus.js'
+import { housingCostInputs, housingCostConfirmed } from '../lib/housingCosts.js'
+import HudIncomeReference from './HudIncomeReference.js'
 
 const PlannerMap = dynamic(() => import('./PlannerMap.js'), { ssr: false, loading: () => <div className="planner-loading">Preparing the map…</div> })
 const fmt = (value, suffix = '') => typeof value === 'number' && Number.isFinite(value) ? `${round(value).toLocaleString()}${suffix}` : 'Unknown'
@@ -436,7 +438,7 @@ function Studio({ data }) {
   function editPlaced(replace = false) {
     if (!inspectedPlaced) return
     const building = inspectedPlaced
-    dispatch({ type: 'patch', value: { buildings: scenario.buildings.filter(b => b.id !== building.id), ...(replace ? { draft: { ...building.option }, targetIncome: building.targetIncome, stopId: building.stopId } : {}) } })
+    dispatch({ type: 'patch', value: { buildings: scenario.buildings.filter(b => b.id !== building.id), ...(replace ? { draft: { ...building.option }, targetIncome: building.targetIncome, affordabilityConfirmation: building.affordabilityConfirmation || null, householdSize: building.householdSize || 1, stopId: building.stopId } : {}) } })
     setSelectedBuilding(null); setPlacing(false); setTool('housing'); setInspectorTab('edit')
     setNotice(replace ? 'Planned building moved back to the draft. Change its type or size, then add the replacement.' : 'Planned building removed. Undo restores it.', 'transient')
   }
@@ -466,7 +468,7 @@ function Studio({ data }) {
     if ((scenario.buildings || []).length >= 40) { setNotice('This local plan supports 40 buildings.'); return }
     const id = crypto.randomUUID()
     setConstructionEffect({ id, pin: scenario.pin, geometry: massing.geometry, height: option.height, typeId: option.typeId })
-    dispatch({ type: 'addBuilding', building: { id, pin: scenario.pin, option: { ...option, placement: massing.placement }, targetIncome: scenario.targetIncome, stopId: scenario.stopId } })
+    dispatch({ type: 'addBuilding', building: { id, pin: scenario.pin, option: { ...option, placement: massing.placement }, targetIncome: scenario.targetIncome, affordabilityConfirmation: scenario.affordabilityConfirmation, householdSize: scenario.householdSize, stopId: scenario.stopId } })
     setProposed(true); setPlacing(false); setNotice('Building added to your plan. Undo is available.', 'transient')
   }
   function placeProposal(coordinates) {
@@ -623,9 +625,11 @@ function Studio({ data }) {
               <div className="placement-actions"><button onClick={() => moveProposal({ bearing: (placement.bearing + 345) % 360 })}>Rotate −15°</button><button onClick={() => moveProposal({ bearing: (placement.bearing + 15) % 360 })}>Rotate +15°</button><button onClick={() => { setOption('placement', null); setPlacing(false) }}>Reset alignment</button></div>
               </fieldset>
             </details>
-            <div className="section-heading"><h3>Affordability assumptions</h3><span className="data-badge">Editable</span></div><p className="section-help">Starting income and gross rent come from the selected Census geography as context. Proposed rent and utilities are independent assumptions, not a forecast.</p>
+            <div className="section-heading"><h3>Household costs</h3><span className="data-badge">Editable</span></div><p className="section-help">Starting income and gross rent describe the existing Census geography. They are not new-construction rents. Confirm your proposed values before housing-cost burden contributes to scores; each compared type shares these costs.</p>
             <Numeric label="Target household income / year ($)" value={scenario.targetIncome} min={1000} max={500000} step={1000} onChange={v => set('targetIncome', v)}/>
             <div className="field-grid"><Numeric label="Rent / month ($)" value={option.rent} max={10000} step={50} onChange={v => setOption('rent', v)}/><Numeric label="Utilities / month ($)" value={option.utilities} max={2000} step={25} onChange={v => setOption('utilities', v)}/></div>
+            <div className="cost-confirmation"><p>{housingCostConfirmed(scenario, option) ? 'These exact costs are confirmed scenario assumptions. They do not establish financial feasibility.' : 'Housing-cost scoring is excluded until you confirm the rent, utilities and income above.'}</p><button onClick={() => set('affordabilityConfirmation', housingCostConfirmed(scenario, option) ? null : housingCostInputs(scenario, option))}>{housingCostConfirmed(scenario, option) ? 'Exclude these costs from scores' : 'Use these costs in scores'}</button></div>
+            <HudIncomeReference householdSize={scenario.householdSize} targetIncome={scenario.targetIncome} monthly={option.rent + option.utilities} onSize={value => set('householdSize', value)} onIncome={value => set('targetIncome', value)}/>
             {!evaluation.pending && evaluated && <div className="metric-highlight"><span>Housing cost / target income</span><strong>{fmt(evaluated.burden === null ? null : evaluated.burden * 100, '%')}</strong><small>30% is a screening benchmark. Financing and subsidies are not evaluated.</small></div>}
             <p className="section-help">Routed walking at 80 m/min (stairs: assumed 40 m/min), plus assumed last-metre connectors and half the average departure interval. Assumes evenly spaced, usable departures in the service span. Route destinations, transfers, hills and actual arrival times are not modeled.</p>
             <Numeric label="Assumed service span (hours/day)" value={scenario.serviceHours} min={1} max={24} onChange={v => set('serviceHours', v)}/>
@@ -656,7 +660,7 @@ function Factor({ factor, option, result, scenario, onPriorities }) {
   const details = {
     demand: 'Existing neighborhood sales activity and team-chosen lot-fit curve. Not a forecast of household or typology demand. Infrastructure edits leave it unchanged.',
     physical: '100 if the fixed-size footprint fits inside the parcel without touching retained buildings; otherwise 0. Explicit scenario demolitions free only the selected footprint. Missing building context excludes this factor and withholds ranking. Supported Title Nine conflicts separately remove the housing total. Rules without sufficient evidence are excluded. Street frontage, occupancy, demolition feasibility and engineering remain unreviewed.',
-    affordability: 'Monthly proposed rent + utilities divided by target monthly household income. Score falls linearly from 100 at 20% burden to 0 at 50%; these anchors are value judgments.',
+    affordability: 'Monthly proposed rent + utilities divided by target monthly household income. Excluded until the exact inputs are confirmed as scenario assumptions. Score falls linearly from 100 at 20% burden to 0 at 50%; these anchors are value judgments.',
     displacement: '100 minus the existing tract displacement screen. Shared by housing types at this site. New service does not predict or rewrite displacement.',
     capacity: 'Available daily boardings divided by assumed new housing boardings, capped at 100. PRT departures × assumed spare places (or a manual reserve), plus added departures × available places. Not observed occupancy. Missing service/reserve excludes the factor. Utilities not assessed.',
     access: 'Routed transit access: 100 × (1 − walk plus average wait / 30 minutes). Park access: 100 × (1 − walk to mapped/proposed park / 15 minutes). Both are clamped and blended by your park-share preference (default 0%). The anchors are policy choices. No jobs, actual timetables or safe crossings are evaluated.',

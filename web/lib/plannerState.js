@@ -1,7 +1,7 @@
 import { BUILDINGS } from './buildings.js'
 import { normalizeBuildingRef, buildingRefKey } from './redevelopment.js'
 
-export const MODEL_VERSION = 'planner-screen-2.0'
+export const MODEL_VERSION = 'planner-screen-2.1'
 export const EXAMPLES = [
   { id: 'hazelwood', label: 'Hazelwood', pin: '0056F00338000000', caption: 'City inventory · Hazelwood Ave' },
   { id: 'lawrenceville', label: 'Lawrenceville', pin: '0049N00010000000', caption: 'City inventory · 3480 Butler St' },
@@ -33,7 +33,7 @@ export function initialScenario(pin, props = {}, stopId = '') {
   return {
     pin, stopId, options: { A: optionFor('townhouse_duplex', rent), B: optionFor('triplex', rent) },
     // Scenario inputs, not statements about actual capacity or proposed rents.
-    targetIncome: Math.round(props.median_income || 40000),
+    targetIncome: Math.round(props.median_income || 40000), householdSize: 1, affordabilityConfirmation: null,
     additionalDepartures: 0, serviceHours: 15, availablePlacesPerDeparture: 20,
     spareBoardings: null, boardingsPerHome: 2,
     connections: [], routes: [], parks: [], parkAccessShare: 0, buildings: [], demolitions: [],

@@ -7,6 +7,7 @@ import { rankedWinner, recommendationAudit } from './plannerRecommendation.js'
 import { shortlistTemplates, comparisonTemplates, summarizeShortlist } from './plannerShortlist.js'
 import { evaluateTitleNine, housingSpec } from './titleNine.js'
 import { retainedBuildings } from './redevelopment.js'
+import { housingCostBurden } from './housingCosts.js'
 
 const clamp = value => Math.max(0, Math.min(100, value))
 const numeric = value => typeof value === 'number' && Number.isFinite(value)
@@ -56,8 +57,8 @@ function evaluateOption(option, feature, zoning, state, stop, proposed, massing,
   const parkShare = access ? Math.max(0, Math.min(100, state.parkAccessShare || 0)) / 100 : 0
   const transitScore = service?.score ?? null, parkScore = access?.parkScore ?? null
   const accessScore = (parkShare < 1 && transitScore === null) || (parkShare > 0 && parkScore === null) ? null : (1 - parkShare) * (transitScore || 0) + parkShare * (parkScore || 0)
-  const monthly = option.rent + option.utilities
-  const burden = state.targetIncome > 0 ? monthly * 12 / state.targetIncome : null
+  const costs = housingCostBurden(state, option)
+  const { monthly, burden } = costs
   const demandBoardings = spec.units * state.boardingsPerHome
   const reserve = transitReserve(stop, state), spare = reserve.boardings
   // Additional places are a user assumption about available boarding capacity, not vehicle occupancy data.
@@ -67,14 +68,14 @@ function evaluateOption(option, feature, zoning, state, stop, proposed, massing,
   const scores = {
     demand: numeric(raw.demand) ? raw.demand : null,
     physical: !massing.fits || massing.collisions > 0 ? 0 : massing.collisions === null ? null : 100,
-    affordability: burden === null ? null : clamp(100 * (.5 - burden) / .3),
+    affordability: costs.score,
     displacement: numeric(raw.displacement_risk) ? 100 - raw.displacement_risk : null,
     capacity: supply === null || !service ? null : groupBoardings > 0 ? clamp(100 * supply / groupBoardings) : 100,
     access: accessScore,
     carbon: numeric(raw.carbon_index) ? 100 - raw.carbon_index : null,
   }
   const physicalEligible = massing.fits && massing.collisions === 0
-  return { ...option, pin: props.pin, label: spec.label, units: spec.units, floors: option.floors ?? spec.floors, permission, massing, scores, eligible: physicalEligible, physicalEligible, service, access, monthly, burden, demandBoardings, groupBoardings, addedPlaces, supply, reserve, raw,
+  return { ...option, pin: props.pin, label: spec.label, units: spec.units, floors: option.floors ?? spec.floors, permission, massing, scores, eligible: physicalEligible, physicalEligible, service, access, monthly, burden, costAssumptionsConfirmed: costs.confirmed, demandBoardings, groupBoardings, addedPlaces, supply, reserve, raw,
     gate: !massing.fits ? 'Footprint does not fit' : massing.collisions > 0 ? 'Building or infrastructure overlap' : massing.collisions === null ? 'Building overlap check unavailable' : 'No supported conflict found',
   }
 }
@@ -200,7 +201,7 @@ export function evaluatePlanner({ feature, zoning, scenario, stop, existingBuild
     const otherBuildings = site.existingBuildings === null ? null : [...site.existingBuildings, ...geometries.filter(f => f.properties.id !== site.id)]
     const stopId = String(site.stop?.stop_id)
     const ownUnits = housingSpec(site.option).units
-    const siteScenario = { ...areaScenario, targetIncome: site.targetIncome, committedUnitsByStop: { ...committedUnitsByStop, [stopId]: committedUnitsByStop[stopId] - ownUnits } }
+    const siteScenario = { ...areaScenario, targetIncome: site.targetIncome, affordabilityConfirmation: site.affordabilityConfirmation, committedUnitsByStop: { ...committedUnitsByStop, [stopId]: committedUnitsByStop[stopId] - ownUnits } }
     for (const state of ['baseline', 'proposal']) {
       const isProposal = state === 'proposal'
       const key = `${site.feature.properties.pin}:${stopId}:${state}`

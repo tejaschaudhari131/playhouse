@@ -55,3 +55,9 @@ Sources, vintages, and caveats: README "Data Sources", `docs/DATA_NOTES.md`, `we
 See README "Limitations" and `docs/VALIDATION.md`. Most important: no expert zoning review yet; dimensional rules, utilities, and geotechnical conditions are not evaluated; scores use fixed anchors, not citywide percentiles; ACS margins of error; the CHAS vintage lags; straight-line distances; no practitioner validation of the rankings.
 
 Coverage note: the 142,865 mapped records include 142,571 identified parcels and 294 county polygons without a unique PIN. Those polygons have stable `SITE…` map IDs, retain the source label, and disclose that assessment and parcel-ID-based property flags are unknown. No neighborhood is omitted.
+
+## Studio household-cost update (model 2.1)
+
+Studio excludes housing-cost burden from weighted totals until the user confirms the exact annual income, monthly rent and utilities as proposed assumptions. ACS defaults remain context. Any change to those three inputs invalidates that confirmation; Undo can restore it. Each placed building retains its own confirmation, and the shared comparison denominator excludes the factor when any member lacks confirmed costs. The burden arithmetic remains visible. Confirmed scores retain the disclosed linear anchors: 100 at 20% burden, 0 at 50%, clamped outside; these anchors are normative, not a financial feasibility model.
+
+The locally versioned FY2026 HUD HOME Pittsburgh-area table provides published household-size-adjusted 30/50/60/80 income references. It is separate from the ACS household median. A calculated 30%-income budget is not a statutory rent maximum. HOME, Section 8 extremely-low-income and MTSP/LIHTC rules are not interchangeable. No cost, acquisition, subsidy, occupancy or causal displacement evidence has been fabricated. Source parcel values and Explorer scoring are unchanged.

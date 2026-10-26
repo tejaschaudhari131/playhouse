@@ -65,7 +65,7 @@ The hackathon asks for housing alternatives, explained tradeoffs, adjustable pri
 | --- | --- |
 | Household demand | Market activity and lot-size fit proxies; not a demand forecast. |
 | Physical feasibility | Building footprints, parcel fit and supported Title Nine zoning checks. |
-| Affordability | Proposed rent and utilities relative to editable household income. |
+| Affordability | Housing-cost burden, scored only after the user confirms rent, utilities and income. HUD income-band references are available in Advanced. |
 | Displacement risk | A Census tract screening signal; not a prediction of displacement. |
 | Infrastructure capacity | Scheduled transit service × assumed spare places. Utility capacity is unknown. |
 | Access to opportunity | Walking routes, transit service and park proximity; not travel to jobs. |
@@ -78,6 +78,14 @@ The hackathon asks for housing alternatives, explained tradeoffs, adjustable pri
 Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin.
 
 Priority presets are team-authored examples, not surveyed stakeholder preferences. Their descriptions explain what they reward. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
+
+## Affordability reference
+
+**Advanced → Household costs** includes [HUD’s FY2026 Pennsylvania HOME income limits](https://www.huduser.gov/portal/datasets/home-datasets/files/HOME_IncomeLmts_State_PA_2026.pdf) (Pittsburgh area, page 2; effective June 1, 2026). Choose 1–8 household members and compare the published 30%, 50%, 60% and 80% bands. The table is included locally; no account or live API is needed. [Provenance and program distinctions](docs/DATA_SOURCES.md).
+
+Starting Census rents describe existing stock, not new construction. Housing-cost scoring starts **excluded**. Confirm the exact rent, utilities and income to include it; changing those inputs requires confirmation again. Placed buildings retain their own assumptions. Compared housing types deliberately share the draft’s costs, so equal cost-burden scores do not demonstrate equal construction economics.
+
+The displayed 30%-of-income budget is a planning benchmark, **not a HOME/LIHTC rent ceiling**. Construction costs, land purchase price, financing, subsidies, vouchers, tenant occupancy and project displacement effects remain unassessed. Existing inclusionary-zoning checks still need district coverage, project inputs and legal review; the HUD table does not certify compliance.
 
 ## Coverage and limits
 

@@ -30,6 +30,7 @@ from shapely.strtree import STRtree
 import config
 from score import chas_low_income_renter_cost_burden, model_card, score_parcel
 from sites import parse_city_owned, parse_condemned, parse_tax_delinquency, site_flags
+from hud_income_limits import register_source as register_hud_income_source
 from util import (
     arcgis_features,
     cached_download,
@@ -1412,6 +1413,7 @@ def _site_summary(parcels):
 def write_outputs(
     neighborhoods, parcels, market, county_income, sources, transit_meta, failures, stops=None, lihtc=None
 ):
+    sources = register_hud_income_source(sources)
     config.PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     config.WEB_DATA_DIR.mkdir(parents=True, exist_ok=True)
     features = [_public_feature(record) for record in parcels]
