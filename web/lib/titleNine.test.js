@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { evaluateTitleNine, housingSpec, housingPermission, housingUseOptions } from './titleNine.js'
+import { evaluateTitleNine, housingSpec, housingPermission, housingUseOptions, hasRetainedLotBuildings } from './titleNine.js'
 import { districtStandards } from './titleNineRules.js'
 import { rectangleAt, fitMassing } from './plannerGeometry.js'
 import { initialStudioScenario, optionFor } from './plannerState.js'
@@ -14,6 +14,33 @@ function fixture(code = 'LNC') {
   return { feature, zoning, option, existingBuildings: [], massing: fitMassing(feature.geometry, option.width, option.depth, null, []), siteInputs: {} }
 }
 const rule = (input, id) => evaluateTitleNine(input).checks.find(c => c.id === id)
+
+test('retained lot areas exclude demonstrably off-lot neighbors without dropping collision candidates', () => {
+  const input = fixture()
+  const neighbor = { properties: { pin: 'neighbor' }, geometry: rectangleAt([-79.939, 40.41], 10, 10) }
+  input.existingBuildings = [neighbor]
+  assert.equal(hasRetainedLotBuildings(input.feature, input.existingBuildings), false)
+  for (const id of ['far', 'coverage']) assert.equal(rule(input, id).status, 'pass')
+  const crossing = { ...neighbor, geometry: rectangleAt([-79.93945, 40.41], 30, 10) }
+  input.existingBuildings = [crossing]
+  assert.equal(hasRetainedLotBuildings(input.feature, input.existingBuildings), true)
+  for (const id of ['far', 'coverage']) assert.equal(rule(input, id).status, 'unknown')
+  input.siteInputs = { existingGfaSqft: 0, existingFootprintSqft: 0 }
+  assert.equal(rule(input, 'far').status, 'pass', 'explicit scenario area remains usable')
+  input.siteInputs = {}
+  input.existingBuildings = [{ ...neighbor, properties: { pin: 'site' } }]
+  assert.equal(rule(input, 'far').status, 'unknown', 'same-PIN record retains uncertainty even if geometry is misplaced')
+  for (const buildings of [null, [{}], [{ geometry: { type: 'Point', coordinates: [-79.94, 40.41] } }], [{ geometry: { type: 'Polygon', coordinates: [[]] } }]]) {
+    input.existingBuildings = buildings
+    assert.equal(hasRetainedLotBuildings(input.feature, buildings), null)
+    assert.equal(rule(input, 'far').status, 'unknown')
+  }
+  const scenario = initialStudioScenario('site', input.feature.properties)
+  input.existingBuildings = [{ properties: { pin: 'neighbor' }, geometry: input.feature.geometry }]
+  assert.equal(evaluatePlanner({ ...input, scenario, stop: null }).proposal.townhouse_duplex.gate, 'Building or infrastructure overlap')
+  input.existingBuildings = []
+  assert.equal(rule(input, 'far').status, 'pass', 'demolishing the last on-lot building restores the empty-lot calculation')
+})
 
 test('proposed housing permissions follow actual district rows, not the parcel recorded use', () => {
   const zoning = JSON.parse(readFileSync(new URL('../public/data/zoning.json', import.meta.url)))

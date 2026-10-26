@@ -4,17 +4,17 @@ import { STUDIO_PRESETS } from './studioPresentation.js'
 export const TOUR_PIN = EXAMPLES[0].pin
 export const TOUR_STEPS = [
   { id: 'site', title: 'Start with a real Hazelwood parcel', target: 'site-facts', tool: 'housing', tab: 'edit',
-    text: 'This Hazelwood Avenue lot is recorded as vacant. Compare its recorded use with its mapped zoning: existing use and permission to build are different. This temporary example will not change your saved-in-session plan.' },
+    text: 'This Hazelwood Avenue lot is recorded as vacant. Compare its recorded use with its mapped zoning: existing use and permission to build are different. This temporary example will not change your plan or its saved copy.' },
   { id: 'housing', title: 'Try a single-family house', target: 'housing', tool: 'housing', tab: 'edit',
     text: 'We preview an 8 × 12 m house on this lot. The dimensions are assumptions. Green means no supported conflict was found; it does not mean every code requirement has been checked.' },
   { id: 'compare', title: 'Compare three housing choices', target: 'comparison', tool: 'compare', tab: 'rankings',
     text: 'Now compare that house with a duplex and triplex on the same parcel. Read the factor differences. A “No score” result applies to the tested proposal; its blocker explains what needs to change.' },
-  { id: 'priorities', title: 'Try resident priorities', target: 'inspector', tool: 'housing', tab: 'priorities',
-    text: 'We switch to the Resident preset: affordability and displacement matter more, market fit less. These priorities are value judgments. The data stays the same, and the leading option may or may not change.' },
+  { id: 'priorities', title: 'Choose what matters to you', target: 'inspector', tool: 'housing', tab: 'priorities',
+    text: 'We switch to Costs & stability, a team-authored example that favors lower housing costs and neighborhood vulnerability. Unconfirmed costs stay excluded until reviewed in Advanced. The sliders express priorities; they do not change the evidence.' },
   { id: 'transit', title: 'Test more bus service', target: 'inspector', tool: 'service', tab: 'edit',
     text: 'We add 60 hypothetical weekday departures at an existing nearby stop. Compare walking plus waiting before and after. Scheduled service is evidence; the additional departures and even spacing are assumptions.' },
   { id: 'finish', title: 'Take this workflow to your own parcel', target: 'comparison', tool: 'housing', tab: 'rankings',
-    text: 'Pick your parcel, compare housing, adjust dimensions and priorities, then test infrastructure. Export your scenario before reloading. Finish or skip to restore the plan you had before this example.' },
+    text: 'Pick your parcel, compare housing, adjust dimensions and priorities, then test infrastructure. Edits save on this device; export a copy to share or keep elsewhere. Finish or skip to restore the plan you had before this example.' },
 ]
 
 /** Rebuild each step deterministically so Back never accumulates demo edits. */

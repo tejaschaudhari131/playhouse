@@ -151,3 +151,9 @@ Headless Chrome on the build VM, local `next start`, three runs each. `parcels.g
 - **Map keyboard access.** Leaflet and MapLibre parcel maps are not keyboard-operable; address search, Find Sites results, the guided example, and share links are the keyboard path.
 - **Accessibility audit** beyond the checks above (screen-reader walkthrough, contrast measurement) has not been done.
 - **Data currency.** Layers were pulled 2026-09-26/27; the app does not refresh them. CHAS 2018–2022 lags the ACS 2020–2024 inputs.
+
+## October 2026 trust and usability update
+
+- All 43 web test files pass, including saved-plan validation/recovery, explicit cost confirmation, relative priority invariance and citywide address source parity. All 53 pipeline tests pass using the repository virtual environment, including the HUD reference and provenance checks.
+- Production build succeeds. Browser checks cover exact fractional input restoration, placed-building restoration, tour return, cost-confirmation invalidation, stable sidebar sizing and citywide address selection.
+- Scores remain a preference screen without validated model uncertainty. HOME income references do not establish program rent limits or financial feasibility. Missing construction, acquisition, financing and tenant-level evidence remains unassessed.

@@ -8,9 +8,10 @@ import { loadNeighborhood, locateNeighborhood } from './neighborhoodLoader.js'
 import { PITTSBURGH_NEIGHBORHOODS } from './pittsburgh.js'
 import { visibleNeighborhoods, spatialIndex } from './studioData.js'
 import { prepareEmptySites } from './emptySites.js'
+import { partitionAddressRows } from './addressSearch.js'
 
 test('all city chunks preserve canonical parcel evidence and hashes, with bounded files and valid routing indices',async()=>{
- const {manifest}=await prepareStudioData(), pins=new Set(),files=new Set()
+ const {manifest}=await prepareStudioData(), pins=new Set(),files=new Set(), addressRows=[]
  const zoning=JSON.parse(await readFile(new URL('../public/data/zoning.json',import.meta.url)))
  let candidates=0, candidateBytes=0
  const fetcher=async url=>({ok:true,json:async()=>JSON.parse(await readFile(new URL(`../public${url}`,import.meta.url)))})
@@ -32,7 +33,7 @@ test('all city chunks preserve canonical parcel evidence and hashes, with bounde
    candidates+=n.emptySiteCount; candidateBytes+=n.emptySitesBytes
    assert.equal(actual.parcels.features.length,n.parcels)
    assert.ok(n.parcels>0,n.name)
-   for(const f of actual.parcels.features){assert.equal(f.properties.neighborhood,n.name);assert.ok(!pins.has(f.properties.pin));pins.add(f.properties.pin);assert.ok(f.properties.scores && f.properties.factors);assert.ok('confidence' in f.properties)}
+   for(const f of actual.parcels.features){assert.equal(f.properties.neighborhood,n.name);assert.ok(!pins.has(f.properties.pin));pins.add(f.properties.pin);assert.ok(f.properties.scores && f.properties.factors);assert.ok('confidence' in f.properties);addressRows.push([f.properties.pin,f.properties.address||'',n.id])}
    assert.equal((await locateNeighborhood(manifest,n.examplePin,undefined,fetcher)).id,n.id)
    for(const file of [...n.parcelFiles,...n.buildingFiles,n.networkFile,n.roadsFile,n.emptySitesFile])files.add(file)
    for(const file of n.buildingFiles)for(const f of JSON.parse(await readFile(new URL(`../public/data/studio/${file}`,import.meta.url))).features){
@@ -45,6 +46,23 @@ test('all city chunks preserve canonical parcel evidence and hashes, with bounde
    }
  }
  for(const file of Object.values(manifest.pinLookup))files.add(file)
+ const addresses=partitionAddressRows(addressRows)
+ assert.equal(manifest.addressSearch.indexedCount,addresses.indexed)
+ assert.equal(manifest.addressSearch.addressedCount,addresses.addressed)
+ assert.equal(manifest.addressSearch.missingAddressCount,addresses.missingAddress)
+ assert.equal(manifest.addressSearch.unsearchableCount,addresses.unsearchable)
+ assert.equal(addresses.indexed+addresses.missingAddress+addresses.unsearchable,manifest.parcelCount)
+ let searchBytes=0,largestSearch=0
+ for(const [prefix,[hash,count]] of Object.entries(manifest.addressSearch.shards)){
+   const file=`addresses-${prefix}.${hash}.json`, raw=await readFile(new URL(`../public/data/studio/${file}`,import.meta.url))
+   assert.deepEqual(JSON.parse(raw),addresses.shards.get(prefix),'search carries exact source addresses/PINs without geometry or scores')
+   assert.equal(count,addresses.shards.get(prefix).length)
+   assert.ok(raw.length<300000,'search fetches at most one small address shard')
+   searchBytes+=raw.length;largestSearch=Math.max(largestSearch,raw.length);files.add(file)
+ }
+ assert.equal(Object.keys(manifest.addressSearch.shards).length,addresses.shards.size)
+ assert.equal(searchBytes,manifest.addressSearch.totalBytes)
+ assert.equal(largestSearch,manifest.addressSearch.maximumFileBytes)
  for(const file of files) {
    const raw=await readFile(new URL(`../public/data/studio/${file}`,import.meta.url))
    assert.ok(raw.length<50000000,file)

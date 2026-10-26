@@ -5,6 +5,7 @@ import { PLANNER_FACTORS, initialStudioScenario } from './plannerState.js'
 import { evaluatePlanner } from './plannerModel.js'
 import { BUILDING_IDS } from './buildings.js'
 import { rectangleAt } from './plannerGeometry.js'
+import { housingCostInputs } from './housingCosts.js'
 const ids = PLANNER_FACTORS.map(f => f.id)
 const uniform = value => Object.fromEntries(ids.map(id => [id, value]))
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`)
@@ -14,6 +15,7 @@ function fixture() {
   const feature = { type: 'Feature', properties: { pin: 'fixture', zoning_code: 'TEST', scores }, geometry: rectangleAt([-79.94, 40.41], 100, 100) }
   const zoning = { districts: { TEST: { use_table_read: true, code_section: 'Fixture', allowed: ['single_family', 'townhouse_duplex', 'small_apartment', 'large_apartment'], use_rows: { 'Single-Unit Detached': 'P', 'Three-Unit': 'P', 'Multi-Unit': 'P' } } } }
   const scenario = { ...initialStudioScenario('fixture', feature.properties), comparisonTypes: BUILDING_IDS, spareBoardings: 20, additionalDepartures: 30 }
+  scenario.affordabilityConfirmation = housingCostInputs(scenario, scenario.draft)
   return { feature, zoning, scenario, stop: { stop_id: 'test', distance: 160, weekday_trips: 80 }, existingBuildings: [] }
 }
 

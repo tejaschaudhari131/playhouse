@@ -14,7 +14,7 @@ A transparent weighted-average screen that ranks four housing types (single-fami
 
 **Intended use:** help CDC staff and municipal planners choose which real parcel and housing option to investigate next, see why options rank differently, and list what must be verified. **Not for:** permits, zoning determinations, feasibility or financial decisions, appraisal, affordability commitments, predicting displacement, or ranking people.
 
-## Factors (`web/lib/factors.js`, one definition used everywhere)
+## Explorer and source-model factors (`web/lib/factors.js`)
 
 | Factor | Direction on 0–100 | Geography | What goes in | Main assumptions |
 | --- | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ A transparent weighted-average screen that ranks four housing types (single-fami
 
 Factors overlap: transit enters directly and through the carbon proxy's transport term (with complete data and default weights, transit's total share is (25 + 0.4 × 15) / 130 ≈ 23.8%); need indicators feed equity and displacement.
 
-## Composite and comparison
+## Explorer composite and comparison
 
 - Suitability for a higher-is-worse factor is 100 minus the value. The score is the weighted average over factors with a finite value and a positive weight; missing factors are skipped and the weights renormalize ("N of M weighted factors available"). No usable weight → no score, with a message.
 - Default relative weights 25/25/25/25/15/15 (demand, transit, equity, climate, displacement, carbon). Raw weights are relative, not percentages.
@@ -35,7 +35,7 @@ Factors overlap: transit enters directly and through the carbon proxy's transpor
 - Comparison (`web/lib/comparison.js`): contribution = weight × suitability ÷ that scenario's usable weight. Differences sum to the unrounded gap. Zero-weight factors are never drivers. Held-constant, negligible (rounds to 0.0), and uneven-coverage factors are named. Permission is reported separately from the score.
 - Permission (`web/lib/zoning.js`): the §911.02 row for the building's unit count (triplex → Three-Unit; 12 and 40 units → Multi-Unit). States: permitted, partial, special approval (A/S/C, not a variance), not permitted under the checked row, unknown (never permitted). Every reading needs expert review.
 
-## Sensitivity (`web/lib/robustness.js`)
+## Explorer sensitivity (`web/lib/robustness.js`)
 
 Five team-authored illustrative priorities (Balanced, Transit, Housing-need, Lower-hazard, Lower-carbon emphasis), not measured stakeholder preferences. The one-factor sweep moves one raw weight 0–100 in steps of 1 with the others fixed; the exact crossing is solved (polynomial of degree ≤ 2 in the weight) and reported with the first sampled change. On one parcel, transit and displacement cannot reorder options.
 
@@ -52,6 +52,16 @@ Sources, vintages, and caveats: README "Data Sources", `docs/DATA_NOTES.md`, `we
 
 ## Known limitations
 
-See README "Limitations" and `docs/VALIDATION.md`. Most important: no expert zoning review yet; dimensional rules, utilities, and geotechnical conditions are not evaluated; scores use fixed anchors, not citywide percentiles; ACS margins of error; the CHAS vintage lags; straight-line distances; no practitioner validation of the rankings.
+See README "Limitations" and `docs/VALIDATION.md`. Most important: no expert zoning review yet; Explorer does not evaluate dimensional rules; Studio applies supported Title Nine checks, with unassessed rules explicitly excluded. Neither evaluates utilities or geotechnical conditions; scores use fixed anchors, not citywide percentiles; ACS margins of error; the CHAS vintage lags; Explorer uses straight-line distances and Studio uses routed walking estimates; no practitioner validation of the rankings.
 
 Coverage note: the 142,865 mapped records include 142,571 identified parcels and 294 county polygons without a unique PIN. Those polygons have stable `SITE…` map IDs, retain the source label, and disclose that assessment and parcel-ID-based property flags are unknown. No neighborhood is omitted.
+
+## Studio model 2.1
+
+Studio uses seven factors: market fit, physical fit, housing-cost burden, neighborhood displacement vulnerability, assumed transit capacity, access and relative carbon. The starting raw weights are 20/15/20/10/10/15/10; only their ratios matter. A shared denominator includes positive-weight factors available across every selected option and infrastructure state. Physical failure or a supported zoning conflict withholds the total regardless of priorities. Access uses the walking graph and scheduled service; capacity uses explicit spare-boarding assumptions. Title Nine checks include supported dimensions and quantities, not every code requirement.
+
+### Household costs
+
+Studio excludes housing-cost burden from weighted totals until the user confirms the exact annual income, monthly rent and utilities as proposed assumptions. ACS defaults remain context. Any change to those three inputs invalidates that confirmation; Undo can restore it. Each placed building retains its own confirmation, and the shared comparison denominator excludes the factor when any member lacks confirmed costs. The burden arithmetic remains visible. Confirmed scores retain the disclosed linear anchors: 100 at 20% burden, 0 at 50%, clamped outside; these anchors are normative, not a financial feasibility model.
+
+The locally versioned FY2026 HUD HOME Pittsburgh-area table provides published household-size-adjusted 30/50/60/80 income references. It is separate from the ACS household median. A calculated 30%-income budget is not a statutory rent maximum. HOME, Section 8 extremely-low-income and MTSP/LIHTC rules are not interchangeable. No cost, acquisition, subsidy, occupancy or causal displacement evidence has been fabricated. Source parcel values and Explorer scoring are unchanged.

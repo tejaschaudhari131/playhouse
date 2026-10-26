@@ -7,6 +7,7 @@ import { geometryBounds, boundsOverlap, geometriesOverlap } from '../lib/planner
 import { colorBuildingUses } from '../lib/buildingUses.js'
 import { collection, neighborhoodId, neighborhoodAdjacency, spatialIndex } from '../lib/studioData.js'
 import { prepareEmptySites } from '../lib/emptySites.js'
+import { partitionAddressRows } from '../lib/addressSearch.js'
 
 // Legacy study partitioner retained for transport-parity regression tests.
 export function partitionStudioData(parcels, buildings, neighborhoods) {
@@ -77,13 +78,14 @@ export async function prepareStudioData() {
     if (batch.length || !files.length) await flush()
     return { files, sizes }
   }
-  const uses = new Map(), pinLookup = {}, descriptors = []
+  const uses = new Map(), pinLookup = {}, descriptors = [], addressRows = []
   for (const n of neighborhoods.features) {
     const id=neighborhoodId(n.properties.name), data=await gz(new URL(`parcels/${id}.geojson.gz`, source))
     for (const f of data.features) {
       const p=f.properties
       uses.set(p.pin,{properties:{land_use:p.land_use,land_use_class:p.land_use_class}})
       ;(pinLookup[p.pin.slice(0,3)] ||= {})[p.pin]=id
+      addressRows.push([p.pin, p.address || '', id])
     }
   }
   const buildings = colorBuildingUses(await gz(new URL('existing-buildings.geojson.gz',source)),uses)
@@ -140,10 +142,23 @@ export async function prepareStudioData() {
     manifest.pinLookup[prefix]=part.file
     manifest.maximumFileBytes=Math.max(manifest.maximumFileBytes,part.bytes)
   }
+  const addresses = partitionAddressRows(addressRows)
+  manifest.addressSearch = { version: 1, shards: {}, addressedCount: addresses.addressed, indexedCount: addresses.indexed,
+    missingAddressCount: addresses.missingAddress, unsearchableCount: addresses.unsearchable, totalBytes: 0, maximumFileBytes: 0 }
+  for (const [prefix, rows] of [...addresses.shards].sort(([a], [b]) => a.localeCompare(b))) {
+    const part = await write(`addresses-${prefix}`, rows)
+    if (part.bytes > 300_000) throw new Error(`Address prefix ${prefix} exceeds 300 KB; subdivide the search index before release`)
+    // Prefix + hash reconstruct the filename; avoid repeating it in the initial manifest.
+    manifest.addressSearch.shards[prefix] = [part.file.split('.')[1], rows.length]
+    manifest.addressSearch.totalBytes += part.bytes
+    manifest.addressSearch.maximumFileBytes = Math.max(manifest.addressSearch.maximumFileBytes, part.bytes)
+    manifest.maximumFileBytes = Math.max(manifest.maximumFileBytes, part.bytes)
+  }
   if (manifest.maximumFileBytes > 50_000_000) throw new Error('A transport file exceeds 50 MB; partition it before release')
   const content=JSON.stringify(manifest)
   await writeFile(new URL('manifest.json',destination),content)
   console.log(`Manifest ${Buffer.byteLength(content)} bytes; largest transport file ${manifest.maximumFileBytes} bytes; ${manifest.parcelCount} parcels across ${descriptors.length} neighborhoods.`)
+  console.log(`Address search: ${addresses.indexed} indexed parcels; ${addresses.shards.size} lazy shards; largest ${manifest.addressSearch.maximumFileBytes} bytes.`)
   return {manifest}
 }
 

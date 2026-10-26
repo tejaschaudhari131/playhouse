@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "hud-home-pittsburgh-2026",
+  "fiscalYear": 2026,
+  "effectiveDate": "2026-06-01",
+  "verifiedAt": "2026-10-26",
+  "program": "HOME",
+  "currency": "USD",
+  "period": "annual",
+  "area": {
+    "id": "METRO38300M38300",
+    "name": "Pittsburgh, PA HUD Metro FMR Area",
+    "countyFips": ["42003", "42007", "42019", "42051", "42125", "42129"],
+    "source": {
+      "name": "FY 2026 HUD Income Limits Area Definitions",
+      "url": "https://www.huduser.gov/portal/datasets/il/il26/area-definitions-FY26.pdf",
+      "page": 58
+    }
+  },
+  "householdSizes": [1, 2, 3, 4, 5, 6, 7, 8],
+  "incomeLimits": {
+    "30": [23200, 26500, 29800, 33100, 35750, 38400, 41050, 43700],
+    "50": [38650, 44200, 49700, 55200, 59650, 64050, 68450, 72900],
+    "60": [46380, 53040, 59640, 66240, 71580, 76860, 82140, 87480],
+    "80": [61850, 70650, 79500, 88300, 95400, 102450, 109500, 116600]
+  },
+  "source": {
+    "name": "HUD FY2026 HOME Income Limits — Pennsylvania",
+    "url": "https://www.huduser.gov/portal/datasets/home-datasets/files/HOME_IncomeLmts_State_PA_2026.pdf",
+    "page": 2,
+    "publisher": "U.S. Department of Housing and Urban Development",
+    "license": "Public domain, U.S. federal work",
+    "method": "Published Pittsburgh-area rows transcribed from the official PDF and checked against its extracted text. All four income-limit bands are published values, not percentages calculated from median family income."
+  },
+  "medianFamilyIncome": {
+    "value": 110400,
+    "fiscalYear": 2026,
+    "effectiveDate": "2026-05-01",
+    "source": {
+      "name": "HUD FY2026 Section 8 Income Limits",
+      "url": "https://www.huduser.gov/portal/datasets/il/il26/Section8-IncomeLimits-FY26.pdf",
+      "page": 186
+    }
+  },
+  "caveats": [
+    "These are HOME income-reference limits for the Pittsburgh HUD Metro FMR Area, including Allegheny County. They are not neighborhood median incomes or a forecast of new-construction rents.",
+    "Household size counts people, not bedrooms or homes. The table covers one through eight people; no other sizes are inferred.",
+    "HUD median family income is different from the parcel's ACS median household income. Published income limits include program adjustments; do not recreate them by multiplying the median by a percentage.",
+    "The HOME 30% row is not the Section 8 extremely-low-income row, which includes poverty-guideline adjustments and differs here for households of five or more.",
+    "A household budget calculated as 30% of annual income divided by 12 is a planning benchmark, not a published HOME or LIHTC rent limit. Program rents, bedroom rules, utility allowances, eligibility, covenants, financing and subsidies require separate review.",
+    "LIHTC and tax-exempt housing-bond projects use applicable MTSP limits and project-specific rules. The published Pittsburgh FY2026 MTSP 60% values match this HOME row, but that does not make the programs interchangeable."
+  ],
+  "relatedSources": [
+    {
+      "name": "HUD FY2026 MTSP Income Limits",
+      "url": "https://www.huduser.gov/portal/datasets/mtsp/mtsp26/HERA-Income-Limits-Report-FY26.pdf",
+      "page": 242,
+      "effectiveDate": "2026-05-01"
+    },
+    {
+      "name": "HUD FY2026 MTSP Briefing Materials",
+      "url": "https://www.huduser.gov/portal/datasets/mtsp/mtsp26/MTSP-Briefing-26.pdf",
+      "note": "Pages 3–4 explain the 60% calculation and hold-harmless rules; pages 9–10 describe rent restrictions and imputed household size."
+    }
+  ]
+}
