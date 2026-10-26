@@ -38,6 +38,7 @@ import { readSavedPlan, savePlan, restorePlanContext, validPlanPin, shouldSavePl
 import { draftStatus } from '../lib/plannerStatus.js'
 import { housingCostInputs, housingCostConfirmed } from '../lib/housingCosts.js'
 import HudIncomeReference from './HudIncomeReference.js'
+import PolicyContext from './PolicyContext.js'
 
 const PlannerMap = dynamic(() => import('./PlannerMap.js'), { ssr: false, loading: () => <div className="planner-loading">Preparing the map…</div> })
 const fmt = (value, suffix = '') => typeof value === 'number' && Number.isFinite(value) ? `${round(value).toLocaleString()}${suffix}` : 'Unknown'
@@ -610,6 +611,7 @@ function Studio({ data }) {
           {inspectorTab === 'assumptions' && <>
             <div className="section-heading"><h3>Advanced options</h3></div>
             <p className="compact-help">Proposed values are editable. Sources, model choices and limits are below.</p>
+            <PolicyContext properties={props} snapshot={summary.pulled_at}/>
             <details className="planner-details advanced-options" open><summary>Building & household inputs</summary>
             <p className="compact-help">Editing the current draft. Enter exact values; changes recalculate on Enter or leaving the field.</p>
             <div className="field-grid three"><Numeric label="Width (m)" value={option.width} min={2} max={100} onChange={v => setOption('width', v)}/><Numeric label="Depth (m)" value={option.depth} min={2} max={100} onChange={v => setOption('depth', v)}/><Numeric label="Zoning height above grade (m)" value={option.height} min={3} max={100} onChange={v => setOption('height', v)}/></div>

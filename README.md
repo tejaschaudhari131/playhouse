@@ -87,6 +87,12 @@ Starting Census rents describe existing stock, not new construction. Housing-cos
 
 The displayed 30%-of-income budget is a planning benchmark, **not a HOME/LIHTC rent ceiling**. Construction costs, land purchase price, financing, subsidies, vouchers, tenant occupancy and project displacement effects remain unassessed. Existing inclusionary-zoning checks still need district coverage, project inputs and legal review; the HUD table does not certify compliance.
 
+## Policy follow-up
+
+Advanced shows the parcel’s recorded City inventory, vacancy and tax-delinquency flags, with links to the [Pittsburgh Land Bank’s acquisition routes](https://pghlandbank.org/how-to-buy-vacant-blighted-or-tax-delinquent-property-in-pittsburgh/), [URA property purchase process](https://www.ura.org/pages/property-disposition) and [tenant/homeowner support](https://www.ura.org/pages/housing). These are investigation leads, not proof that a property or program is available to you.
+
+Follow [City housing policy updates](https://engage.pittsburghpa.gov/implementing-housing-needs-assessment) for proposed reforms. Proposals are not automatically treated as enacted zoning. No citywide housing-target progress metric is shown without a verified adopted target and comparable outcome data.
+
 ## Coverage and limits
 
 - **All 90 Pittsburgh neighborhoods:** 142,571 identified parcels plus 294 shared-ground/anonymous polygons.
