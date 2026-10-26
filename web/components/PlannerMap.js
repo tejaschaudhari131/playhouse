@@ -15,13 +15,14 @@ import { DETAIL_ZOOM, DETAIL_EXIT_ZOOM, hasMapDetail, renderViewport } from '../
 import { mapSourceDiff } from '../lib/mapSourceDiff.js'
 import { networkDisplayIndex } from '../lib/networkDisplay.js'
 import { recordedBuildingRef, retainedBuildings } from '../lib/redevelopment.js'
+import { playDemolitionEffect } from '../lib/demolitionEffect.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
 const fc = features => ({ type: 'FeatureCollection', features })
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport }) {
+export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -33,6 +34,7 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
   const popup = useRef(null)
   const loadedMap = useRef(null)
   const uploaded = useRef(new Map())
+  const consumedDemolition = useRef(null)
   const roadIndex = useMemo(() => tool === 'network' && network ? networkDisplayIndex(network, neighborhoods) : null, [tool, network, neighborhoods])
   const visibleKey = visibleNeighborhoodIds.join('|')
   const visibleRoads = useMemo(() => detail && roadIndex ? roadIndex.query(renderBounds, visibleKey.split('|').filter(Boolean)) : [], [roadIndex, detail, renderBounds, visibleKey])
@@ -207,6 +209,15 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
     updateFeatures('discovery', visibleParcels.filter(f => pins.has(f.properties.pin)))
     updateFeatures('existing-buildings', visibleBuildings)
   }, [ready, visibleParcels, visibleBuildings, discoveryPins])
+  useEffect(() => {
+    // Only an explicit action emits an effect. Zoom, chunks, history and the tour
+    // can remove rendered footprints too, and must never look like demolition.
+    if (!demolitionEffect || consumedDemolition.current === demolitionEffect.id) return
+    consumedDemolition.current = demolitionEffect.id
+    const map = readyMap(), { building, feature } = demolitionEffect
+    if (!map || !detail || !showExisting || selected?.properties.pin !== building.pin || !demolitions.some(b => b.id === building.id && b.pin === building.pin)) return
+    return playDemolitionEffect(map, feature)
+  }, [ready, demolitionEffect, demolitions, showExisting, detail, selected?.properties.pin])
   useEffect(() => {
     if (!ready) return
     const pins = new Set(emptyPins)

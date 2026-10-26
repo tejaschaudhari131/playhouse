@@ -646,3 +646,20 @@
   .studio-tools button { width: 44px; height: 40px; }
   .studio .inspector-top { padding: 8px 12px; }
 }
+
+/* Short, decorative demolition feedback. MapLibre owns the outer marker transform. */
+.demolition-effect { width: 0; height: 0; pointer-events: none; }
+.demolition-block { position: absolute; left: 0; top: 0; width: var(--debris-size); height: var(--debris-size); margin: calc(var(--debris-size) / -2); opacity: 0; pointer-events: none; will-change: transform, opacity; animation: demolition-scatter 620ms ease-out both; }
+.demolition-block svg { display: block; width: 100%; height: 100%; overflow: visible; fill: var(--debris-color); }
+.demolition-face-top { filter: brightness(1.2); }
+.demolition-face-left { filter: brightness(.9); }
+.demolition-face-right { filter: brightness(.7); }
+@keyframes demolition-scatter {
+  0% { opacity: .85; transform: translate3d(var(--sx), var(--sy), 0) scale(1); }
+  42% { opacity: .8; transform: translate3d(var(--mx), var(--my), 0) rotate(var(--turn)) scale(.9); }
+  100% { opacity: 0; transform: translate3d(var(--ex), var(--ey), 0) rotate(var(--turn)) scale(.3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demolition-effect { display: none; }
+  .demolition-block { animation: none; }
+}

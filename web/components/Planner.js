@@ -163,6 +163,7 @@ function Studio({ data }) {
   }, [])
   const [showExisting, setShowExisting] = useState(true)
   const [selectedBuilding, setSelectedBuilding] = useState(null)
+  const [demolitionEffect, setDemolitionEffect] = useState(null)
   const [focusRequest, setFocusRequest] = useState(0)
   const [highlightEmpty, setHighlightEmpty] = useState(false)
   const [networkData, setNetworkData] = useState(null), [networkError, setNetworkError] = useState(null), [networkAttempt, setNetworkAttempt] = useState(0)
@@ -345,6 +346,7 @@ function Studio({ data }) {
     const building = recordedBuildingRef(inspectedExisting)
     if (!building || building.pin !== scenario.pin || !context) return
     if ((scenario.demolitions || []).length >= 100) { setNotice('This plan supports 100 simulated demolitions. Restore one to remove another.'); return }
+    setDemolitionEffect({ id: crypto.randomUUID(), building, feature: inspectedExisting })
     dispatch({ type: 'demolishBuilding', building, resetDraft: replace })
     setSelectedBuilding(null); setPlacing(false); setTool('housing'); setInspectorTab('edit')
     setNotice(replace ? 'Building removed in this scenario. Preview a replacement on the cleared parcel; zoning and fit checks still apply.' : 'Building demolished in this scenario. Restore it from the plan or use Undo.')
@@ -460,7 +462,7 @@ function Studio({ data }) {
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
-        <PlannerMap parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding ? null : buildingPreview} demolitions={scenario.demolitions} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={result?.committed?.[proposed ? 'proposal' : 'baseline'] || []} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
+        <PlannerMap parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={result?.committed?.[proposed ? 'proposal' : 'baseline'] || []} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
         <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
         {placing && <div className="placement-banner" role="status">Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <button onClick={() => setPlacing(false)}>Cancel placement</button></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
