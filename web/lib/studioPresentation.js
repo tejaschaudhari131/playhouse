@@ -38,7 +38,7 @@ export function comparisonScore(option, reform = false) {
   return { value: Number.isFinite(option?.suitability) ? option.suitability : null, kind: 'underlying' }
 }
 
-const scoreText = value => Number.isFinite(value) ? value.toFixed(1) : 'Not ranked'
+const scoreText = value => Number.isFinite(value) ? value.toFixed(1) : '—'
 
 /** Compact plan totals shown above every inspector tab. Scores compare the same plan under current and changed infrastructure. */
 export function planImpact({ buildings = 0, demolitions = 0, net, placedPlan = null, pending = false }) {
@@ -47,7 +47,7 @@ export function planImpact({ buildings = 0, demolitions = 0, net, placedPlan = n
   const netValue = `${net?.uncertain ? 'up to ' : ''}${signed(net?.net ?? 0)}`
   const score = pending ? { text: 'Updating…', detail: null }
     : !placedPlan ? { text: '—', detail: buildings ? 'Score appears after evaluation.' : 'Add a building to score the plan.' }
-      : { text: `${scoreText(placedPlan.baseline.total)} → ${scoreText(placedPlan.proposal.total)}`,
+      : { text: Number.isFinite(placedPlan.baseline.total) || Number.isFinite(placedPlan.proposal.total) ? `${scoreText(placedPlan.baseline.total)} → ${scoreText(placedPlan.proposal.total)}` : 'Not ranked',
         detail: Number.isFinite(placedPlan.baseline.total) && Number.isFinite(placedPlan.proposal.total) ? 'Current → changed infrastructure' : 'Not ranked: a planned building needs zoning or physical review.' }
   return { empty: false, homes, net: netValue, netDetail: `${homes} proposed − ${net?.replaced ?? 0}${net?.uncertain ? '+' : ''} replaced (estimate)`, score }
 }

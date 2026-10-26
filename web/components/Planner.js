@@ -655,12 +655,14 @@ function Studio({ data }) {
         <div className="inspector-top"><div className="inspector-status"><span className="live-dot"/>{evaluation.pending ? 'Recalculating…' : 'Scenario ready'}<span>{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving…' : autosave.kind === 'error' ? 'Not saved' : 'Local plan'}</span></div><label data-tour="site" className="site-search"><Icon name="pin" size={16}/><input aria-label="Search address or parcel ID" placeholder="Search Pittsburgh address or parcel ID…" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={event => { if (event.key === 'Escape') setQuery(''); if (event.key === 'Enter') { event.preventDefault(); const pin = query.trim().toUpperCase(); if (isParcelSearch(pin)) select(pin); else if (matches.length === 1) select(matches[0].properties.pin); else setNotice('Choose an address suggestion, or enter an exact Pittsburgh parcel ID.') } }}/></label>{query.length > 1 && <div className="search-results" aria-label="Citywide address results" aria-busy={addressSearch.pending}>{matches.length ? <><p>{addressSearch.total} citywide matches{addressSearch.total > matches.length ? ' · showing six; refine the address' : ''}</p>{matches.map(f => <button key={f.properties.pin} onClick={() => select(f.properties.pin)}>{f.properties.address || f.properties.pin}<small>{f.properties.neighborhood}</small></button>)}</> : <p role="status">{addressSearch.pending ? 'Searching Pittsburgh addresses…' : addressSearch.error || (addressSearch.status === 'pin' ? 'Press Enter to open this parcel ID.' : addressSearch.status === 'short' ? 'Enter at least three letters of a street name, or an exact parcel ID.' : 'No matching address in the city index. Parcels without searchable addresses can still be opened by parcel ID.')}</p>}{addressSearch.error && <button onClick={addressSearch.retry}>Retry address search</button>}</div>}</div>
         <nav className="inspector-tabs" aria-label="Inspector sections">{[['edit', tool === 'sites' ? 'Sites' : tool === 'service' ? 'Transit' : tool === 'network' ? 'Streets' : 'Build'], ['rankings','Compare'], ['priorities','Priorities'], ['assumptions','Advanced']].map(([id,label]) => <button key={id} aria-pressed={inspectorTab === id} onClick={() => { setInspectorTab(id); setPlacing(false); if (id === 'rankings') { setSelectedBuilding(null); if (tool === 'sites' || tool === 'compare') setActiveTool('housing') } }}>{label}</button>)}</nav>
         <section className={`plan-impact-bar${bar.empty ? ' empty' : ''}`} aria-label="Your plan">
-          <strong className="plan-impact-title">Your plan</strong>
-          {bar.empty ? <span className="plan-impact-empty">{bar.text}</span> : <>
-            <span><small>Proposed homes</small><b>{bar.homes}</b></span>
-            <span title={`${bar.netDetail}. ${planNet.note}`}><small>Net homes</small><b>{bar.net}</b><small>{bar.netDetail}</small></span>
-            <span title={bar.score.detail || undefined}><small>Plan score</small><b>{bar.score.text}</b>{bar.score.detail && <small>{bar.score.detail}</small>}</span>
-            {!(inspectorTab === 'edit' && tool === 'housing') && <button onClick={() => { setTool('housing'); setInspectorTab('edit'); setPlacing(false) }}>Review</button>}
+          <div className="plan-impact-head"><strong>Your plan</strong>{bar.empty ? <span>{bar.text}</span> : !(inspectorTab === 'edit' && tool === 'housing') && <button onClick={() => { setTool('housing'); setInspectorTab('edit'); setPlacing(false) }}>Review</button>}</div>
+          {!bar.empty && <>
+            <dl className="plan-impact-stats">
+              <div><dt>Proposed homes</dt><dd>{bar.homes}</dd></div>
+              <div title={planNet.note}><dt>Net homes</dt><dd>{bar.net}</dd></div>
+              <div><dt>Plan score</dt><dd>{bar.score.text}</dd></div>
+            </dl>
+            <small className="plan-impact-note">{bar.netDetail}{bar.score.detail ? ` · ${bar.score.detail}` : ''}</small>
           </>}
         </section>
         <div className="inspector-scroll" ref={inspectorScroll} key={inspectorTab}>
