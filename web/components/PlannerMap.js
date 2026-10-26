@@ -21,7 +21,7 @@ const fc = features => ({ type: 'FeatureCollection', features })
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], selectedBuilding = null, onBuildingSelect, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport }) {
+export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -263,7 +263,7 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
   useEffect(() => {
     const map = readyMap()
     if (!map) return
-    const building = tool !== 'sites' && buildingPreview ? [buildingPreview] : []
+    const building = ['housing', 'compare'].includes(tool) && buildingPreview ? [buildingPreview] : []
     map.getSource('building').setData(fc(building))
   }, [ready, buildingPreview, tool])
 
@@ -303,16 +303,18 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
     if (!map) return
     const point = selected && geometryCenter(selected.geometry)
     const newSite = point && lastPin.current !== selected.properties.pin
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     // A second easeTo cancels the first: apply the complete camera destination
     // together, including on direct parcel links and rapid tool/site switches.
     map.easeTo({
       ...(point ? { center: point } : {}),
       ...(newSite ? { zoom: 17.6 } : {}),
       pitch: view3d ? 55 : 0, bearing: view3d ? -25 : 0,
-      duration: newSite ? 650 : 350,
+      duration: reduceMotion ? 0 : newSite ? 650 : 350,
+      animate: !reduceMotion,
     })
     if (point) lastPin.current = selected.properties.pin
-  }, [ready, selected, view3d])
+  }, [ready, selected, view3d, focusRequest])
 
   return <><div ref={container} className="planner-map" data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
 }
