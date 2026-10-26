@@ -5,7 +5,7 @@ import { simulatedColor } from '../lib/buildingUses.js'
 import { FACTOR_LABELS, templateTradeoffs, zoningBadge, comparisonScore } from '../lib/studioPresentation.js'
 
 const number = n => Number.isFinite(n) ? n.toFixed(1) : '—'
-export default function HousingComparison({ comparison, draft, selectedTypes = [], onSelection, proposed, pending, expanded, onExpand, onBack, area, onUse, onAssumptions, reform = false, onReform }) {
+export default function HousingComparison({ comparison, draft, selectedTypes = [], onSelection, proposed, pending, expanded, onExpand, onBack, area, onUse, onAssumptions, reform = false, onReform, costControl = null }) {
   const state = proposed ? 'proposal' : 'baseline'
   const entries = comparison?.entries || []
   const totals = entries.map(entry => entry[state]).filter(option => option.eligible && Number.isFinite(option.total)).map(option => option.total)
@@ -21,6 +21,7 @@ export default function HousingComparison({ comparison, draft, selectedTypes = [
     </fieldset>
     {pending || !comparison ? <p role="status">Calculating the current comparison…</p> : <>
       <p className="coverage-pill">{comparison.included.length}/7 factors weighted · {proposed ? 'Proposed' : 'Existing'} infrastructure <button onClick={onAssumptions}>Advanced</button></p>
+      {costControl}
       <label className="reform-toggle"><input type="checkbox" role="switch" checked={reform} onChange={event => onReform?.(event.target.checked)}/><span><strong>Simulate zoning reform (by-right)</strong><small>Treats the proposed use as permitted where the §911.02 use row is the only zoning conflict{useBlocked ? ` (${useBlocked} of ${entries.length} types here)` : ''}. Fit, height, area and evidence checks still apply. A what-if, not current law; rankings are unchanged.</small></span></label>
       {totals.length > 1 && <p className="compact-help">Modeled scores span {number(Math.min(...totals))}–{number(Math.max(...totals))}. Small gaps are not proof of a better project: the model has no validated uncertainty margin.</p>}
       {entries.length === 1 && <p className="compact-help">Select another type above to compare side by side.</p>}

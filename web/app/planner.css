@@ -748,3 +748,20 @@
 .reform-toggle strong { display: block; font-size: 13px; }
 .reform-toggle small { display: block; color: #6d5f49; font-size: 11px; }
 .draft-result .zoning-badge { display: inline-block; }
+
+/* Housing-cost switch and AMI chips */
+.cost-switch { margin: 12px 0; padding: 10px 12px; border: 1px solid #d4dece; border-radius: 9px; background: #f7f8f3; font-size: 12px; line-height: 1.45; }
+.cost-switch.on { border-color: #a9cdb3; background: #eef7f0; }
+.cost-switch label { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
+.cost-switch input { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 2px; accent-color: #315b46; }
+.cost-switch strong { display: block; font-size: 13px; }
+.cost-switch small { display: block; color: #5f7465; font-size: 11px; }
+.cost-switch.compact { margin: 8px 0; padding: 8px 10px; }
+.studio .cost-switch button { margin-top: 7px; padding: 6px 9px; font-size: 12px; }
+.build-costs { margin: 12px 0 0; }
+.ami-chips > span { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #5b6e5e; }
+.studio .ami-chips .ami-size { padding: 2px 7px; font-size: 11px; border-radius: 999px; }
+.ami-chips > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.studio .ami-chips > div button { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; min-height: 42px; font-size: 12px; line-height: 1.25; }
+.ami-chips > div button small { color: #5f7465; font-size: 11px; }
+.ami-chips > div button[aria-pressed=true] { border-color: #315b46; background: #e1f0e5; }

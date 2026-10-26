@@ -37,7 +37,7 @@ function validOption(option) {
 /** Reject malformed stored inputs; never repair a plan by silently dropping edits. */
 export function validatePlan(scenario) {
   if (!object(scenario) || !safeJson(scenario) || !validPlanPin(scenario.pin) || !validOption(scenario.draft)) return 'The saved plan has invalid parcel or building inputs.'
-  if (!affordabilityConfirmation(scenario.affordabilityConfirmation) || scenario.householdSize !== undefined && !(Number.isInteger(scenario.householdSize) && number(scenario.householdSize, 1, 8))) return 'The saved household inputs are invalid.'
+  if (!affordabilityConfirmation(scenario.affordabilityConfirmation) || scenario.affordabilityAuto !== undefined && typeof scenario.affordabilityAuto !== 'boolean' || scenario.householdSize !== undefined && !(Number.isInteger(scenario.householdSize) && number(scenario.householdSize, 1, 8))) return 'The saved household inputs are invalid.'
   if (!object(scenario.weights) || !PLANNER_FACTORS.every(({ id }) => number(scenario.weights[id], 0, 100))) return 'The saved priorities are invalid.'
   if (!list(scenario.comparisonTypes, BUILDING_IDS.length) || !scenario.comparisonTypes.every(id => BUILDING_IDS.includes(id)) || !unique(scenario.comparisonTypes)) return 'The saved comparison choices are invalid.'
   for (const [key, min, max] of [['targetIncome', 1, 1e8], ['additionalDepartures', 0, 10000], ['serviceHours', 1, 24], ['availablePlacesPerDeparture', 0, 1000], ['boardingsPerHome', 0, 1000], ['parkAccessShare', 0, 100]]) {

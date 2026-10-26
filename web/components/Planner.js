@@ -42,6 +42,7 @@ import { readSavedPlan, savePlan, restorePlanContext, shouldSavePlan } from '../
 import { draftStatus } from '../lib/plannerStatus.js'
 import { housingCostInputs, housingCostConfirmed } from '../lib/housingCosts.js'
 import HudIncomeReference from './HudIncomeReference.js'
+import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
 import useAddressSearch from './useAddressSearch.js'
 import { isParcelSearch } from '../lib/addressSearch.js'
@@ -417,6 +418,13 @@ function Studio({ data }) {
   const option = scenario.draft, evaluated = options?.[option.typeId]
   const draftState = draftStatus({ evaluated, proposal: result?.proposal?.[option.typeId], weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors, hasPlacedBuildings: scenario.buildings.length > 0 })
   const paused = previewPaused(justAdded, scenario) && !placing
+  const costsIncluded = housingCostConfirmed(scenario, option)
+  const placedCostsExcluded = scenario.buildings.filter(b => !housingCostConfirmed(b, b.option)).length
+  function setHousingCosts(include) {
+    dispatch({ type: 'housingCosts', include })
+    setNotice(include ? 'Housing costs now count in scores as scenario assumptions, for the draft and every placed building. Edits keep them included.' : 'Housing costs excluded from every score. Turn the switch back on to include them.', 'transient')
+  }
+  const costSwitch = compact => <CostSwitch compact={compact} included={costsIncluded} rent={option.rent} utilities={option.utilities} targetIncome={scenario.targetIncome} placedExcluded={placedCostsExcluded} onChange={setHousingCosts}/>
   const cards = useMemo(() => typologyCards({ draft: option, options, code: props.zoning_code, zoning }), [option, options, props.zoning_code, zoning])
   const zoningInputs = scenario.zoningInputsByPin?.[scenario.pin] || {}
   function setZoningInput(key, value) { set('zoningInputsByPin', { ...scenario.zoningInputsByPin, [scenario.pin]: { ...zoningInputs, [key]: value } }) }
@@ -445,6 +453,7 @@ function Studio({ data }) {
     const next = makeScenario(pin)
     if (!building && emptyCandidates.has(pin)) next.draft = optionFor(emptyCandidates.get(pin), next.draft.rent)
     if (sameArea) Object.assign(next, { zoningInputsByPin: scenario.zoningInputsByPin, projectInputs: scenario.projectInputs, connections: scenario.connections, routes: scenario.routes, parks: scenario.parks, parkAccessShare: scenario.parkAccessShare, weights: scenario.weights, comparisonTypes: scenario.comparisonTypes, buildings: scenario.buildings || [], demolitions: scenario.demolitions || [], additionalDepartures: scenario.additionalDepartures, serviceHours: scenario.serviceHours, serviceStopId: scenario.serviceStopId || scenario.stopId, capacityStopId: scenario.capacityStopId || scenario.stopId, spareBoardings: scenario.spareBoardings, capacityMode: scenario.capacityMode, baselinePlacesPerDeparture: scenario.baselinePlacesPerDeparture, availablePlacesPerDeparture: scenario.availablePlacesPerDeparture, boardingsPerHome: scenario.boardingsPerHome })
+    if (sameArea && typeof scenario.affordabilityAuto === 'boolean') next.affordabilityAuto = scenario.affordabilityAuto
     if (sameArea && nearbyStops(byPin.get(pin), stops).some(s => String(s.stop_id) === next.serviceStopId)) next.stopId = next.serviceStopId
     dispatch({ type: 'reset', scenario: next }); setQuery(''); setTool('housing'); setInspectorTab('edit')
     setNotice(sameArea ? 'Site selected. Your plan is retained.' : 'New area, new plan. Undo returns to your previous plan.', 'transient')
@@ -658,7 +667,7 @@ function Studio({ data }) {
             <ul>{scenario.buildings.map((b, i) => <li key={b.id}><button aria-label={`Inspect planned building ${i + 1}`} onClick={() => selectBuilding({ kind: 'placed', id: b.id, pin: b.pin })}><strong>{housingSpec(b.option).label}</strong><small>{byPin.get(b.pin)?.properties.address || b.pin} · planned</small></button><button aria-label={`Remove placed building ${i + 1}`} onClick={() => { dispatch({ type: 'removeBuilding', id: b.id }); if (selectedBuilding?.id === b.id) setSelectedBuilding(null) }}>Remove</button></li>)}</ul>
             <ul>{(scenario.demolitions || []).map(b => <li key={demolitionKey(b)}><button onClick={() => inspectDemolition(b)}><strong>{byPin.get(demolitionSite(b))?.properties.address || demolitionSite(b)}</strong><small>Outline {b.id} · demolished{b.site || b.unmatched ? ' · crossed the parcel boundary' : ''}</small></button><button onClick={() => restoreExisting(b)} aria-label={`Restore building ${b.id}`}>Restore</button></li>)}</ul>
           </div></details>}
-          {inspectorTab === 'rankings' && <HousingComparison comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={simulateReform} onReform={setSimulateReform}/>}
+          {inspectorTab === 'rankings' && <HousingComparison comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={simulateReform} onReform={setSimulateReform} costControl={costSwitch(true)}/>}
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
             <div className="drawer-heading"><h3>New building</h3><p>Preview a housing type, then add it to your plan.</p></div>
             <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
@@ -675,6 +684,7 @@ function Studio({ data }) {
               <small>Scenario only · Undo or Restore brings {blockingBuildings.length === 1 ? 'it' : 'them'} back. Zoning checks still apply after clearing.</small>
             </div>}
             {otherCollision && <p className="planner-warning">This draft overlaps a planned building or reserved infrastructure. Move or rotate it, or choose a smaller type.</p>}
+            <div className="build-costs"><AmiChips householdSize={scenario.householdSize} targetIncome={scenario.targetIncome} onIncome={value => set('targetIncome', value)} onSize={value => set('householdSize', value)}/>{costSwitch(true)}</div>
             {!proposed && <p className="compact-help">Viewing current infrastructure. Adding a building returns to the changed-infrastructure view.</p>}
             <div className="build-actions"><button className="primary-build" disabled={!draftState.canPlace} onClick={() => addBuilding(placing && hoverMassing ? hoverMassing : undefined)}>{placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
@@ -713,11 +723,11 @@ function Studio({ data }) {
               <div className="placement-actions"><button onClick={() => moveProposal({ bearing: (placement.bearing + 345) % 360 })}>Rotate −15°</button><button onClick={() => moveProposal({ bearing: (placement.bearing + 15) % 360 })}>Rotate +15°</button><button onClick={() => { setOption('placement', null); setPlacing(false) }}>Reset alignment</button></div>
               </fieldset>
             </details>
-            <div className="section-heading"><h3>Household costs</h3><span className="data-badge">Editable</span></div><p className="section-help">Starting income and gross rent describe the existing Census geography. They are not new-construction rents. Confirm your proposed values before housing-cost burden contributes to scores; each compared type shares these costs.</p>
+            <div className="section-heading"><h3>Household costs</h3><span className="data-badge">Editable</span></div><p className="section-help">Starting income and gross rent describe the existing Census geography (observed). They are not new-construction rents. With Housing costs in score on, whatever you enter here counts as a scenario assumption; each compared type shares these costs.</p>
             <Numeric label="Target household income / year ($)" value={scenario.targetIncome} min={1000} max={500000} step={1000} onChange={v => set('targetIncome', v)}/>
             <div className="field-grid"><Numeric label="Rent / month ($)" value={option.rent} max={10000} step={50} onChange={v => setOption('rent', v)}/><Numeric label="Utilities / month ($)" value={option.utilities} max={2000} step={25} onChange={v => setOption('utilities', v)}/></div>
-            <div className="cost-confirmation"><p>{housingCostConfirmed(scenario, option) ? 'The current draft’s costs are confirmed assumptions. They do not establish financial feasibility.' : 'Housing-cost scoring is excluded until you confirm the rent, utilities and income above.'}</p><button onClick={() => set('affordabilityConfirmation', housingCostConfirmed(scenario, option) ? null : housingCostInputs(scenario, option))}>{housingCostConfirmed(scenario, option) ? 'Exclude these costs from scores' : 'Use these costs in scores'}</button></div>
-            {scenario.buildings.some(building => !housingCostConfirmed(building, building.option)) && <p className="compact-help">Housing-cost scoring also needs confirmation for {scenario.buildings.filter(building => !housingCostConfirmed(building, building.option)).length} placed building(s). In Your plan, inspect each building, choose Replace planned building, confirm its costs in Advanced, then add it back. Confirming this draft does not confirm earlier buildings.</p>}
+            {costSwitch(false)}
+            {placedCostsExcluded > 0 && <p className="compact-help">{placedCostsExcluded} placed building(s) have housing costs excluded. Turning the switch on includes each one with the rent, utilities and income recorded when it was placed.</p>}
             <HudIncomeReference householdSize={scenario.householdSize} targetIncome={scenario.targetIncome} monthly={option.rent + option.utilities} onSize={value => set('householdSize', value)} onIncome={value => set('targetIncome', value)}/>
             {!evaluation.pending && evaluated && <div className="metric-highlight"><span>Housing cost / target income</span><strong>{fmt(evaluated.burden === null ? null : evaluated.burden * 100, '%')}</strong><small>30% is a screening benchmark. Financing and subsidies are not evaluated.</small></div>}
             <p className="section-help">Routed walking at 80 m/min (stairs: assumed 40 m/min), plus assumed last-metre connectors and half the average departure interval. Assumes evenly spaced, usable departures in the service span. Route destinations, transfers, hills and actual arrival times are not modeled.</p>

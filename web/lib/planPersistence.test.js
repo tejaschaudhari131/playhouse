@@ -46,6 +46,8 @@ test('optional affordability confirmations and household size remain exact, lega
   const target = storage()
   assert.equal(savePlan(target, plan, sources).ok, true)
   assert.deepEqual(readSavedPlan(target).saved.scenario, plan)
+  for (const flag of [true, false]) assert.equal(validatePlan({ ...plan, affordabilityAuto: flag }), null)
+  assert.match(validatePlan({ ...plan, affordabilityAuto: 'yes' }), /household/)
   plan.householdSize = 9
   assert.match(validatePlan(plan), /household/)
 })
