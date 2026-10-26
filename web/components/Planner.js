@@ -31,6 +31,8 @@ import { TOUR_PIN, tourScenario, tourEvidence } from '../lib/studioTour.js'
 import { draftPreview } from '../lib/draftPreview.js'
 import { retainedBuildings, footprintRef, footprintKey, demolitionKey, demolitionSite, siteFootprints, blockingFootprints, isDemolished } from '../lib/redevelopment.js'
 import BuildingInspector from './BuildingInspector.js'
+import TypologyCards from './TypologyCards.js'
+import { typologyCards, resizeDraft, rotatePlacement, draftKey, previewPaused } from '../lib/buildControls.js'
 import { nearbyStops, preferredStop, round } from '../lib/plannerModel.js'
 import { createPlannerEvaluator, sameEvaluationContext } from '../lib/plannerEvaluation.js'
 import { EXAMPLES, PLANNER_FACTORS, MASSING_DEFAULTS, optionFor, initialStudioScenario, historyFor, scenarioReducer, scenarioExport } from '../lib/plannerState.js'
@@ -313,6 +315,7 @@ function Studio({ data }) {
   }, [tool])
   const [placing, setPlacing] = useState(false)
   const [hoverPoint, setHoverPoint] = useState(null)
+  const [justAdded, setJustAdded] = useState(null)
   useEffect(() => { if (!placing) setHoverPoint(null) }, [placing])
   const [drawing, setDrawing] = useState(null), [draftNode, setDraftNode] = useState(null)
   const drawingRevision = useRef(0), drawingBusy = useRef(false)
@@ -397,6 +400,8 @@ function Studio({ data }) {
   const options = result ? (proposed ? result.proposal : result.baseline) : null
   const option = scenario.draft, evaluated = options?.[option.typeId]
   const draftState = draftStatus({ evaluated, proposal: result?.proposal?.[option.typeId], weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors, hasPlacedBuildings: scenario.buildings.length > 0 })
+  const paused = previewPaused(justAdded, scenario) && !placing
+  const cards = useMemo(() => typologyCards({ draft: option, options, code: props.zoning_code, zoning }), [option, options, props.zoning_code, zoning])
   const zoningInputs = scenario.zoningInputsByPin?.[scenario.pin] || {}
   function setZoningInput(key, value) { set('zoningInputsByPin', { ...scenario.zoningInputsByPin, [scenario.pin]: { ...zoningInputs, [key]: value } }) }
   const addressSearch = useAddressSearch(manifest, query)
@@ -406,7 +411,7 @@ function Studio({ data }) {
   async function select(pin, building = null) {
     const revision = ++selectionRevision.current
     setSelectedBuilding(building)
-    setPlacing(false)
+    setPlacing(false); setJustAdded(null)
     setPendingPin(null)
     if (!catalogue.has(pin)) {
       try {
@@ -485,13 +490,17 @@ function Studio({ data }) {
     focusInspector()
     setNotice(`${BUILDINGS[template.typeId].label} selected as the current draft. Undo restores the previous draft.`, 'transient')
   }
-  function cycle(direction) { changeType(BUILDING_IDS[(BUILDING_IDS.indexOf(option.typeId) + direction + BUILDING_IDS.length) % BUILDING_IDS.length]) }
   function set(key, value) {
     dispatch({ type: 'patch', value: { [key]: value, ...(key === 'additionalDepartures' ? { serviceStopId: scenario.stopId } : {}), ...(key === 'spareBoardings' ? { capacityStopId: scenario.stopId } : {}) } })
   }
   function setOption(key, value) { dispatch({ type: 'draft', value: { [key]: value } }) }
   const placement = option.placement || evaluated?.massing.placement || { east: 0, north: 0, bearing: 0 }
   function moveProposal(changes) { setOption('placement', { ...placement, ...changes }) }
+  const canAdjust = !evaluation.pending && !!evaluated
+  function rotate(degrees) { if (canAdjust) setOption('placement', rotatePlacement(placement, degrees)) }
+  function resize(key, delta) { const patch = resizeDraft(option, key, delta); if (patch) dispatch({ type: 'draft', value: patch }) }
+  const rotateShortcut = useRef(rotate)
+  rotateShortcut.current = rotate
   const proposalObstacles = useMemo(() => retainedNearbyBuildings === null ? null : [...retainedNearbyBuildings, ...(result?.committed?.proposal || []).filter(b => b.massing.geometry).map(b => ({ geometry: b.massing.geometry })), ...(result?.reservations || [])], [retainedNearbyBuildings, result])
   const hoverMassing = useMemo(() => hoverPoint ? fitMassing(selected.geometry, option.width, option.depth, placementAt(selected.geometry, hoverPoint, placement.bearing), proposalObstacles) : null, [hoverPoint, selected, option.width, option.depth, placement.bearing, proposalObstacles])
   function screenPlacement(massing) {
@@ -499,8 +508,8 @@ function Studio({ data }) {
       members: [...areaSites.map(site => ({ option: site.option, feature: site.feature, izStatus: scenario.zoningInputsByPin?.[site.feature.properties.pin]?.izStatus })), { option, feature: selected, izStatus: zoningInputs.izStatus }] })
   }
   const draftMassing = hoverMassing || result?.proposal?.[option.typeId]?.massing
-  const blockingBuildings = useMemo(() => evaluation.pending || !draftMassing?.geometry || !draftMassing.collisions ? [] : blockingFootprints(retainedNearbyBuildings, draftMassing.geometry), [evaluation.pending, draftMassing, retainedNearbyBuildings])
-  const otherCollision = !evaluation.pending && draftMassing?.collisions > 0 && !blockingBuildings.length
+  const blockingBuildings = useMemo(() => paused || evaluation.pending || !draftMassing?.geometry || !draftMassing.collisions ? [] : blockingFootprints(retainedNearbyBuildings, draftMassing.geometry), [paused, evaluation.pending, draftMassing, retainedNearbyBuildings])
+  const otherCollision = !paused && !evaluation.pending && draftMassing?.collisions > 0 && !blockingBuildings.length
   const previewOption = hoverMassing && evaluated ? { ...evaluated, massing: hoverMassing, titleNine: screenPlacement(hoverMassing) } : evaluated
   const buildingPreview = useMemo(() => draftPreview(previewOption, evaluation.pending), [previewOption, evaluation.pending])
   function addBuilding(massing = result?.proposal?.[option.typeId]?.massing) {
@@ -510,6 +519,7 @@ function Studio({ data }) {
     const id = crypto.randomUUID()
     setConstructionEffect({ id, pin: scenario.pin, geometry: massing.geometry, height: option.height, typeId: option.typeId })
     dispatch({ type: 'addBuilding', building: { id, pin: scenario.pin, option: { ...option, placement: massing.placement }, targetIncome: scenario.targetIncome, affordabilityConfirmation: scenario.affordabilityConfirmation || null, householdSize: scenario.householdSize || 1, stopId: scenario.stopId } })
+    setJustAdded({ id, pin: scenario.pin, label: housingSpec(option).label, draft: draftKey({ ...option, placement: null }) })
     setProposed(true); setPlacing(false); setNotice('Building added to your plan. Undo is available.', 'transient')
   }
   function placeProposal(coordinates) {
@@ -522,6 +532,9 @@ function Studio({ data }) {
   }, [inspectorTab])
   useEffect(() => {
     function cancelInteraction(event) {
+      if (placing && (event.key === 'r' || event.key === 'R') && !event.metaKey && !event.ctrlKey && !event.altKey && !event.defaultPrevented && !event.target.closest('input, textarea, select, [role=combobox], [role=listbox]')) {
+        event.preventDefault(); rotateShortcut.current(event.shiftKey ? -15 : 15); return
+      }
       if (event.key !== 'Escape' || event.defaultPrevented || tourStep || event.target.closest('input, textarea, select, [role=combobox], [role=listbox], .canvas-legend')) return
       if (drawing) { cancelDrawing(); setNotice('Drawing cancelled.', 'transient') }
       else if (placing) { setPlacing(false); setNotice('Placement cancelled.', 'transient') }
@@ -597,15 +610,16 @@ function Studio({ data }) {
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
-        <PlannerMap parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
+        <PlannerMap parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding || paused ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
         <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
-        {placing && <div className="placement-banner" role="status">Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review.<span>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
+        {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ 15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ 15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
         <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => setView3d(!view3d)} aria-pressed={view3d} aria-label="3D view">{view3d ? '3D' : '2D'}</button></div>
         <div className="canvas-heading"><span className="eyebrow">PITTSBURGH / {props.area?.toUpperCase()}</span></div>
         <div className="canvas-mode">{(tool === 'service' || tool === 'network' || inspectorTab === 'rankings' || scenario.additionalDepartures > 0 || scenario.connections.length > 0 || scenario.parks.length > 0) && <div className="segmented" aria-label="Infrastructure view"><button className={!proposed ? 'active' : ''} aria-pressed={!proposed} onClick={() => setProposed(false)}>Current infrastructure</button><button className={proposed ? 'active' : ''} aria-pressed={proposed} onClick={() => setProposed(true)}>With changes</button></div>}<div className="history-controls"><button aria-label="Undo scenario edit" title="Undo" disabled={!history.past.length || !!pendingHistory} onClick={() => restoreHistory('undo')}>↶</button><button aria-label="Redo scenario edit" title="Redo" disabled={!history.future.length || !!pendingHistory} onClick={() => restoreHistory('redo')}>↷</button></div></div>
         <div className="map-overlays">
-          {(tool === 'housing' || tool === 'compare') && !selectedBuilding && <div className="draft-dock"><div><span className="eyebrow">PREVIEW</span><strong>{housingSpec(option).label}</strong></div><div className="draft-preview-status" role="status"><i style={{ background: buildingPreview?.properties.color || '#94a3b8' }}/>{draftState.placement}</div>{!!blockingBuildings.length && <button className="dock-action" disabled={evaluation.pending || !context} onClick={() => demolishFootprints(blockingBuildings)}>Demolish & replace existing</button>}</div>}
+          {(tool === 'housing' || tool === 'compare') && !selectedBuilding && paused && <div className="draft-dock"><div><span className="eyebrow">ADDED TO PLAN</span><strong>{justAdded.label}</strong></div><span>Preview paused so it does not cover the new building.</span><button className="dock-action next" onClick={() => setJustAdded(null)}>Preview another building</button></div>}
+          {(tool === 'housing' || tool === 'compare') && !selectedBuilding && !paused && <div className="draft-dock"><div><span className="eyebrow">PREVIEW</span><strong>{housingSpec(option).label}</strong></div><div className="draft-preview-status" role="status"><i style={{ background: buildingPreview?.properties.color || '#94a3b8' }}/>{draftState.placement}</div>{!!blockingBuildings.length && <button className="dock-action" disabled={evaluation.pending || !context} onClick={() => demolishFootprints(blockingBuildings)}>Demolish & replace existing</button>}</div>}
         </div>
         <MapLegend showExisting={showExisting} onShowExisting={setShowExisting} error={loaded.error} onRetry={loaded.retry}/>
       </section>
@@ -628,8 +642,13 @@ function Studio({ data }) {
           {inspectorTab === 'rankings' && <HousingComparison comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')}/>}
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
             <div className="drawer-heading"><h3>New building</h3><p>Preview a housing type, then add it to your plan.</p></div>
-            <div className="housing-picker"><button aria-label="Previous housing type" onClick={() => cycle(-1)}>←</button><label><span>Housing type</span><Select aria-label="Housing type" value={option.typeId} onChange={e => changeType(e.target.value)}>{BUILDING_IDS.map(id => <option key={id} value={id}>{BUILDINGS[id].label}</option>)}</Select></label><button aria-label="Next housing type" onClick={() => cycle(1)}>→</button></div>
-            <p className="compact-help">{housingSpec(option).units} {housingSpec(option).units === 1 ? 'home' : 'homes'} · {option.width} × {option.depth} m · {option.height} m high <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Adjust dimensions</button></p>
+            <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
+            {paused ? <div className="added-callout" role="status"><p><strong>✓ {justAdded.label} added to your plan.</strong> The preview is paused so it does not sit on top of the new building.</p><div className="placement-actions"><button className="primary-build" onClick={() => setJustAdded(null)}>Preview another building</button><button onClick={() => selectBuilding({ kind: 'placed', id: justAdded.id, pin: justAdded.pin })}>Inspect the new building</button></div></div> : <>
+            <fieldset className="quick-controls" aria-label="Size and orientation">
+              <div className="quick-steppers">{[['width', 'Width', `${option.width} m`, 1], ['depth', 'Depth', `${option.depth} m`, 1], ['floors', 'Stories', option.floors ?? housingSpec(option).floors, 1]].map(([key, label, value, step]) => <div key={key} className="stepper"><span>{label}</span><button aria-label={`Decrease ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, -step)} onClick={() => resize(key, -step)}>−</button><output aria-live="polite" aria-label={label}>{value}</output><button aria-label={`Increase ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, step)} onClick={() => resize(key, step)}>+</button></div>)}</div>
+              <div className="quick-rotate"><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button><button disabled={!option.placement} onClick={() => { setOption('placement', null); setPlacing(false) }}>Reset alignment</button></div>
+              <small>{option.height} m high · {option.placement ? `manual position, bearing ${round(placement.bearing)}°` : 'automatic parcel alignment'} · <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Exact values in Advanced</button></small>
+            </fieldset>
             <div className="draft-result" aria-busy={evaluation.pending}><div><span>Current draft</span><strong>{draftState.title}</strong><small>{draftState.detail}</small></div><button onClick={() => setInspectorTab('rankings')}>Compare types →</button></div>
             {!!blockingBuildings.length && <div className="redevelop-callout" role="group" aria-label="Existing buildings under this draft">
               <p><strong>{blockingBuildings.length === 1 ? 'An existing building sits' : `${blockingBuildings.length} existing buildings sit`} under this draft.</strong> Demolish {blockingBuildings.length === 1 ? 'it' : 'them'} in the plan to test a replacement here, or move the draft.</p>
@@ -638,8 +657,9 @@ function Studio({ data }) {
             </div>}
             {otherCollision && <p className="planner-warning">This draft overlaps a planned building or reserved infrastructure. Move or rotate it, or choose a smaller type.</p>}
             {!proposed && <p className="compact-help">Viewing current infrastructure. Adding a building returns to the changed-infrastructure view.</p>}
-            <div className="build-actions"><button className="primary-build" disabled={!draftState.canPlace} onClick={() => addBuilding(placing && hoverMassing ? hoverMassing : undefined)}>{placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
+            <div className="build-actions"><button className="primary-build" disabled={!draftState.canPlace} onClick={() => addBuilding(placing && hoverMassing ? hoverMassing : undefined)}>{placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
+            </>}
             <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Advanced · income, costs & evidence →</button>
           </section>}
           {inspectorTab === 'edit' && tool === 'service' && <>
