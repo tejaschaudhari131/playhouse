@@ -1,3 +1,4 @@
+import Select from './Select.js'
 const statusLabel = { pass: 'Pass', conflict: 'Conflict', unknown: 'Not assessed', conditional: 'Not assessed · review', not_applicable: 'Not applicable' }
 
 function Rule({ check }) {
@@ -20,7 +21,7 @@ export default function TitleNineChecks({ result, compact = false }) {
 }
 
 function Choice({ label, value, options, onChange }) {
-  return <label className="planner-field"><span>{label}</span><select value={value ?? ''} onChange={e => onChange(e.target.value || null)}><option value="">Unknown / not assessed</option>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></label>
+  return <label className="planner-field"><span>{label}</span><Select aria-label={label} value={value ?? ''} onChange={e => onChange(e.target.value || null)}><option value="">Unknown / not assessed</option>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</Select></label>
 }
 function YesNo({ label, value, onChange }) {
   return <Choice label={label} value={value === true ? 'yes' : value === false ? 'no' : ''} options={[["yes", "Yes (assumed)"], ["no", "No (assumed)"]]} onChange={v => onChange(v === 'yes' ? true : v === 'no' ? false : null)}/>
@@ -31,10 +32,10 @@ export function ZoningInputs({ inputs, project, onChange, onProjectChange, numer
   return <details className="planner-details zoning-inputs"><summary>Additional zoning evidence</summary>
     <p className="compact-help">Optional scenario inputs for this parcel. Leave unknowns blank to exclude those checks. Entered values are assumptions, not City verification.</p>
     <details><summary>Lot & existing buildings</summary><div className="field-grid">
-      {field('lotSqft', 'Zoning lot area override (sq ft)')}{field('existingGfaSqft', 'Existing gross floor area (sq ft)')}{field('existingFootprintSqft', 'Existing building coverage (sq ft)')}
+      {field('lotSqft', 'Zoning lot area override (sq ft)')}{field('existingGfaSqft', 'Retained gross floor area (sq ft)')}{field('existingFootprintSqft', 'Retained building coverage (sq ft)')}
       {typeId === 'townhouse_duplex' && field('lotWidthFt', 'Legal lot width at front setback (ft)', 1000)}
       {code === 'H' && field('disturbancePercent', 'Total site disturbance (%)', 100)}
-    </div><small>FAR and coverage include all proposed buildings on this parcel. Existing living area is not gross floor area.</small></details>
+    </div><small>FAR and coverage include all proposed buildings on this parcel. Retained living area is not gross floor area. Demolishing or restoring a building clears these retained-area overrides.</small></details>
     <details><summary>Parking & bicycle spaces</summary>
       <Choice label="Applicable car-parking schedule" value={inputs.parkingRegime} options={[["base", "Base schedule · no exemptions or reductions"]]} onChange={v => onChange('parkingRegime', v)}/>
       <div className="field-grid">{field('parkingSpaces', 'Car spaces for new homes on this lot', 10000)}{field('bikeSpaces', 'Bicycle spaces on this lot', 10000)}{field('protectedBikeSpaces', 'Protected bicycle spaces', 10000)}</div>

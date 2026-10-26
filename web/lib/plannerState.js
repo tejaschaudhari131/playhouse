@@ -1,6 +1,7 @@
 import { BUILDINGS } from './buildings.js'
+import { normalizeBuildingRef, buildingRefKey } from './redevelopment.js'
 
-export const MODEL_VERSION = 'planner-screen-1.9'
+export const MODEL_VERSION = 'planner-screen-2.0'
 export const EXAMPLES = [
   { id: 'hazelwood', label: 'Hazelwood', pin: '0056F00338000000', caption: 'City inventory · Hazelwood Ave' },
   { id: 'lawrenceville', label: 'Lawrenceville', pin: '0049N00010000000', caption: 'City inventory · 3480 Butler St' },
@@ -35,7 +36,7 @@ export function initialScenario(pin, props = {}, stopId = '') {
     targetIncome: Math.round(props.median_income || 40000),
     additionalDepartures: 0, serviceHours: 15, availablePlacesPerDeparture: 20,
     spareBoardings: null, boardingsPerHome: 2,
-    connections: [], routes: [], parks: [], parkAccessShare: 0, buildings: [],
+    connections: [], routes: [], parks: [], parkAccessShare: 0, buildings: [], demolitions: [],
     zoningInputsByPin: {}, projectInputs: {},
     weights: { ...INITIAL_WEIGHTS },
   }
@@ -60,6 +61,27 @@ export function scenarioReducer(state, action) {
     return { past: [...state.past, state.present], present: state.future[0], future: state.future.slice(1) }
   }
   let next = state.present
+  if (action.type === 'demolishBuilding' || action.type === 'restoreBuilding') {
+    const ref = normalizeBuildingRef(action.building || action)
+    if (!ref) return state
+    const demolitions = next.demolitions || []
+    const matches = entry => {
+      const normalized = normalizeBuildingRef(entry)
+      return normalized && buildingRefKey(normalized) === buildingRefKey(ref)
+    }
+    const exists = demolitions.some(matches)
+    if (action.type === 'demolishBuilding' ? exists || demolitions.length >= 100 : !exists) return state
+    // Existing-area inputs described the previous retained structures. Undo keeps
+    // their exact values; a changed footprint set requires fresh retained totals.
+    const inputs = { ...(next.zoningInputsByPin?.[ref.pin] || {}) }
+    delete inputs.existingGfaSqft
+    delete inputs.existingFootprintSqft
+    next = { ...next,
+      demolitions: action.type === 'demolishBuilding' ? [...demolitions, ref] : demolitions.filter(entry => !matches(entry)),
+      zoningInputsByPin: { ...next.zoningInputsByPin, [ref.pin]: inputs },
+      ...(action.type === 'demolishBuilding' && action.resetDraft && next.draft ? { draft: { ...next.draft, placement: null } } : {}),
+    }
+  }
   if (action.type === 'addBuilding' && (next.buildings || []).length < 40 && !(next.buildings || []).some(b => b.id === action.building.id)) next = { ...next, buildings: [...(next.buildings || []), action.building], ...(action.slot ? { options: { ...next.options, [action.slot]: { ...next.options[action.slot], placement: null } } } : {}) }
   if (action.type === 'addBuilding' && next.draft && next !== state.present) next = { ...next, draft: { ...next.draft, placement: null } }
   if (action.type === 'draft') {
@@ -80,5 +102,5 @@ export function scenarioReducer(state, action) {
 }
 
 export function scenarioExport(scenario, summary) {
-  return { schemaVersion: scenario.draft ? 6 : 3, modelVersion: MODEL_VERSION, dataVersion: summary?.pulled_at || null, exportedAt: new Date().toISOString(), scenario, limitations: ['Dimensions, access connectors and infrastructure buildability are user/model assumptions.', 'Title Nine checks without sufficient evidence are excluded, not passed. A score is not zoning approval.', 'This model does not evaluate utilities, engineering, route schedules, travel to jobs or marginal tonnes of CO2.'] }
+  return { schemaVersion: scenario.draft || scenario.demolitions?.length ? 7 : 3, modelVersion: MODEL_VERSION, dataVersion: summary?.pulled_at || null, exportedAt: new Date().toISOString(), scenario, limitations: ['Dimensions, access connectors and infrastructure buildability are user/model assumptions.', 'Demolitions are hypothetical removals from this plan, applied in both infrastructure states. Source records are unchanged; removal permission, cost, occupancy, relocation and demolition carbon are not assessed.', 'Title Nine checks without sufficient evidence are excluded, not passed. A score is not zoning approval.', 'This model does not evaluate utilities, engineering, route schedules, travel to jobs or marginal tonnes of CO2.'] }
 }

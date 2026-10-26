@@ -39,7 +39,7 @@ test('Studio stores and exports one draft; comparison types are unique and optio
   scenario.comparisonTypes = [...BUILDING_IDS, ...BUILDING_IDS, 'invalid']
   assert.equal(Object.keys(comparisonTemplates(scenario)).length, 5)
   const exported = scenarioExport(scenario)
-  assert.equal(exported.schemaVersion, 6)
+  assert.equal(exported.schemaVersion, 7)
   assert.equal(exported.scenario.options, undefined)
 })
 

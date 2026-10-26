@@ -6,6 +6,28 @@ by Hack the House
 
 # Planning studio
 
+## Map-first workspace
+
+**Build**, **Transit** and **Streets** are the map tools. **Find sites** opens site filters, including the empty-site highlight; selecting a result opens Build on the same map. The drawer starts with a single housing picker and **Add to plan / Position on map** actions. Click a recorded or planned building for its actions in that same drawer. **Your plan** groups additions and demolitions with inspect, remove and restore controls.
+
+**Compare** widens the drawer and keeps the map visible. **Priorities** holds relative-weight sliders; **Advanced** retains exact dimensions, position, income, rent, utilities, service assumptions and source details. Site facts/zoning and detailed checks expand on demand. The small map preview is a status display, not a second housing picker. Escape cancels placement/drawing or closes building selection. The recenter button returns to the selected site. Camera motion respects reduced-motion settings; housing remains angled and transit/street editing starts top-down.
+
+The drawer is resizable/collapsible on desktop and a bounded, scrollable bottom panel on smaller screens. Explorer is unchanged. The renderer, geometry precision, building heights, colors and neighborhood loading policy are retained.
+
+## Demolish and replace (planner-screen-2.0)
+
+Click a recorded building, or choose it from **Recorded buildings on this site**, to inspect it in the sidebar. **Demolish in plan** removes that exact County footprint from the scenario. **Replace building** removes it and returns to an automatically aligned housing draft on the same parcel. Add the replacement through the usual physical-fit and zoning checks. Click a planned building to replace or remove it, too.
+
+Demolishing or replacing a recorded building briefly scatters small, shaded blocks in its color across the building's projected footprint and height. Blocks stay 10 px across; larger footprints get a wider scatter and more blocks, capped at 49. This decorative effect lasts about 0.6 seconds, respects reduced motion, and cleans up immediately on undo/restore or a context change. It uses one temporary map marker and CSS animation, with no per-frame map-data uploads or changes to the scenario calculations.
+
+Adding a building briefly places small 3D blocks one by one, completing each level before the next, then reveals the exact finished model. The temporary grid follows the accepted footprint and rotation, uses at most 16 cells across four vertical layers, and completes in about half a second. At most 64 small feature-state updates reveal the blocks from one geometry upload; there is no animation-frame loop. Reduced motion shows the finished building immediately; undo/removal cancels the effect, and redo does not replay it. The animation waits for the committed building so there is no empty gap while scores update.
+
+The original dataset is unchanged. **Demolished in this plan** lists removed footprints with a **Restore** action; Undo/Redo also restores edits. Restoring an original can invalidate a replacement, which stays visible with its conflict and loses its score. Up to 100 matched footprints can be removed. A footprint without a matched parcel cannot be demolished. Removed-building evidence is retained when panning or changing sites, just like placed-building evidence.
+
+Demolition applies to both **Current infrastructure / With changes** views: these compare infrastructure for the same housing plan, not the untouched city against redevelopment. Only explicitly selected footprints stop blocking placement. Neighboring buildings, zoning and missing-evidence rules still apply. Manual retained floor-area/coverage inputs are cleared when a footprint is removed or restored; Undo recovers the previous values. Partial clearance does not invent the remaining floor area.
+
+Demolition costs, permission, occupancy, relocation and demolition carbon are not assessed. Existing displacement/carbon proxies remain unchanged; proposed homes are gross additions, not net growth after removing occupied homes. Studio exports use schema 7 with exact `demolitions: [{id, pin}]` references and the existing building-source snapshot hash. Legacy scenarios without removals remain evaluable. Plans remain in memory until reload; export before leaving.
+
 ## Two-point road and path routing (planner-screen-1.9)
 
 In **Infra**, choose **Route between two points**, then click a start and destination along the blue roads/paths. Each click snaps within 35 m to a mapped ground-level segment, including between its original vertices. The line follows connected geometry and walking permissions. Disconnected points show an explanation, never a straight-line substitute. **Enter map coordinates** provides the same operation from the keyboard. Up to 12 routes can be saved, removed, undone and exported.
@@ -29,7 +51,7 @@ Assumptions lets users edit spare places, override the daily reserve at a named 
 
 Studio now applies [supported Title Nine checks](TITLE_NINE.md) before scoring. A supported zoning conflict or a failed physical fit produces no housing total. Unsupported rules are **Not assessed** and excluded from eligibility. Each type has an expandable list of checks, code links and exclusions. All proposed buildings on a lot share FAR/coverage totals; project-wide IZ counts are rechecked for each alternative.
 
-Under **Assumptions → Advanced options**, enter exact stories and choose duplex versus attached-house form. **Additional zoning evidence** holds optional parcel-specific parking, grading, tree, landscaping and IZ inputs. Blank fields remain unknown; entered values are scenario assumptions. Undo/redo and exports retain these inputs.
+Under **Advanced → Building & household inputs**, enter exact stories and choose duplex versus attached-house form. **Additional zoning evidence** holds optional parcel-specific parking, grading, tree, landscaping and IZ inputs. Blank fields remain unknown; entered values are scenario assumptions. Undo/redo and exports retain these inputs.
 
 A six-step **Hazelwood example** opens on the first visit to Studio. **Tour** in the header replays it. It loads the real Hazelwood Avenue parcel `0056F00338000000`, previews a single-family house, compares a duplex and triplex, applies Resident priorities, and tests 60 added weekday departures at a real nearby stop. Scores and walk/wait results come from the normal evaluator, not canned outcomes. The tour waits for parcel/network evidence and calculations; unavailable evidence shows an error with Retry and Skip.
 
@@ -57,7 +79,7 @@ Studio requests native WebGL antialiasing to smooth 3D building edges, following
 
 Tests cover neighborhood assignment, indexed source parity, complete city parcel round trips, hash verification, graph indices, failed/aborted requests, PIN lookup, viewport/cache behavior and original study regressions.
 
-Studio has one editable next-building draft, with no A/B controls. Cycle its housing type on the map or in Edit. In Rankings, **Compare to** adds any of the other four templates; **All types** compares all five, including triplex. **Expand comparison** opens the table at full width; **Back to map** returns to the same scene.
+Studio has one editable next-building draft, with no A/B controls. Cycle its housing type in Build. In Compare, **Compare to** adds any of the other four templates; **All types** compares all five, including triplex. The comparison widens the drawer while retaining the map. Build returns to placement controls.
 
 Drag the sidebar's left divider to resize it, or focus the divider and use Left/Right arrows (Shift for larger steps). Enter or double-click restores the default width. **Hide sidebar** gives the map the full workspace; **Show sidebar** restores the panel and its width without clearing the scenario. On narrow screens the panel stacks below the map and can still be hidden.
 
@@ -162,7 +184,7 @@ Automatic placement tries the parcel's longest edge first, aligning the longer b
 
 Each housing option can store a manual placement: east/north metre offsets from the parcel bounding-box centre and a bearing for the building depth axis, clockwise from north. Users can rotate, enter offsets, or click **Place on map** and choose a centre. Manual placements are never moved or resized automatically. Boundary contact, holes and building overlap remain visible review failures. **Reset alignment** returns that option to the automatic search. Undo/redo and JSON exports retain placement; exports also identify the building-context dataset hash.
 
-Only nearby building geometries intersecting the selected parcel's bounding box are passed to the calculation worker. A hidden context layer still participates in overlap checks. If the data cannot load, unknown overlap evidence is not treated as an empty site: ranking is withheld. A mapped overlap requires review of redevelopment/demolition; there is no removal tool or assumption that demolition is permitted. No overlap is not proof of vacancy.
+The calculation worker receives building evidence for selected and placed parcels, plus pinned infrastructure evidence when the plan has a path, street or park edit. A hidden context layer still participates in overlap checks. Missing evidence is not treated as an empty site: ranking is withheld. Explicit scenario demolition removes only the selected source footprint as an obstacle; demolition permission remains unassessed. No overlap is not proof of vacancy.
 
 The citywide footprint count, height-method counts and source hashes are recorded in `existing-buildings.sources.json`. Height enrichment runs offline; the browser receives only local context. Counts describe recorded outlines, not verified dwellings. The original study extract is retained only as a regression fixture.
 

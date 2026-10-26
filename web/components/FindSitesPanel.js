@@ -1,5 +1,7 @@
 "use client"
 
+import Select from './Select.js'
+
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import Explanation from "./Explanation.js"
@@ -233,21 +235,21 @@ export default function FindSitesPanel({
           <legend>Housing type and zoning (§911.02)</legend>
           <label>
             Housing type
-            <select value={filters.typeId} onChange={(event) => set({ typeId: event.target.value })}>
+            <Select aria-label="Housing type" value={filters.typeId} onChange={(event) => set({ typeId: event.target.value })}>
               {TYPE_OPTIONS.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <label>
             Zoning reading
-            <select value={filters.permission} onChange={(event) => set({ permission: event.target.value })}>
+            <Select aria-label="Zoning reading" value={filters.permission} onChange={(event) => set({ permission: event.target.value })}>
               <option value="any">Any, including not allowed</option>
               <option value="by_right">Allowed by right (P), or by right for some unit counts</option>
               <option value="by_right_or_special">By right or with special approval (A, S, C)</option>
-            </select>
+            </Select>
           </label>
           <p className="hint">
             Districts outside the use table (SP, planned developments) never pass a zoning filter. Check those with the City.
@@ -258,15 +260,15 @@ export default function FindSitesPanel({
           <legend>Hazards</legend>
           <label>
             FEMA flood
-            <select value={filters.flood} onChange={(event) => set({ flood: event.target.value })}>
+            <Select aria-label="FEMA flood" value={filters.flood} onChange={(event) => set({ flood: event.target.value })}>
               <option value="any">Any</option>
               <option value="no_sfha">No Special Flood Hazard Area</option>
               <option value="none">No mapped flood zone (SFHA or 0.2%)</option>
-            </select>
+            </Select>
           </label>
           <label>
             Steep slope (25%+, landslide-risk proxy)
-            <select
+            <Select aria-label="Steep slope (25%+, landslide-risk proxy)"
               value={filters.maxSlopePct === null ? "" : String(filters.maxSlopePct)}
               onChange={(event) => set({ maxSlopePct: numberOrNull(event.target.value) })}
             >
@@ -274,7 +276,7 @@ export default function FindSitesPanel({
               <option value="0">None on the parcel</option>
               <option value="10">At most 10% of the parcel</option>
               <option value="25">At most 25% of the parcel</option>
-            </select>
+            </Select>
           </label>
           <label className="toggle">
             <input
@@ -290,7 +292,7 @@ export default function FindSitesPanel({
           <legend>Transit, lot, place</legend>
           <label>
             Walk to frequent transit (60+ weekday trips at a stop)
-            <select
+            <Select aria-label="Walk to frequent transit (60+ weekday trips at a stop)"
               value={filters.maxWalkMin === null ? "" : String(filters.maxWalkMin)}
               onChange={(event) => set({ maxWalkMin: numberOrNull(event.target.value) })}
             >
@@ -298,7 +300,7 @@ export default function FindSitesPanel({
               <option value="5">Within 5 min (straight line)</option>
               <option value="10">Within 10 min (straight line)</option>
               <option value="15">Within 15 min (straight line)</option>
-            </select>
+            </Select>
           </label>
           <label>
             Minimum lot size (sq ft)
@@ -313,11 +315,11 @@ export default function FindSitesPanel({
           </label>
           <label>
             Displacement risk (tract screen)
-            <select value={filters.displacement} onChange={(event) => set({ displacement: event.target.value })}>
+            <Select aria-label="Displacement risk (tract screen)" value={filters.displacement} onChange={(event) => set({ displacement: event.target.value })}>
               <option value="any">Any</option>
               <option value="high">High only ({HIGH_DISPLACEMENT}+), for anti-displacement work</option>
               <option value="not_high">Leave out high ({HIGH_DISPLACEMENT}+)</option>
-            </select>
+            </Select>
           </label>
           <label>
             Area
@@ -350,13 +352,13 @@ export default function FindSitesPanel({
         <div className="results-tools">
           <label>
             Sort by
-            <select value={sort} onChange={(event) => onSort(event.target.value)}>
+            <Select aria-label="Sort by" value={sort} onChange={(event) => onSort(event.target.value)}>
               {SORT_OPTIONS.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <button type="button" disabled={!rows.length} onClick={() => downloadCsv(rows)}>
             Download CSV
