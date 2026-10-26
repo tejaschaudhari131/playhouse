@@ -12,6 +12,8 @@ export function createPlannerEvaluator() {
   const stats = { evaluated: 0, reweighted: 0 }
   function evaluate(input) {
     const { weights, ...scenarioEvidence } = input.scenario
+    // Demolition IDs are evidence inputs: removal/restore must rerun geometry
+    // and zoning even when their source arrays retain the same references.
     const key = JSON.stringify(scenarioEvidence)
     if (key === previousKey && sameEvaluationContext(previous, input)) {
       result = reweightPlanner(result, input); stats.reweighted++

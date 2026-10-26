@@ -6,6 +6,16 @@ by Hack the House
 
 # Planning studio
 
+## Demolish and replace (planner-screen-2.0)
+
+Click a recorded building, or choose it from **Recorded buildings on this site**, to inspect it in the sidebar. **Demolish in plan** removes that exact County footprint from the scenario. **Replace building** removes it and returns to an automatically aligned housing draft on the same parcel. Add the replacement through the usual physical-fit and zoning checks. Click a planned building to replace or remove it, too.
+
+The original dataset is unchanged. **Demolished in this plan** lists removed footprints with a **Restore** action; Undo/Redo also restores edits. Restoring an original can invalidate a replacement, which stays visible with its conflict and loses its score. Up to 100 matched footprints can be removed. A footprint without a matched parcel cannot be demolished. Removed-building evidence is retained when panning or changing sites, just like placed-building evidence.
+
+Demolition applies to both **Current infrastructure / With changes** views: these compare infrastructure for the same housing plan, not the untouched city against redevelopment. Only explicitly selected footprints stop blocking placement. Neighboring buildings, zoning and missing-evidence rules still apply. Manual retained floor-area/coverage inputs are cleared when a footprint is removed or restored; Undo recovers the previous values. Partial clearance does not invent the remaining floor area.
+
+Demolition costs, permission, occupancy, relocation and demolition carbon are not assessed. Existing displacement/carbon proxies remain unchanged; proposed homes are gross additions, not net growth after removing occupied homes. Studio exports use schema 7 with exact `demolitions: [{id, pin}]` references and the existing building-source snapshot hash. Legacy scenarios without removals remain evaluable. Plans remain in memory until reload; export before leaving.
+
 ## Two-point road and path routing (planner-screen-1.9)
 
 In **Infra**, choose **Route between two points**, then click a start and destination along the blue roads/paths. Each click snaps within 35 m to a mapped ground-level segment, including between its original vertices. The line follows connected geometry and walking permissions. Disconnected points show an explanation, never a straight-line substitute. **Enter map coordinates** provides the same operation from the keyboard. Up to 12 routes can be saved, removed, undone and exported.

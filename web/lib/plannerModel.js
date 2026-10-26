@@ -1,11 +1,12 @@
 import { haversineMeters } from './geo.js'
-import { geometryCenter, fitMassing } from './plannerGeometry.js'
+import { geometryCenter, fitMassing, geometriesOverlap } from './plannerGeometry.js'
 import { resolveZoning, unitPermission } from './zoning.js'
 import { PLANNER_FACTORS } from './plannerState.js'
 import { networkAccess, infrastructureReservations, validateConnection, validatePark } from './networkModel.js'
 import { rankedWinner, recommendationAudit } from './plannerRecommendation.js'
 import { shortlistTemplates, comparisonTemplates, summarizeShortlist } from './plannerShortlist.js'
 import { evaluateTitleNine, housingSpec } from './titleNine.js'
+import { retainedBuildings } from './redevelopment.js'
 
 const clamp = value => Math.max(0, Math.min(100, value))
 const numeric = value => typeof value === 'number' && Number.isFinite(value)
@@ -163,13 +164,31 @@ export function summarizePlacedPlan(committed, weights) {
   return { ...summaries, included }
 }
 
-export function evaluatePlanner({ feature, zoning, scenario, stop, existingBuildings = null, networkContext = null, shortlistSlot = 'B', areaSites = [] }) {
+export function evaluatePlanner({ feature, zoning, scenario, stop, existingBuildings = null, infrastructureBuildings, networkContext = null, shortlistSlot = 'B', areaSites = [] }) {
+  // Both states compare infrastructure for the same housing/redevelopment plan.
+  // Filter only recorded evidence, before mixing in proposed-building obstacles.
+  existingBuildings = retainedBuildings(existingBuildings, scenario.demolitions)
+  areaSites = areaSites.map(site => {
+    const retained = retainedBuildings(site.existingBuildings, scenario.demolitions)
+    return retained === site.existingBuildings ? site : { ...site, existingBuildings: retained }
+  })
   const routed = scenario.accessMode === 'network'
   const infrastructureErrors = [...(scenario.connections || []).map(c => validateConnection(networkContext?.network, c)), ...(scenario.parks || []).map(p => validatePark(networkContext?.network, p))].filter(Boolean)
+  const reservations = infrastructureReservations(networkContext?.network, scenario)
+  // A restore can put a source footprint back under an existing reservation.
+  // Legacy callers supply local evidence; Studio supplies reservation-wide data.
+  const infrastructureEvidence = infrastructureBuildings === undefined
+    ? existingBuildings === null || areaSites.some(site => site.existingBuildings === null) ? null : [...existingBuildings, ...areaSites.flatMap(site => site.existingBuildings)]
+    : retainedBuildings(infrastructureBuildings, scenario.demolitions)
+  if (reservations.length && infrastructureEvidence === null) infrastructureErrors.push('Recorded building evidence is unavailable for proposed infrastructure.')
+  else for (const reservation of reservations) {
+    if (infrastructureEvidence.some(building => geometriesOverlap(reservation.geometry, building.geometry))) {
+      infrastructureErrors.push(`Proposed ${reservation.properties.kind} overlaps a retained recorded building. Remove or redraw the infrastructure, or explicitly simulate removing that building.`)
+    }
+  }
   // Route each infrastructure state once; A/B and all five templates reuse it.
   const accessBefore = routed ? networkAccess(networkContext, feature, stop, scenario, false) : undefined
   const accessAfter = routed ? networkAccess(infrastructureErrors.length ? null : networkContext, feature, stop, scenario, true) : undefined
-  const reservations = infrastructureReservations(networkContext?.network, scenario)
   // Explicit, fixed placements survive changes in infrastructure. All proposed buildings
   // share the same per-stop boarding pool; reserve is not multiplied by building count.
   const committedUnitsByStop = {}
