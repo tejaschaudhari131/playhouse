@@ -9,7 +9,7 @@ function relation(building, sitePin) {
 }
 
 /** Selection is UI state. Removal is an explicit, undoable scenario command. */
-export default function BuildingInspector({ existing, placed, sitePin, siteBuildings, demolitions = [], onSelect, onDemolish, onRestore, onEditPlaced, onClose, pending, children }) {
+export default function BuildingInspector({ existing, placed, sitePin, siteBuildings, demolitions = [], onSelect, onDemolish, onRestore, onEditPlaced, onClose, pending, existingHomes, planNet, children }) {
   const ref = existing && footprintRef(existing, sitePin)
   const isRemoved = existing && isDemolished(existing, demolitions)
   const source = existing && buildingHeightSource(existing.properties)
@@ -20,6 +20,9 @@ export default function BuildingInspector({ existing, placed, sitePin, siteBuild
       <strong>{placed ? housingSpec(placed.option).label : existing.properties.use_label || 'Recorded building'}</strong>
       <p>{placed ? `${placed.option.width} × ${placed.option.depth} m · ${placed.option.height} m high` : buildingHeightDescription(existing.properties)}</p>
       {existing && <p className="compact-help">{relation(existing, sitePin)}</p>}
+      {existing && <p className="compact-help">{existing.properties.footprint_role === 'auxiliary' ? 'Accessory outline: its parcel’s recorded homes are not counted as replaced when only this is demolished.' : `Recorded homes on its parcel (estimate from land use): ${existingHomes}`}</p>}
+      {placed && <p className="compact-help">Adds {housingSpec(placed.option).units} proposed {housingSpec(placed.option).units === 1 ? 'home' : 'homes'}.</p>}
+      {planNet && <p className="net-homes"><strong>{planNet.text}</strong><small>Whole plan · {planNet.note}</small></p>}
       {placed && <p className="compact-help">{housingCostConfirmed(placed, placed.option) ? 'Housing costs: confirmed scenario assumptions.' : 'Housing costs: not confirmed, excluded from the plan score. Use Replace planned building to review its saved costs in Advanced and add it back.'}</p>}
       {existing && <details><summary>Building evidence</summary><p>{existing.properties.recorded_land_use || 'Use unknown'} · {existing.properties.use_evidence || 'Occupancy unverified.'}</p>{source && <a href={source} target="_blank" rel="noreferrer">Height source for this building ↗</a>}</details>}
       <div className="placement-actions">{placed ? <><button onClick={() => onEditPlaced(true)} disabled={pending}>Replace planned building</button><button onClick={() => onEditPlaced(false)}>Remove from plan</button></> : isRemoved ? <button onClick={() => onRestore(ref)}>Restore original building</button> : <><button className="primary-build" onClick={() => onDemolish(existing, true)} disabled={pending || !ref}>Demolish & replace</button><button onClick={() => onDemolish(existing, false)} disabled={pending || !ref}>Demolish only</button></>}</div>

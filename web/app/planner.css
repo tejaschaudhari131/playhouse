@@ -718,3 +718,17 @@
   .demolition-effect { display: none; }
   .demolition-block { animation: none; }
 }
+
+/* Net homes and the redevelopment screen */
+.net-homes { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: #f2f6ef; font-size: 12px; line-height: 1.45; }
+.net-homes strong { display: block; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.net-homes small { display: block; margin-top: 2px; color: #64745f; font-size: 11px; }
+.impact-panel { margin: 14px 0; padding: 10px 12px; border: 1px solid #d6dccb; border-radius: 9px; background: #fbfaf5; font-size: 12px; line-height: 1.5; }
+.impact-panel > summary { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; cursor: pointer; }
+.impact-panel > summary strong { font-size: 13px; }
+.impact-panel > summary span { color: #7a6f52; font-size: 11px; }
+.impact-panel dl { margin: 8px 0; }
+.impact-panel dl > div { padding: 7px 0; border-top: 1px solid #e7e4d6; }
+.impact-panel dt { display: flex; align-items: center; gap: 6px; font-weight: 650; color: #34483b; }
+.impact-panel dd { margin: 3px 0 0; color: #3f4d43; }
+.impact-panel > small { display: block; color: #6d6a58; font-size: 11px; }

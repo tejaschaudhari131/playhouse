@@ -15,6 +15,18 @@ export function geometryCenter(geometry) {
   return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2]
 }
 
+/** Planar area in square metres around the geometry's centre; holes are subtracted. */
+export function geometryArea(geometry) {
+  const origin = geometryCenter(geometry)
+  if (!origin) return 0
+  const scale = METRES * Math.cos(origin[1] * Math.PI / 180)
+  const ringArea = ring => Math.abs(ring.reduce((sum, p, i) => {
+    const q = ring[(i + 1) % ring.length]
+    return sum + ((p[0] - origin[0]) * scale) * ((q[1] - origin[1]) * METRES) - ((q[0] - origin[0]) * scale) * ((p[1] - origin[1]) * METRES)
+  }, 0)) / 2
+  return polygons(geometry).reduce((sum, rings) => sum + (rings[0] ? ringArea(rings[0]) : 0) - rings.slice(1).reduce((n, hole) => n + ringArea(hole), 0), 0)
+}
+
 function cross(a, b, c) { return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) }
 function onSegment(p, a, b) {
   return Math.abs(cross(a, b, p)) < EPS && p[0] >= Math.min(a[0], b[0]) - EPS && p[0] <= Math.max(a[0], b[0]) + EPS && p[1] >= Math.min(a[1], b[1]) - EPS && p[1] <= Math.max(a[1], b[1]) + EPS

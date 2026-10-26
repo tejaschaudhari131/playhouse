@@ -32,6 +32,8 @@ import { draftPreview } from '../lib/draftPreview.js'
 import { retainedBuildings, footprintRef, footprintKey, demolitionKey, demolitionSite, siteFootprints, blockingFootprints, isDemolished } from '../lib/redevelopment.js'
 import BuildingInspector from './BuildingInspector.js'
 import TypologyCards from './TypologyCards.js'
+import RedevelopmentImpact from './RedevelopmentImpact.js'
+import { homesReplaced, netHomes, combinedHomes, recordedHomes, homesText, redevelopmentImpact } from '../lib/redevelopmentImpact.js'
 import { typologyCards, resizeDraft, rotatePlacement, draftKey, previewPaused } from '../lib/buildControls.js'
 import { nearbyStops, preferredStop, round } from '../lib/plannerModel.js'
 import { createPlannerEvaluator, sameEvaluationContext } from '../lib/plannerEvaluation.js'
@@ -383,6 +385,19 @@ function Studio({ data }) {
   const retainedNearbyBuildings = useMemo(() => retainedBuildings(nearbyBuildings, scenario.demolitions), [nearbyBuildings, scenario.demolitions])
   const siteBuildings = useMemo(() => siteFootprints(nearbyBuildings, selected), [nearbyBuildings, selected])
   const inspectedExisting = selectedBuilding?.kind === 'existing' ? siteBuildings.find(b => footprintKey(b) === demolitionKey(selectedBuilding)) || null : null
+  const parcelProps = useCallback(pin => (planByPin.get(pin) || byPin.get(pin))?.properties || null, [planByPin, byPin])
+  const demolishedByKey = useMemo(() => {
+    const keys = new Set((scenario.demolitions || []).map(demolitionKey)), found = new Map()
+    for (const feature of context?.buildings.features || []) { const key = footprintKey(feature); if (keys.has(key)) found.set(key, feature) }
+    return found
+  }, [context, scenario.demolitions])
+  const planNet = useMemo(() => netHomes(proposedHomeCount, homesReplaced(scenario.demolitions || [], { parcel: parcelProps, footprint: entry => demolishedByKey.get(demolitionKey(entry)) })), [proposedHomeCount, scenario.demolitions, parcelProps, demolishedByKey])
+  const siteDemolished = useMemo(() => siteBuildings.filter(f => isDemolished(f, scenario.demolitions)), [siteBuildings, scenario.demolitions])
+  function siteImpact(features) {
+    const refs = features.map(f => footprintRef(f, scenario.pin)).filter(Boolean)
+    const existingHomes = combinedHomes(homesReplaced(refs, { parcel: parcelProps, footprint: ref => features.find(f => footprintKey(f) === demolitionKey(ref)) }))
+    return redevelopmentImpact({ parcel: props, demolished: features, draft: scenario.draft, targetIncome: scenario.targetIncome, existingHomes })
+  }
   const inspectedPlaced = selectedBuilding?.kind === 'placed' ? scenario.buildings.find(b => b.id === selectedBuilding.id && b.pin === scenario.pin) : null
   const areaSites = useMemo(() => (scenario.buildings || []).map(building => {
     const feature = planByPin.get(building.pin), bounds = geometryBounds(feature.geometry)
@@ -631,10 +646,13 @@ function Studio({ data }) {
           {inspectorTab === 'edit' && tool === 'sites' && <><div className="drawer-heading"><h2>Find a site</h2><p>Choose a parcel to start building.</p></div><EmptySitesControl enabled={highlightEmpty} onChange={setHighlightEmpty} count={emptyPins.length} pending={emptySites.pending} loading={loaded.pending} error={emptySites.error || loaded.error} zoomedOut={!!viewport && !hasMapDetail(viewport)}/><StudioSites filters={siteFilters} setFilters={setSiteFilters} sites={sites} selectedPin={scenario.pin} onSelect={select} loading={sitesLoading}/></>}
           {inspectorTab === 'priorities' && <StudioPriorities pending={evaluation.pending} weights={scenario.weights} included={result?.comparison?.included} onChange={weights => set('weights', weights)}/>}
           {inspectorTab !== 'priorities' && !(inspectorTab === 'edit' && tool === 'sites') && <div className="site-heading" data-tour="site-facts"><span className="eyebrow">SELECTED SITE</span><h2>{props.address || 'Unnamed parcel'}</h2><p>{props.neighborhood} · {fmt(props.lot_sqft)} sq ft</p><details className="site-details"><summary>{props.land_use || 'Unknown use'} · {props.zoning_code || 'Unknown zoning'}<span>Site facts & zoning</span></summary><SiteZoning properties={props} zoning={zoning} option={option} showHousing={inspectorTab === 'rankings' || tool === 'housing' || tool === 'compare'}/></details></div>}
-          {inspectorTab === 'edit' && tool === 'housing' && <BuildingInspector existing={inspectedExisting} placed={inspectedPlaced} sitePin={scenario.pin} siteBuildings={siteBuildings} demolitions={scenario.demolitions} onSelect={ref => { const feature = siteBuildings.find(b => footprintKey(b) === demolitionKey(ref)); if (feature) inspectOnSite(feature) }} onDemolish={(feature, replace) => demolishFootprints([feature], replace ? 'replace' : 'only')} onRestore={restoreExisting} onEditPlaced={editPlaced} onClose={() => setSelectedBuilding(null)} pending={evaluation.pending || !context}/>}
+          {inspectorTab === 'edit' && tool === 'housing' && <BuildingInspector existing={inspectedExisting} placed={inspectedPlaced} sitePin={scenario.pin} siteBuildings={siteBuildings} demolitions={scenario.demolitions} onSelect={ref => { const feature = siteBuildings.find(b => footprintKey(b) === demolitionKey(ref)); if (feature) inspectOnSite(feature) }} onDemolish={(feature, replace) => demolishFootprints([feature], replace ? 'replace' : 'only')} onRestore={restoreExisting} onEditPlaced={editPlaced} onClose={() => setSelectedBuilding(null)} pending={evaluation.pending || !context}
+            existingHomes={inspectedExisting && (inspectedExisting.properties.pin ? homesText(recordedHomes(parcelProps(inspectedExisting.properties.pin) || {})) : 'Unknown (no matched parcel record)')} planNet={scenario.buildings.length || scenario.demolitions?.length ? planNet : null}>
+            {inspectedExisting && <RedevelopmentImpact impact={siteImpact(isDemolished(inspectedExisting, scenario.demolitions) ? siteDemolished : [...siteDemolished, inspectedExisting])} hypothetical={!isDemolished(inspectedExisting, scenario.demolitions)}/>}
+          </BuildingInspector>}
           {evaluation.error && <p role="alert" className="planner-warning">Calculation failed: {evaluation.error}</p>}
           {(inspectorTab === 'edit' || inspectorTab === 'rankings') && (!!scenario.buildings?.length || !!scenario.demolitions?.length) && <details className="plan-summary"><summary><strong>Your plan</strong><span>{scenario.buildings.length} added · {scenario.demolitions?.length || 0} removed</span></summary><div className="area-plan">
-            <p className="compact-help">{proposedHomeCount} proposed {proposedHomeCount === 1 ? 'home' : 'homes'}. Existing homes lost are not counted.</p>
+            <p className="net-homes"><strong>{planNet.text}</strong><small>{planNet.note}</small></p>
             {result?.placedPlan && !evaluation.pending && <p className="placed-plan-score"><span>Plan score · current → changed infrastructure</span><strong>{fmt(result.placedPlan.baseline.total)} → {fmt(result.placedPlan.proposal.total)}</strong></p>}
             <ul>{scenario.buildings.map((b, i) => <li key={b.id}><button aria-label={`Inspect planned building ${i + 1}`} onClick={() => selectBuilding({ kind: 'placed', id: b.id, pin: b.pin })}><strong>{housingSpec(b.option).label}</strong><small>{byPin.get(b.pin)?.properties.address || b.pin} · planned</small></button><button aria-label={`Remove placed building ${i + 1}`} onClick={() => { dispatch({ type: 'removeBuilding', id: b.id }); if (selectedBuilding?.id === b.id) setSelectedBuilding(null) }}>Remove</button></li>)}</ul>
             <ul>{(scenario.demolitions || []).map(b => <li key={demolitionKey(b)}><button onClick={() => inspectDemolition(b)}><strong>{byPin.get(demolitionSite(b))?.properties.address || demolitionSite(b)}</strong><small>Outline {b.id} · demolished{b.site || b.unmatched ? ' · crossed the parcel boundary' : ''}</small></button><button onClick={() => restoreExisting(b)} aria-label={`Restore building ${b.id}`}>Restore</button></li>)}</ul>
@@ -660,6 +678,7 @@ function Studio({ data }) {
             <div className="build-actions"><button className="primary-build" disabled={!draftState.canPlace} onClick={() => addBuilding(placing && hoverMassing ? hoverMassing : undefined)}>{placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
             </>}
+            {!!siteDemolished.length && <RedevelopmentImpact impact={siteImpact(siteDemolished)}/>}
             <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Advanced · income, costs & evidence →</button>
           </section>}
           {inspectorTab === 'edit' && tool === 'service' && <>
