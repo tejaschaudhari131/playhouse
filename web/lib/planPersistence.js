@@ -1,5 +1,6 @@
 import { BUILDING_IDS } from './buildings.js'
 import { MODEL_VERSION, PLANNER_FACTORS } from './plannerState.js'
+import { demolitionKey, footprintKey } from './redevelopment.js'
 
 export const PLAN_STORAGE_KEY = 'playhouse.plan.v1'
 export const PLAN_STORAGE_VERSION = 1
@@ -47,7 +48,7 @@ export function validatePlan(scenario) {
   if (scenario.capacityMode !== undefined && !['schedule', 'manual'].includes(scenario.capacityMode) || scenario.accessMode !== undefined && !['network', 'direct'].includes(scenario.accessMode)) return 'The saved calculation mode is invalid.'
   if (!['stopId', 'serviceStopId', 'capacityStopId'].every(key => scenario[key] === undefined || typeof scenario[key] === 'string' && scenario[key].length < 100)) return 'The saved stop reference is invalid.'
   if (!list(scenario.buildings, 40) || !scenario.buildings.every(b => object(b) && identifier(b.id) && validPlanPin(b.pin) && validOption(b.option) && number(b.targetIncome, 1, 1e8) && typeof b.stopId === 'string' && affordabilityConfirmation(b.affordabilityConfirmation)) || !unique(scenario.buildings.map(b => b.id))) return 'The saved building list is invalid.'
-  if (!list(scenario.demolitions, 100) || !scenario.demolitions.every(b => object(b) && identifier(b.id) && validPlanPin(b.pin)) || !unique(scenario.demolitions.map(b => `${b.pin}:${b.id}`))) return 'The saved demolition list is invalid.'
+  if (!list(scenario.demolitions, 100) || !scenario.demolitions.every(b => object(b) && identifier(b.id) && validPlanPin(b.pin) && (b.site === undefined || validPlanPin(b.site)) && (b.unmatched === undefined || b.unmatched === true)) || !unique(scenario.demolitions.map(b => `${b.unmatched ? '#unmatched' : b.pin}:${b.id}`))) return 'The saved demolition list is invalid.'
   if (!list(scenario.connections, 12) || !scenario.connections.every(c => object(c) && identifier(c.id) && ['path', 'street'].includes(c.kind) && endpoint(c.from) && endpoint(c.to) && number(c.width, 2, 30) && regionIds(c.neighborhoodIds))) return 'The saved connections are invalid.'
   if (!list(scenario.parks, 12) || !scenario.parks.every(p => object(p) && identifier(p.id) && typeof p.name === 'string' && point(p.coordinates) && Number.isInteger(p.node) && p.node >= 0 && number(p.width, 5, 100) && number(p.depth, 5, 100) && regionIds(p.neighborhoodIds))) return 'The saved parks are invalid.'
   if (!list(scenario.routes, 12) || !scenario.routes.every(r => object(r) && identifier(r.id) && list(r.coordinates, 40000) && r.coordinates.length >= 2 && r.coordinates.every(point) && number(r.minutes) && number(r.meters))) return 'The saved routes are invalid.'
@@ -57,7 +58,7 @@ export function validatePlan(scenario) {
 }
 
 export function planPins(scenario) {
-  return [...new Set([scenario.pin, ...scenario.buildings.map(b => b.pin), ...scenario.demolitions.map(b => b.pin), ...Object.keys(scenario.zoningInputsByPin)])]
+  return [...new Set([scenario.pin, ...scenario.buildings.map(b => b.pin), ...scenario.demolitions.flatMap(b => [b.pin, b.site].filter(Boolean)), ...Object.keys(scenario.zoningInputsByPin)])]
 }
 
 /** Startup is the only untouched state; Undo to the original object is still an edit. */
@@ -120,6 +121,6 @@ export async function restorePlanContext(saved, manifest, { locate, load, signal
     }
   }))
   for (const pin of pins) if (!chunks.get(byPin.get(pin).id).parcels.features.some(f => f.properties.pin === pin)) throw new Error(`Saved parcel ${pin} is missing from its neighborhood.`)
-  for (const removed of saved.scenario.demolitions) if (!chunks.get(byPin.get(removed.pin).id).buildings.features.some(f => String(f.properties.id ?? f.id) === removed.id && String(f.properties.pin) === removed.pin)) throw new Error(`Saved building ${removed.id} is missing from the current outlines. Download the saved copy before starting a new plan.`)
+  for (const removed of saved.scenario.demolitions) if (!chunks.get(byPin.get(removed.pin).id).buildings.features.some(f => footprintKey(f) === demolitionKey(removed))) throw new Error(`Saved building ${removed.id} is missing from the current outlines. Download the saved copy before starting a new plan.`)
   return { chunks, descriptor: selected }
 }

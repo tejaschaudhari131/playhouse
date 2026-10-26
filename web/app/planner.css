@@ -72,6 +72,15 @@
 .building-popup small { color: #72816e; }
 .placement-banner { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: #274f3ff2; color: white; font-size: 12px; z-index: 2; display: flex; justify-content: space-between; align-items: center; }
 .placement-banner button { padding: 5px 9px; color: #274f3f; }
+.placement-banner > span { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.redevelop-callout { margin: 12px 0; padding: 12px; border: 1px solid #d9b98a; border-left: 4px solid #b7792f; border-radius: 9px; background: #fff8ee; font-size: 12px; line-height: 1.5; }
+.redevelop-callout p { margin: 0; }
+.redevelop-callout .placement-actions { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); margin-top: 9px; }
+.redevelop-callout small { display: block; margin-top: 7px; color: #6d5f49; }
+.primary-build { color: #fff; background: #315b46; border-color: #315b46; font-weight: 600; }
+.primary-build:hover:not(:disabled) { background: #244c39; }
+.dock-action { width: 100%; margin-top: 8px; padding: 7px 9px; font-size: 12px; font-weight: 600; color: #fff; background: #8a5a22; border-color: #8a5a22; }
+.dock-action:hover:not(:disabled) { background: #744a1b; }
 .placement-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; }
 .placement-actions button { font-size: 10px; padding: 8px 5px; }
 .placement-controls > small { display: block; color: #7a856e; font-size: 12px; line-height: 1.6; }

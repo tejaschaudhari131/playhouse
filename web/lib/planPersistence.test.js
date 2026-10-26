@@ -104,6 +104,26 @@ test('restore prepares every referenced neighborhood before exposing a saved mul
   assert.equal(result.descriptor.id, 'hazelwood')
 })
 
+test('cross-boundary and unmatched demolitions round trip and restore against the removing site', async () => {
+  const saved = { scenario: fullPlan(), sources }
+  saved.scenario.demolitions = [{ id: 'source-one', pin: PIN }, { id: 'neighbor-shed', pin: OTHER, site: PIN }, { id: 'orphan', pin: PIN, unmatched: true }]
+  assert.equal(validatePlan(saved.scenario), null)
+  const target = storage()
+  assert.equal(savePlan(target, saved.scenario, sources).ok, true)
+  assert.deepEqual(readSavedPlan(target).saved.scenario.demolitions, saved.scenario.demolitions)
+  for (const change of [p => { p.demolitions[1].site = '' }, p => { p.demolitions[2].unmatched = 'yes' }, p => p.demolitions.push({ id: 'orphan', pin: OTHER, unmatched: true })]) {
+    const scenario = structuredClone(saved.scenario); change(scenario)
+    assert.match(validatePlan(scenario), /demolition/)
+  }
+  const neighborhoods = [{ id: 'hazelwood', networkFile: sources.networkFile }, { id: 'lawrenceville', networkFile: 'other.json' }]
+  const byPin = new Map([[PIN, neighborhoods[0]], [OTHER, neighborhoods[1]]])
+  const buildings = { features: [{ properties: { id: 'source-one', pin: PIN } }, { properties: { id: 'neighbor-shed', pin: OTHER } }, { properties: { id: 'orphan', pin: '' } }] }
+  const load = async descriptor => ({ parcels: { features: [{ properties: { pin: descriptor.id === 'hazelwood' ? PIN : OTHER } }] }, buildings })
+  assert.equal((await restorePlanContext(saved, { neighborhoods }, { locate: async (m, pin) => byPin.get(pin), load })).chunks.size, 2)
+  const matchedNow = { features: buildings.features.map(f => f.properties.id === 'orphan' ? { properties: { id: 'orphan', pin: OTHER } } : f) }
+  await assert.rejects(restorePlanContext(saved, { neighborhoods }, { locate: async (m, pin) => byPin.get(pin), load: async d => ({ ...(await load(d)), buildings: matchedNow }) }), /orphan is missing/)
+})
+
 test('missing parcel or changed graph refuses unsafe restoration before fetching geometry', async () => {
   const saved = { scenario: fullPlan(), sources }
   const manifest = { neighborhoods: [{ id: 'hazelwood', networkFile: 'new-network.json' }] }

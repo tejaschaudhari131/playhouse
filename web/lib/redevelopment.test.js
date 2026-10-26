@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { recordedBuildingRef, retainedBuildings } from './redevelopment.js'
+import { recordedBuildingRef, retainedBuildings, siteFootprints, blockingFootprints, footprintRef, isDemolished, demolitionSite } from './redevelopment.js'
 import { initialStudioScenario, initialScenario, optionFor, historyFor, scenarioReducer, scenarioExport } from './plannerState.js'
 import { evaluatePlanner } from './plannerModel.js'
 import { createPlannerEvaluator } from './plannerEvaluation.js'
@@ -35,6 +35,79 @@ test('removals match recorded ID and matched PIN, preserve source objects, and n
   assert.equal(retainedBuildings(features), features)
   assert.deepEqual(recordedBuildingRef({ id: 12, properties: { pin: 'site' } }), { id: '12', pin: 'site' })
   assert.equal(recordedBuildingRef({ id: '12' }), null)
+})
+
+const at = (east, north = 0) => [origin[0] + east / (111320 * Math.cos(origin[1] * Math.PI / 180)), origin[1] + north / 111320]
+
+test('a site lists its own footprints first, then outlines crossing its boundary from neighbors or without a parcel', () => {
+  const { feature } = fixture()
+  const own = recorded('own', 'site'), farOwn = recorded('far-own', 'site', rectangleAt(at(400), 9, 9))
+  const crossing = recorded('cross', 'neighbor', rectangleAt(at(50), 12, 12)), orphan = recorded('orphan', '', rectangleAt(at(-50), 8, 8))
+  const away = recorded('away', 'neighbor', rectangleAt(at(120), 12, 12))
+  assert.deepEqual(siteFootprints([crossing, away, orphan, own, farOwn], feature).map(f => f.properties.id), ['own', 'far-own', 'cross', 'orphan'])
+  assert.deepEqual(siteFootprints(null, feature), [])
+  assert.deepEqual(siteFootprints([own], null), [])
+  assert.deepEqual(blockingFootprints([own, crossing, away], rectangleAt(at(48), 10, 10)).map(f => f.properties.id), ['cross'])
+  assert.deepEqual(blockingFootprints(null, feature.geometry), [])
+  assert.deepEqual(footprintRef(own, 'site'), { id: 'own', pin: 'site' })
+  assert.deepEqual(footprintRef(crossing, 'site'), { id: 'cross', pin: 'neighbor', site: 'site' })
+  assert.deepEqual(footprintRef(orphan, 'site'), { id: 'orphan', pin: 'site', unmatched: true })
+  assert.equal(footprintRef({ properties: { pin: 'site' } }, 'site'), null)
+  assert.equal(footprintRef(orphan, ''), null)
+  assert.equal(demolitionSite(footprintRef(crossing, 'site')), 'site')
+  assert.equal(demolitionSite(footprintRef(own, 'site')), 'site')
+})
+
+test('unmatched and cross-boundary removals match only their own outline', () => {
+  const orphan = recorded('orphan', ''), sameIdOwned = recorded('orphan', 'site'), crossing = recorded('cross', 'neighbor')
+  const features = [orphan, sameIdOwned, crossing]
+  assert.deepEqual(retainedBuildings(features, [{ id: 'orphan', pin: 'site', unmatched: true }]), [sameIdOwned, crossing])
+  assert.deepEqual(retainedBuildings(features, [{ id: 'orphan', pin: 'site' }]), [orphan, crossing])
+  assert.deepEqual(retainedBuildings(features, [{ id: 'cross', pin: 'neighbor', site: 'site' }]), [orphan, sameIdOwned])
+  assert.equal(isDemolished(orphan, [{ id: 'orphan', pin: 'other-site', unmatched: true }]), true)
+  assert.equal(isDemolished(sameIdOwned, [{ id: 'orphan', pin: 'site', unmatched: true }]), false)
+})
+
+test('batch demolition is one undo step, dedupes, keeps site context and clears both parcels’ retained-area inputs', () => {
+  const { scenario } = fixture()
+  scenario.zoningInputsByPin = { site: { existingGfaSqft: 9000, parkingSpaces: 2 }, neighbor: { existingFootprintSqft: 400, izStatus: 'none' }, other: { existingGfaSqft: 1 } }
+  scenario.demolitions = [{ id: 'old', pin: 'site' }]
+  const before = structuredClone(scenario), start = historyFor(scenario)
+  const buildings = [{ id: 'cross', pin: 'neighbor', site: 'site' }, { id: 'orphan', pin: 'site', unmatched: true }, { id: 'cross', pin: 'neighbor', site: 'site' }, { id: 'old', pin: 'site' }]
+  let history = scenarioReducer(start, { type: 'demolishBuildings', buildings, resetDraft: true })
+  assert.deepEqual(history.present.demolitions, [{ id: 'old', pin: 'site' }, { id: 'cross', pin: 'neighbor', site: 'site' }, { id: 'orphan', pin: 'site', unmatched: true }])
+  assert.deepEqual(history.present.zoningInputsByPin, { site: { parkingSpaces: 2 }, neighbor: { izStatus: 'none' }, other: { existingGfaSqft: 1 } })
+  assert.equal(history.present.zoningInputsByPin.other, scenario.zoningInputsByPin.other)
+  assert.equal(history.present.draft.placement, null)
+  assert.equal(history.past.length, 1)
+  assert.deepEqual(scenarioReducer(history, { type: 'undo' }).present, before)
+  history = scenarioReducer(history, { type: 'restoreBuilding', building: { id: 'orphan', pin: 'site', unmatched: true } })
+  assert.deepEqual(history.present.demolitions.map(d => d.id), ['old', 'cross'])
+  history = scenarioReducer(history, { type: 'restoreBuilding', building: { id: 'cross', pin: 'neighbor' } })
+  assert.deepEqual(history.present.demolitions.map(d => d.id), ['old'])
+  for (const invalid of [[], [{ id: 'ok', pin: 'site' }, { id: '', pin: 'site' }], [{ id: 'old', pin: 'site' }], 'cross']) {
+    assert.equal(scenarioReducer(start, { type: 'demolishBuildings', buildings: invalid }), start)
+  }
+  const nearlyFull = historyFor({ ...scenario, demolitions: Array.from({ length: 99 }, (_, id) => ({ id: String(id), pin: 'site' })) })
+  assert.equal(scenarioReducer(nearlyFull, { type: 'demolishBuildings', buildings: [{ id: 'a', pin: 'site' }, { id: 'b', pin: 'site' }] }), nearlyFull)
+  assert.equal(scenarioReducer(nearlyFull, { type: 'demolishBuildings', buildings: [{ id: 'a', pin: 'site' }] }).present.demolitions.length, 100)
+})
+
+test('a footprint crossing from a neighbor or without a parcel stops blocking the draft once demolished from this site', () => {
+  for (const blocker of [recorded('cross', 'neighbor', rectangleAt(at(45), 14, 14)), recorded('orphan', '', rectangleAt(at(45), 14, 14))]) {
+    const input = fixture()
+    input.existingBuildings = [blocker]
+    input.scenario.draft = { ...input.scenario.draft, width: 8, depth: 8, placement: { east: 42, north: 0, bearing: 0 } }
+    const before = evaluatePlanner(input)
+    assert.equal(before.proposal.townhouse_duplex.massing.collisions, 1)
+    assert.equal(before.proposal.townhouse_duplex.total, null)
+    assert.deepEqual(blockingFootprints(input.existingBuildings, before.proposal.townhouse_duplex.massing.geometry), [blocker])
+    const scenario = scenarioReducer(historyFor(input.scenario), { type: 'demolishBuildings', buildings: [footprintRef(blocker, 'site')] }).present
+    const after = evaluatePlanner({ ...input, scenario })
+    assert.equal(after.proposal.townhouse_duplex.massing.collisions, 0)
+    assert.ok(Number.isFinite(after.proposal.townhouse_duplex.total))
+    assert.deepEqual(after.proposal.townhouse_duplex.massing.placement, input.scenario.draft.placement)
+  }
 })
 
 test('demolish/restore clear only affected retained-area assumptions and undo restores their exact values', () => {

@@ -14,7 +14,7 @@ import { buildingHeightDescription, buildingHeightSource } from '../lib/building
 import { DETAIL_ZOOM, DETAIL_EXIT_ZOOM, hasMapDetail, renderViewport } from '../lib/studioData.js'
 import { mapSourceDiff } from '../lib/mapSourceDiff.js'
 import { networkDisplayIndex } from '../lib/networkDisplay.js'
-import { recordedBuildingRef, retainedBuildings } from '../lib/redevelopment.js'
+import { recordedBuildingRef, retainedBuildings, demolitionKey, demolitionSite, footprintKey } from '../lib/redevelopment.js'
 import { playDemolitionEffect } from '../lib/demolitionEffect.js'
 import { playConstructionEffect } from '../lib/constructionEffect.js'
 
@@ -145,11 +145,12 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
         const buildingHit = map.queryRenderedFeatures(event.point, { layers: ['existing-buildings-fill', 'existing-buildings-overview'] })[0]
         if (buildingHit) {
           const ref = recordedBuildingRef(buildingHit)
+          const outlineId = buildingHit.properties?.id ?? buildingHit.id
           // The unplaced preview must not prevent inspecting or replacing a
           // mapped building beneath it. The context drawer owns mapped evidence.
-          if (ref && callbacks.current.onBuildingSelect) {
+          if (callbacks.current.onBuildingSelect && (ref || outlineId !== undefined && outlineId !== null && outlineId !== '')) {
             popup.current?.remove()
-            callbacks.current.onBuildingSelect({ kind: 'existing', ...ref })
+            callbacks.current.onBuildingSelect(ref ? { kind: 'existing', ...ref } : { kind: 'existing', id: String(outlineId), pin: '', unmatched: true })
             return
           }
           const p = buildingHit.properties
@@ -216,9 +217,12 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
     // can remove rendered footprints too, and must never look like demolition.
     if (!demolitionEffect || consumedDemolition.current === demolitionEffect.id) return
     consumedDemolition.current = demolitionEffect.id
-    const map = readyMap(), { building, feature } = demolitionEffect
-    if (!map || !detail || !showExisting || selected?.properties.pin !== building.pin || !demolitions.some(b => b.id === building.id && b.pin === building.pin)) return
-    return playDemolitionEffect(map, feature)
+    const map = readyMap()
+    if (!map || !detail || !showExisting) return
+    const keys = new Set(demolitions.map(demolitionKey))
+    const stops = demolitionEffect.items.filter(({ building }) => selected?.properties.pin === demolitionSite(building) && keys.has(demolitionKey(building)))
+      .slice(0, 6).map(({ feature }) => playDemolitionEffect(map, feature)).filter(Boolean)
+    return stops.length ? () => stops.forEach(stop => stop()) : undefined
   }, [ready, demolitionEffect, demolitions, showExisting, detail, selected?.properties.pin])
   useEffect(() => {
     if (!ready) return
@@ -317,10 +321,8 @@ export default function PlannerMap({ parcelIndex, buildingIndex, neighborhoods, 
     if (!map) return
     let geometry = null
     if (selectedBuilding?.kind === 'existing') {
-      geometry = visibleBuildings.find(feature => {
-        const ref = recordedBuildingRef(feature)
-        return ref && ref.id === String(selectedBuilding.id) && ref.pin === String(selectedBuilding.pin)
-      })?.geometry
+      const key = demolitionKey(selectedBuilding)
+      geometry = key && visibleBuildings.find(feature => footprintKey(feature) === key)?.geometry
     } else if (selectedBuilding?.kind === 'placed') {
       geometry = placedBuildings.find(building => String(building.id) === String(selectedBuilding.id) && String(building.pin) === String(selectedBuilding.pin))?.massing.geometry
     }

@@ -1,5 +1,5 @@
 import { BUILDINGS } from './buildings.js'
-import { normalizeBuildingRef, buildingRefKey } from './redevelopment.js'
+import { normalizeDemolition, buildingRefKey } from './redevelopment.js'
 
 export const MODEL_VERSION = 'planner-screen-2.1'
 export const EXAMPLES = [
@@ -61,25 +61,30 @@ export function scenarioReducer(state, action) {
     return { past: [...state.past, state.present], present: state.future[0], future: state.future.slice(1) }
   }
   let next = state.present
-  if (action.type === 'demolishBuilding' || action.type === 'restoreBuilding') {
-    const ref = normalizeBuildingRef(action.building || action)
-    if (!ref) return state
+  if (action.type === 'demolishBuilding' || action.type === 'demolishBuildings' || action.type === 'restoreBuilding') {
+    const demolish = action.type !== 'restoreBuilding'
+    const requested = action.type === 'demolishBuildings' ? (Array.isArray(action.buildings) ? action.buildings : []) : [action.building || action]
+    const refs = requested.map(normalizeDemolition)
+    if (!refs.length || refs.some(ref => !ref)) return state
     const demolitions = next.demolitions || []
-    const matches = entry => {
-      const normalized = normalizeBuildingRef(entry)
-      return normalized && buildingRefKey(normalized) === buildingRefKey(ref)
-    }
-    const exists = demolitions.some(matches)
-    if (action.type === 'demolishBuilding' ? exists || demolitions.length >= 100 : !exists) return state
+    const key = entry => { const normalized = normalizeDemolition(entry); return normalized && buildingRefKey(normalized) }
+    const existing = new Set(demolitions.map(key).filter(Boolean))
+    const changed = refs.filter((ref, index) => existing.has(buildingRefKey(ref)) !== demolish && refs.findIndex(other => buildingRefKey(other) === buildingRefKey(ref)) === index)
+    if (!changed.length || demolish && demolitions.length + changed.length > 100) return state
     // Existing-area inputs described the previous retained structures. Undo keeps
     // their exact values; a changed footprint set requires fresh retained totals.
-    const inputs = { ...(next.zoningInputsByPin?.[ref.pin] || {}) }
-    delete inputs.existingGfaSqft
-    delete inputs.existingFootprintSqft
+    const zoningInputsByPin = { ...next.zoningInputsByPin }
+    for (const pin of new Set(changed.flatMap(ref => [ref.pin, ref.site].filter(Boolean)))) {
+      const inputs = { ...(zoningInputsByPin[pin] || {}) }
+      delete inputs.existingGfaSqft
+      delete inputs.existingFootprintSqft
+      zoningInputsByPin[pin] = inputs
+    }
+    const removed = new Set(changed.map(buildingRefKey))
     next = { ...next,
-      demolitions: action.type === 'demolishBuilding' ? [...demolitions, ref] : demolitions.filter(entry => !matches(entry)),
-      zoningInputsByPin: { ...next.zoningInputsByPin, [ref.pin]: inputs },
-      ...(action.type === 'demolishBuilding' && action.resetDraft && next.draft ? { draft: { ...next.draft, placement: null } } : {}),
+      demolitions: demolish ? [...demolitions, ...changed] : demolitions.filter(entry => !removed.has(key(entry))),
+      zoningInputsByPin,
+      ...(demolish && action.resetDraft && next.draft ? { draft: { ...next.draft, placement: null } } : {}),
     }
   }
   if (action.type === 'addBuilding' && (next.buildings || []).length < 40 && !(next.buildings || []).some(b => b.id === action.building.id)) next = { ...next, buildings: [...(next.buildings || []), action.building], ...(action.slot ? { options: { ...next.options, [action.slot]: { ...next.options[action.slot], placement: null } } } : {}) }

@@ -29,7 +29,7 @@ import useEmptySites from './useEmptySites.js'
 import StudioTour from './StudioTour.js'
 import { TOUR_PIN, tourScenario, tourEvidence } from '../lib/studioTour.js'
 import { draftPreview } from '../lib/draftPreview.js'
-import { recordedBuildingRef, retainedBuildings } from '../lib/redevelopment.js'
+import { retainedBuildings, footprintRef, footprintKey, demolitionKey, demolitionSite, siteFootprints, blockingFootprints, isDemolished } from '../lib/redevelopment.js'
 import BuildingInspector from './BuildingInspector.js'
 import { nearbyStops, preferredStop, round } from '../lib/plannerModel.js'
 import { createPlannerEvaluator, sameEvaluationContext } from '../lib/plannerEvaluation.js'
@@ -266,7 +266,7 @@ function Studio({ data }) {
   }, [scenario.pin, tourStep])
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [tool, setActiveTool] = useState('housing'), [proposed, setProposed] = useState(true), [view3d, setView3d] = useState(true)
-  const scenarioPins = plan => [plan.pin, ...(plan.buildings || []).map(b => b.pin), ...(plan.demolitions || []).map(b => b.pin)]
+  const scenarioPins = plan => [plan.pin, ...(plan.buildings || []).map(b => b.pin), ...(plan.demolitions || []).map(demolitionSite)]
   const scenarioNeighborhoods = plan => [...new Set([...scenarioPins(plan).map(pin => catalogue.get(pin).id), ...[...(plan.connections || []), ...(plan.parks || [])].flatMap(edit => edit.neighborhoodIds || [])])].sort()
   const requiredIds = scenarioNeighborhoods(scenario)
   const historyTarget = pendingHistory === 'undo' ? history.past.at(-1) : pendingHistory === 'redo' ? history.future[0] : null
@@ -378,8 +378,8 @@ function Studio({ data }) {
     return buildingIndex.query(bounds)
   }, [buildingIndex, selected])
   const retainedNearbyBuildings = useMemo(() => retainedBuildings(nearbyBuildings, scenario.demolitions), [nearbyBuildings, scenario.demolitions])
-  const siteBuildings = useMemo(() => (nearbyBuildings || []).filter(b => b.properties.pin === scenario.pin), [nearbyBuildings, scenario.pin])
-  const inspectedExisting = selectedBuilding?.kind === 'existing' ? siteBuildings.find(b => recordedBuildingRef(b)?.id === selectedBuilding.id) : null
+  const siteBuildings = useMemo(() => siteFootprints(nearbyBuildings, selected), [nearbyBuildings, selected])
+  const inspectedExisting = selectedBuilding?.kind === 'existing' ? siteBuildings.find(b => footprintKey(b) === demolitionKey(selectedBuilding)) || null : null
   const inspectedPlaced = selectedBuilding?.kind === 'placed' ? scenario.buildings.find(b => b.id === selectedBuilding.id && b.pin === scenario.pin) : null
   const areaSites = useMemo(() => (scenario.buildings || []).map(building => {
     const feature = planByPin.get(building.pin), bounds = geometryBounds(feature.geometry)
@@ -433,15 +433,39 @@ function Studio({ data }) {
     else setNotice('Choose a scheduled stop within 1,200 m of this parcel.')
   }
   function restoreHistory(direction) { setSelectedBuilding(null); setPendingPin(null); setPendingHistory(direction) }
-  function selectBuilding(building) { select(building.pin, building); setTool('housing'); setInspectorTab('edit') }
-  function demolishExisting(replace = false) {
-    const building = recordedBuildingRef(inspectedExisting)
-    if (!building || building.pin !== scenario.pin || !context) return
-    if ((scenario.demolitions || []).length >= 100) { setNotice('This plan supports 100 simulated demolitions. Restore one to remove another.'); return }
-    setDemolitionEffect({ id: crypto.randomUUID(), building, feature: inspectedExisting })
-    dispatch({ type: 'demolishBuilding', building, resetDraft: replace })
-    setSelectedBuilding(null); setPlacing(false); setTool('housing'); setInspectorTab('edit')
-    setNotice(replace ? 'Building removed in this scenario. Preview a replacement on the cleared parcel; zoning and fit checks still apply.' : 'Building demolished in this scenario. Restore it from the plan or use Undo.', 'transient')
+  function inspectOnSite(feature) {
+    setSelectedBuilding({ ...footprintRef(feature, scenario.pin), kind: 'existing' }); setPlacing(false); setTool('housing'); setInspectorTab('edit')
+  }
+  function selectBuilding(building) {
+    if (building.kind === 'existing') {
+      const key = demolitionKey(building), onSite = siteBuildings.find(b => footprintKey(b) === key)
+      // Outlines crossing from a neighbor stay on this parcel only when they block the draft or have no parcel of their own.
+      if (onSite && (onSite.properties.pin === scenario.pin || building.unmatched || blockingBuildings.includes(onSite))) { inspectOnSite(onSite); return }
+      if (building.unmatched) { setNotice('This outline has no matched parcel record. Select the parcel it sits on, then demolish it from that parcel’s building list.'); return }
+    }
+    select(building.pin, building); setTool('housing'); setInspectorTab('edit')
+  }
+  function inspectDemolition(entry) {
+    const site = demolitionSite(entry)
+    if (site === scenario.pin) { setSelectedBuilding({ ...entry, kind: 'existing' }); setTool('housing'); setInspectorTab('edit') }
+    else select(site, { ...entry, kind: 'existing' })
+  }
+  /** mode: 'replace' re-fits the draft on the cleared parcel, 'clear' keeps the draft where it is, 'only' just removes. */
+  function demolishFootprints(features, mode = 'clear') {
+    if (!context || evaluation.pending) return
+    const items = features.filter(feature => !isDemolished(feature, scenario.demolitions)).map(feature => ({ building: footprintRef(feature, scenario.pin), feature })).filter(item => item.building)
+    if (!items.length) { setNotice('These outlines have no source ID, so they cannot be removed in a scenario. Move or resize the draft instead.'); return }
+    if ((scenario.demolitions || []).length + items.length > 100) { setNotice('This plan supports 100 simulated demolitions. Restore one to remove another.'); return }
+    setDemolitionEffect({ id: crypto.randomUUID(), items })
+    dispatch({ type: 'demolishBuildings', buildings: items.map(item => item.building), resetDraft: mode === 'replace' })
+    setSelectedBuilding(null); setTool('housing'); setInspectorTab('edit')
+    if (mode !== 'clear') setPlacing(false)
+    const count = items.length === 1 ? 'Building' : `${items.length} buildings`, back = `Undo or Restore brings ${items.length === 1 ? 'it' : 'them'} back.`
+    setNotice({
+      replace: `${count} removed in this scenario. The draft is re-fitted on the cleared parcel; zoning and fit checks still apply. ${back}`,
+      clear: `${count} removed in this scenario so the draft can go here. Zoning and fit checks still apply. ${back}`,
+      only: `${count} demolished in this scenario. Restore from Your plan or use Undo.`,
+    }[mode], 'transient')
   }
   function restoreExisting(building) {
     dispatch({ type: 'restoreBuilding', building }); setSelectedBuilding(null)
@@ -474,9 +498,13 @@ function Studio({ data }) {
     return evaluateTitleNine({ option, feature: selected, zoning, massing, existingBuildings: retainedNearbyBuildings, siteInputs: zoningInputs, projectInputs: scenario.projectInputs,
       members: [...areaSites.map(site => ({ option: site.option, feature: site.feature, izStatus: scenario.zoningInputsByPin?.[site.feature.properties.pin]?.izStatus })), { option, feature: selected, izStatus: zoningInputs.izStatus }] })
   }
+  const draftMassing = hoverMassing || result?.proposal?.[option.typeId]?.massing
+  const blockingBuildings = useMemo(() => evaluation.pending || !draftMassing?.geometry || !draftMassing.collisions ? [] : blockingFootprints(retainedNearbyBuildings, draftMassing.geometry), [evaluation.pending, draftMassing, retainedNearbyBuildings])
+  const otherCollision = !evaluation.pending && draftMassing?.collisions > 0 && !blockingBuildings.length
   const previewOption = hoverMassing && evaluated ? { ...evaluated, massing: hoverMassing, titleNine: screenPlacement(hoverMassing) } : evaluated
   const buildingPreview = useMemo(() => draftPreview(previewOption, evaluation.pending), [previewOption, evaluation.pending])
   function addBuilding(massing = result?.proposal?.[option.typeId]?.massing) {
+    if (!evaluation.pending && massing?.fits && massing.collisions > 0 && blockingFootprints(retainedNearbyBuildings, massing.geometry).length) { setNotice('An existing building is in the way. Use “Demolish & replace existing building” to clear it in this plan, or choose another spot.'); return }
     if (evaluation.pending || result?.infrastructureErrors?.length || !massing?.fits || massing.collisions !== 0 || screenPlacement(massing).conflict) { setNotice('Cannot add: physical fit or a supported zoning check conflicts. Check the red preview and zoning details.'); return }
     if ((scenario.buildings || []).length >= 40) { setNotice('This local plan supports 40 buildings.'); return }
     const id = crypto.randomUUID()
@@ -571,13 +599,13 @@ function Studio({ data }) {
       <section className="studio-canvas" aria-label="Planning map">
         <PlannerMap parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
         <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
-        {placing && <div className="placement-banner" role="status">Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <button onClick={() => setPlacing(false)}>Cancel placement</button></div>}
+        {placing && <div className="placement-banner" role="status">Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review.<span>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
         <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => setView3d(!view3d)} aria-pressed={view3d} aria-label="3D view">{view3d ? '3D' : '2D'}</button></div>
         <div className="canvas-heading"><span className="eyebrow">PITTSBURGH / {props.area?.toUpperCase()}</span></div>
         <div className="canvas-mode">{(tool === 'service' || tool === 'network' || inspectorTab === 'rankings' || scenario.additionalDepartures > 0 || scenario.connections.length > 0 || scenario.parks.length > 0) && <div className="segmented" aria-label="Infrastructure view"><button className={!proposed ? 'active' : ''} aria-pressed={!proposed} onClick={() => setProposed(false)}>Current infrastructure</button><button className={proposed ? 'active' : ''} aria-pressed={proposed} onClick={() => setProposed(true)}>With changes</button></div>}<div className="history-controls"><button aria-label="Undo scenario edit" title="Undo" disabled={!history.past.length || !!pendingHistory} onClick={() => restoreHistory('undo')}>↶</button><button aria-label="Redo scenario edit" title="Redo" disabled={!history.future.length || !!pendingHistory} onClick={() => restoreHistory('redo')}>↷</button></div></div>
         <div className="map-overlays">
-          {(tool === 'housing' || tool === 'compare') && !selectedBuilding && <div className="draft-dock"><div><span className="eyebrow">PREVIEW</span><strong>{housingSpec(option).label}</strong></div><div className="draft-preview-status" role="status"><i style={{ background: buildingPreview?.properties.color || '#94a3b8' }}/>{draftState.placement}</div></div>}
+          {(tool === 'housing' || tool === 'compare') && !selectedBuilding && <div className="draft-dock"><div><span className="eyebrow">PREVIEW</span><strong>{housingSpec(option).label}</strong></div><div className="draft-preview-status" role="status"><i style={{ background: buildingPreview?.properties.color || '#94a3b8' }}/>{draftState.placement}</div>{!!blockingBuildings.length && <button className="dock-action" disabled={evaluation.pending || !context} onClick={() => demolishFootprints(blockingBuildings)}>Demolish & replace existing</button>}</div>}
         </div>
         <MapLegend showExisting={showExisting} onShowExisting={setShowExisting} error={loaded.error} onRetry={loaded.retry}/>
       </section>
@@ -589,13 +617,13 @@ function Studio({ data }) {
           {inspectorTab === 'edit' && tool === 'sites' && <><div className="drawer-heading"><h2>Find a site</h2><p>Choose a parcel to start building.</p></div><EmptySitesControl enabled={highlightEmpty} onChange={setHighlightEmpty} count={emptyPins.length} pending={emptySites.pending} loading={loaded.pending} error={emptySites.error || loaded.error} zoomedOut={!!viewport && !hasMapDetail(viewport)}/><StudioSites filters={siteFilters} setFilters={setSiteFilters} sites={sites} selectedPin={scenario.pin} onSelect={select} loading={sitesLoading}/></>}
           {inspectorTab === 'priorities' && <StudioPriorities pending={evaluation.pending} weights={scenario.weights} included={result?.comparison?.included} onChange={weights => set('weights', weights)}/>}
           {inspectorTab !== 'priorities' && !(inspectorTab === 'edit' && tool === 'sites') && <div className="site-heading" data-tour="site-facts"><span className="eyebrow">SELECTED SITE</span><h2>{props.address || 'Unnamed parcel'}</h2><p>{props.neighborhood} · {fmt(props.lot_sqft)} sq ft</p><details className="site-details"><summary>{props.land_use || 'Unknown use'} · {props.zoning_code || 'Unknown zoning'}<span>Site facts & zoning</span></summary><SiteZoning properties={props} zoning={zoning} option={option} showHousing={inspectorTab === 'rankings' || tool === 'housing' || tool === 'compare'}/></details></div>}
-          {inspectorTab === 'edit' && tool === 'housing' && <BuildingInspector existing={inspectedExisting} placed={inspectedPlaced} siteBuildings={siteBuildings} demolitions={scenario.demolitions} onSelect={selectBuilding} onDemolish={demolishExisting} onRestore={restoreExisting} onEditPlaced={editPlaced} onClose={() => setSelectedBuilding(null)} pending={evaluation.pending || !context}/>}
+          {inspectorTab === 'edit' && tool === 'housing' && <BuildingInspector existing={inspectedExisting} placed={inspectedPlaced} sitePin={scenario.pin} siteBuildings={siteBuildings} demolitions={scenario.demolitions} onSelect={ref => { const feature = siteBuildings.find(b => footprintKey(b) === demolitionKey(ref)); if (feature) inspectOnSite(feature) }} onDemolish={(feature, replace) => demolishFootprints([feature], replace ? 'replace' : 'only')} onRestore={restoreExisting} onEditPlaced={editPlaced} onClose={() => setSelectedBuilding(null)} pending={evaluation.pending || !context}/>}
           {evaluation.error && <p role="alert" className="planner-warning">Calculation failed: {evaluation.error}</p>}
           {(inspectorTab === 'edit' || inspectorTab === 'rankings') && (!!scenario.buildings?.length || !!scenario.demolitions?.length) && <details className="plan-summary"><summary><strong>Your plan</strong><span>{scenario.buildings.length} added · {scenario.demolitions?.length || 0} removed</span></summary><div className="area-plan">
             <p className="compact-help">{proposedHomeCount} proposed {proposedHomeCount === 1 ? 'home' : 'homes'}. Existing homes lost are not counted.</p>
             {result?.placedPlan && !evaluation.pending && <p className="placed-plan-score"><span>Plan score · current → changed infrastructure</span><strong>{fmt(result.placedPlan.baseline.total)} → {fmt(result.placedPlan.proposal.total)}</strong></p>}
             <ul>{scenario.buildings.map((b, i) => <li key={b.id}><button aria-label={`Inspect planned building ${i + 1}`} onClick={() => selectBuilding({ kind: 'placed', id: b.id, pin: b.pin })}><strong>{housingSpec(b.option).label}</strong><small>{byPin.get(b.pin)?.properties.address || b.pin} · planned</small></button><button aria-label={`Remove placed building ${i + 1}`} onClick={() => { dispatch({ type: 'removeBuilding', id: b.id }); if (selectedBuilding?.id === b.id) setSelectedBuilding(null) }}>Remove</button></li>)}</ul>
-            <ul>{(scenario.demolitions || []).map(b => <li key={b.id}><button onClick={() => selectBuilding({ ...b, kind: 'existing' })}><strong>{byPin.get(b.pin)?.properties.address || b.pin}</strong><small>Outline {b.id} · demolished</small></button><button onClick={() => restoreExisting(b)} aria-label={`Restore building ${b.id}`}>Restore</button></li>)}</ul>
+            <ul>{(scenario.demolitions || []).map(b => <li key={demolitionKey(b)}><button onClick={() => inspectDemolition(b)}><strong>{byPin.get(demolitionSite(b))?.properties.address || demolitionSite(b)}</strong><small>Outline {b.id} · demolished{b.site || b.unmatched ? ' · crossed the parcel boundary' : ''}</small></button><button onClick={() => restoreExisting(b)} aria-label={`Restore building ${b.id}`}>Restore</button></li>)}</ul>
           </div></details>}
           {inspectorTab === 'rankings' && <HousingComparison comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')}/>}
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
@@ -603,6 +631,12 @@ function Studio({ data }) {
             <div className="housing-picker"><button aria-label="Previous housing type" onClick={() => cycle(-1)}>←</button><label><span>Housing type</span><Select aria-label="Housing type" value={option.typeId} onChange={e => changeType(e.target.value)}>{BUILDING_IDS.map(id => <option key={id} value={id}>{BUILDINGS[id].label}</option>)}</Select></label><button aria-label="Next housing type" onClick={() => cycle(1)}>→</button></div>
             <p className="compact-help">{housingSpec(option).units} {housingSpec(option).units === 1 ? 'home' : 'homes'} · {option.width} × {option.depth} m · {option.height} m high <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Adjust dimensions</button></p>
             <div className="draft-result" aria-busy={evaluation.pending}><div><span>Current draft</span><strong>{draftState.title}</strong><small>{draftState.detail}</small></div><button onClick={() => setInspectorTab('rankings')}>Compare types →</button></div>
+            {!!blockingBuildings.length && <div className="redevelop-callout" role="group" aria-label="Existing buildings under this draft">
+              <p><strong>{blockingBuildings.length === 1 ? 'An existing building sits' : `${blockingBuildings.length} existing buildings sit`} under this draft.</strong> Demolish {blockingBuildings.length === 1 ? 'it' : 'them'} in the plan to test a replacement here, or move the draft.</p>
+              <div className="placement-actions"><button className="primary-build" disabled={evaluation.pending || !context} onClick={() => demolishFootprints(blockingBuildings)}>Demolish & replace existing building{blockingBuildings.length === 1 ? '' : 's'}</button><button onClick={() => inspectOnSite(blockingBuildings[0])}>Inspect first</button></div>
+              <small>Scenario only · Undo or Restore brings {blockingBuildings.length === 1 ? 'it' : 'them'} back. Zoning checks still apply after clearing.</small>
+            </div>}
+            {otherCollision && <p className="planner-warning">This draft overlaps a planned building or reserved infrastructure. Move or rotate it, or choose a smaller type.</p>}
             {!proposed && <p className="compact-help">Viewing current infrastructure. Adding a building returns to the changed-infrastructure view.</p>}
             <div className="build-actions"><button className="primary-build" disabled={!draftState.canPlace} onClick={() => addBuilding(placing && hoverMassing ? hoverMassing : undefined)}>{placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
