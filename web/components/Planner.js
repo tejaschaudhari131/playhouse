@@ -17,7 +17,7 @@ import InfrastructurePanel from './InfrastructurePanel.js'
 import RecommendationAudit from './RecommendationAudit.js'
 import StudioPriorities from './StudioPriorities.js'
 import StudioSites from './StudioSites.js'
-import { studioSites, FACTOR_LABELS, zoningBadge } from '../lib/studioPresentation.js'
+import { studioSites, FACTOR_LABELS, zoningBadge, planImpact } from '../lib/studioPresentation.js'
 import HousingComparison from './HousingComparison.js'
 import TitleNineChecks, { ZoningInputs } from './TitleNine.js'
 import SiteZoning from './SiteZoning.js'
@@ -46,6 +46,7 @@ import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
 import useAddressSearch from './useAddressSearch.js'
 import { isParcelSearch } from '../lib/addressSearch.js'
+import { parcelHref } from '../lib/links.js'
 
 const PlannerMap = dynamic(() => import('./PlannerMap.js'), { ssr: false, loading: () => <div className="planner-loading">Preparing the map…</div> })
 const fmt = (value, suffix = '') => typeof value === 'number' && Number.isFinite(value) ? `${round(value).toLocaleString()}${suffix}` : 'Unknown'
@@ -373,7 +374,7 @@ function Studio({ data }) {
   }, [])
   const [siteFilters, setSiteFilters] = useState({})
   const sitesLoading = manifest.neighborhoods.some(n => n.area === props.area && !loaded.chunks.has(n.id))
-  const sites = useMemo(() => tool === 'sites' ? studioSites(parcels, zoning, props.area, siteFilters) : [], [tool, parcels, zoning, props.area, siteFilters])
+  const sites = useMemo(() => tool === 'sites' ? studioSites(parcels, zoning, props.area, highlightEmpty ? siteFilters : { ...siteFilters, emptyOnly: false }, emptyCandidates) : [], [tool, parcels, zoning, props.area, siteFilters, highlightEmpty, emptyCandidates])
   const discoveryPins = useMemo(() => tool === 'sites' ? sites.map(f => f.properties.pin) : [], [tool, sites])
   const nearby = useMemo(() => nearbyStops(selected, stops), [selected, stops])
   const stop = nearby.find(s => String(s.stop_id) === scenario.stopId) || null
@@ -625,13 +626,14 @@ function Studio({ data }) {
     setNotice('Started a new plan on this parcel. Undo restores your previous plan.', 'transient')
   }
 
+  const bar = planImpact({ buildings: scenario.buildings.length, demolitions: scenario.demolitions?.length || 0, net: planNet, placedPlan: result?.placedPlan, pending: evaluation.pending })
   return <main className="studio">
     <a className="skip-link" href="#planner-inspector" onClick={event => { event.preventDefault(); focusInspector() }}>Skip to planning controls</a>
     <header className="studio-header">
       <div className="studio-brand"><span className="planner-brandmark"><Icon name="building"/></span><div><strong>Playhouse</strong><small>Test housing and infrastructure ideas in Pittsburgh</small></div></div>
       <NeighborhoodPicker neighborhoods={manifest.neighborhoods} value={catalogue.get(scenario.pin).id} onChange={id => select(manifest.neighborhoods.find(n => n.id === id).examplePin)}/>
 
-      <div className="studio-header-actions"><button ref={tourButton} className="studio-tour-trigger" onClick={() => setTourRequest(n => n + 1)}>Tour</button><button className="sidebar-toggle" aria-expanded={sidebarOpen} aria-controls="planner-inspector" onClick={() => { setSidebarOpen(!sidebarOpen) }}>{sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}</button><button className="find-sites-button" onClick={() => { setTool('sites'); setInspectorTab('edit') }}>Find sites</button><button data-tour="export" className="studio-export" onClick={download} disabled={!result || evaluation.pending}>Export scenario <span aria-hidden="true">↓</span></button></div>
+      <div className="studio-header-actions"><a href={parcelHref('/explore', scenario.pin)} title="Open this parcel in the Explorer">Explore this lot →</a><button ref={tourButton} className="studio-tour-trigger" onClick={() => setTourRequest(n => n + 1)}>Tour</button><button className="sidebar-toggle" aria-expanded={sidebarOpen} aria-controls="planner-inspector" onClick={() => { setSidebarOpen(!sidebarOpen) }}>{sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}</button><button className="find-sites-button" onClick={() => { setTool('sites'); setInspectorTab('edit') }}>Find sites</button><button data-tour="export" className="studio-export" onClick={download} disabled={!result || evaluation.pending}>Export scenario <span aria-hidden="true">↓</span></button></div>
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
@@ -652,8 +654,17 @@ function Studio({ data }) {
       <aside data-tour="inspector" id="planner-inspector" className="studio-inspector" tabIndex={-1}>
         <div className="inspector-top"><div className="inspector-status"><span className="live-dot"/>{evaluation.pending ? 'Recalculating…' : 'Scenario ready'}<span>{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving…' : autosave.kind === 'error' ? 'Not saved' : 'Local plan'}</span></div><label data-tour="site" className="site-search"><Icon name="pin" size={16}/><input aria-label="Search address or parcel ID" placeholder="Search Pittsburgh address or parcel ID…" value={query} onChange={e => setQuery(e.target.value)} onKeyDown={event => { if (event.key === 'Escape') setQuery(''); if (event.key === 'Enter') { event.preventDefault(); const pin = query.trim().toUpperCase(); if (isParcelSearch(pin)) select(pin); else if (matches.length === 1) select(matches[0].properties.pin); else setNotice('Choose an address suggestion, or enter an exact Pittsburgh parcel ID.') } }}/></label>{query.length > 1 && <div className="search-results" aria-label="Citywide address results" aria-busy={addressSearch.pending}>{matches.length ? <><p>{addressSearch.total} citywide matches{addressSearch.total > matches.length ? ' · showing six; refine the address' : ''}</p>{matches.map(f => <button key={f.properties.pin} onClick={() => select(f.properties.pin)}>{f.properties.address || f.properties.pin}<small>{f.properties.neighborhood}</small></button>)}</> : <p role="status">{addressSearch.pending ? 'Searching Pittsburgh addresses…' : addressSearch.error || (addressSearch.status === 'pin' ? 'Press Enter to open this parcel ID.' : addressSearch.status === 'short' ? 'Enter at least three letters of a street name, or an exact parcel ID.' : 'No matching address in the city index. Parcels without searchable addresses can still be opened by parcel ID.')}</p>}{addressSearch.error && <button onClick={addressSearch.retry}>Retry address search</button>}</div>}</div>
         <nav className="inspector-tabs" aria-label="Inspector sections">{[['edit', tool === 'sites' ? 'Sites' : tool === 'service' ? 'Transit' : tool === 'network' ? 'Streets' : 'Build'], ['rankings','Compare'], ['priorities','Priorities'], ['assumptions','Advanced']].map(([id,label]) => <button key={id} aria-pressed={inspectorTab === id} onClick={() => { setInspectorTab(id); setPlacing(false); if (id === 'rankings') { setSelectedBuilding(null); if (tool === 'sites' || tool === 'compare') setActiveTool('housing') } }}>{label}</button>)}</nav>
+        <section className={`plan-impact-bar${bar.empty ? ' empty' : ''}`} aria-label="Your plan">
+          <strong className="plan-impact-title">Your plan</strong>
+          {bar.empty ? <span className="plan-impact-empty">{bar.text}</span> : <>
+            <span><small>Proposed homes</small><b>{bar.homes}</b></span>
+            <span title={`${bar.netDetail}. ${planNet.note}`}><small>Net homes</small><b>{bar.net}</b><small>{bar.netDetail}</small></span>
+            <span title={bar.score.detail || undefined}><small>Plan score</small><b>{bar.score.text}</b>{bar.score.detail && <small>{bar.score.detail}</small>}</span>
+            {!(inspectorTab === 'edit' && tool === 'housing') && <button onClick={() => { setTool('housing'); setInspectorTab('edit'); setPlacing(false) }}>Review</button>}
+          </>}
+        </section>
         <div className="inspector-scroll" ref={inspectorScroll} key={inspectorTab}>
-          {inspectorTab === 'edit' && tool === 'sites' && <><div className="drawer-heading"><h2>Find a site</h2><p>Choose a parcel to start building.</p></div><EmptySitesControl enabled={highlightEmpty} onChange={setHighlightEmpty} count={emptyPins.length} pending={emptySites.pending} loading={loaded.pending} error={emptySites.error || loaded.error} zoomedOut={!!viewport && !hasMapDetail(viewport)}/><StudioSites filters={siteFilters} setFilters={setSiteFilters} sites={sites} selectedPin={scenario.pin} onSelect={select} loading={sitesLoading}/></>}
+          {inspectorTab === 'edit' && tool === 'sites' && <><div className="drawer-heading"><h2>Find a site</h2><p>Choose a parcel to start building.</p></div><EmptySitesControl enabled={highlightEmpty} onChange={setHighlightEmpty} count={emptyPins.length} pending={emptySites.pending} loading={loaded.pending} error={emptySites.error || loaded.error} zoomedOut={!!viewport && !hasMapDetail(viewport)}/><StudioSites filters={siteFilters} setFilters={setSiteFilters} sites={sites} selectedPin={scenario.pin} onSelect={select} loading={sitesLoading} emptyAvailable={highlightEmpty}/></>}
           {inspectorTab === 'priorities' && <StudioPriorities pending={evaluation.pending} weights={scenario.weights} included={result?.comparison?.included} onChange={weights => set('weights', weights)}/>}
           {inspectorTab !== 'priorities' && !(inspectorTab === 'edit' && tool === 'sites') && <div className="site-heading" data-tour="site-facts"><span className="eyebrow">SELECTED SITE</span><h2>{props.address || 'Unnamed parcel'}</h2><p>{props.neighborhood} · {fmt(props.lot_sqft)} sq ft</p><details className="site-details"><summary>{props.land_use || 'Unknown use'} · {props.zoning_code || 'Unknown zoning'}<span>Site facts & zoning</span></summary><SiteZoning properties={props} zoning={zoning} option={option} showHousing={inspectorTab === 'rankings' || tool === 'housing' || tool === 'compare'}/></details></div>}
           {inspectorTab === 'edit' && tool === 'housing' && <BuildingInspector existing={inspectedExisting} placed={inspectedPlaced} sitePin={scenario.pin} siteBuildings={siteBuildings} demolitions={scenario.demolitions} onSelect={ref => { const feature = siteBuildings.find(b => footprintKey(b) === demolitionKey(ref)); if (feature) inspectOnSite(feature) }} onDemolish={(feature, replace) => demolishFootprints([feature], replace ? 'replace' : 'only')} onRestore={restoreExisting} onEditPlaced={editPlaced} onClose={() => setSelectedBuilding(null)} pending={evaluation.pending || !context}

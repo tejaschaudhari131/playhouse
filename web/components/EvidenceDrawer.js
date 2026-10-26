@@ -3,6 +3,7 @@
 import { useMemo } from "react"
 
 import { buildEvidence } from "../lib/evidence.js"
+import { externalLinkLabel, linkHost } from "../lib/links.js"
 
 /** Per-factor evidence for one parcel and one scored type. Links come from the committed source manifest. */
 export default function EvidenceDrawer({ props, typeId, typeLabel, sources, summary, zoning, model }) {
@@ -34,8 +35,8 @@ export default function EvidenceDrawer({ props, typeId, typeLabel, sources, summ
                 {entry.sources.map((source) => (
                   <li key={source.name}>
                     {source.url ? (
-                      <a href={source.url} target="_blank" rel="noreferrer">
-                        {source.name}
+                      <a href={source.url} target="_blank" rel="noreferrer" aria-label={externalLinkLabel(source.name, linkHost(source.url) || "Source")}>
+                        {source.name || linkHost(source.url) || "Source"}
                       </a>
                     ) : (
                       source.name

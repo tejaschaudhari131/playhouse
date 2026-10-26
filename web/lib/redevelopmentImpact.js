@@ -57,7 +57,7 @@ export function combinedHomes(replacement) {
   return { homes: replacement.replaced, basis: replacement.minimum ? 'minimum' : replacement.replaced ? 'recorded' : 'none', landUse: landUse || 'no dwelling use recorded' }
 }
 
-const signed = n => n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0'
+export const signed = n => n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : '0'
 
 export function netHomes(proposed, replacement) {
   const net = proposed - replacement.replaced

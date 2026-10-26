@@ -1,8 +1,9 @@
 import Select from './Select.js'
+import { codeLinkLabel } from '../lib/links.js'
 const statusLabel = { pass: 'Pass', conflict: 'Conflict', unknown: 'Not assessed', conditional: 'Not assessed · review', not_applicable: 'Not applicable' }
 
 function Rule({ check }) {
-  return <li className={`zoning-rule ${check.status}`}><div><strong>{check.label}</strong><span>{statusLabel[check.status]}</span></div><p>{check.detail} <a href={check.url} target="_blank" rel="noreferrer">§{check.section} ↗</a></p></li>
+  return <li className={`zoning-rule ${check.status}`}><div><strong>{check.label}</strong><span>{statusLabel[check.status]}</span></div><p>{check.detail} <a href={check.url} target="_blank" rel="noreferrer" aria-label={codeLinkLabel(check.section, check.label)}>{check.section ? `§${check.section}` : 'Code'} ↗</a></p></li>
 }
 
 export default function TitleNineChecks({ result, compact = false }) {

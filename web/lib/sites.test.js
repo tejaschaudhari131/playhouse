@@ -161,3 +161,38 @@ test("each example query names its filters", () => {
     for (const key of Object.keys(example.filters)) assert.ok(key in DEFAULT_SITE_FILTERS, key)
   }
 })
+
+test("right-of-way, institutional public land, assisted housing and zoning-prohibited lots are badged and hidden by default", () => {
+  const rows = [
+    parcel("OPEN", { land_use: "VACANT LAND", land_use_class: "RESIDENTIAL", city_owned: false, city_status: null }),
+    parcel("ROW", { land_use: "RIGHT OF WAY - RESIDENTIAL", city_owned: false }),
+    parcel("SCHOOL", { land_use: "OWNED BY BOARD OF EDUCATION", land_use_class: "GOVERNMENT", city_owned: false, city_status: null }),
+    parcel("HUD", { land_use: "HUD PROJ #236", land_use_class: "RESIDENTIAL", city_owned: false }),
+    parcel("CITY", { land_use: "MUNICIPAL GOVERNMENT", land_use_class: "GOVERNMENT", city_owned: true, city_status: "available" }),
+    parcel("HELD", { land_use: "MUNICIPAL GOVERNMENT", land_use_class: "GOVERNMENT", city_owned: true, city_status: "permanent" }),
+    parcel("URA", { land_use: "MUNICIPAL URBAN RENEWAL", land_use_class: "GOVERNMENT", city_owned: false, city_status: null }),
+    parcel("IND", { zoning_code: "R1D-M", land_use: "VACANT LAND" }),
+  ]
+  const shown = findSites(rows, { ...DEFAULT_SITE_FILTERS, typeId: "small_apartment" }, DEFAULT_WEIGHTS, RULES).map((row) => row.pin)
+  assert.deepEqual(shown.sort(), ["CITY", "OPEN", "URA"])
+  const all = findSites(rows, { ...DEFAULT_SITE_FILTERS, typeId: "small_apartment", excludeRestricted: false }, DEFAULT_WEIGHTS, RULES)
+  assert.equal(all.length, rows.length)
+  const labels = Object.fromEntries(all.map((row) => [row.pin, row.cautions.map((caution) => caution.label)]))
+  assert.deepEqual(labels.OPEN, [])
+  assert.deepEqual(labels.ROW, ["Right-of-way"])
+  assert.deepEqual(labels.SCHOOL, ["School district owner"])
+  assert.deepEqual(labels.HUD, ["HUD-assisted housing"])
+  assert.deepEqual(labels.CITY, ["Public land"])
+  assert.deepEqual(labels.HELD, ["City owner"])
+  assert.deepEqual(labels.URA, ["Urban renewal owner"])
+  assert.deepEqual(labels.IND, ["Zoning prohibits this type"])
+  assert.match(sitesCsv(all), /Right-of-way/)
+})
+
+test("with no type chosen, the restriction filter ranks the best type zoning does not prohibit", () => {
+  const props = { ...parcel("R", { zoning_code: "R1D-M" }).properties }
+  props.scores = { ...props.scores, large_apartment: { ...props.scores.large_apartment, demand: 100, transit: 100, equity: 100 } }
+  const [open] = findSites([{ properties: props }], DEFAULT_SITE_FILTERS, DEFAULT_WEIGHTS, RULES)
+  assert.notEqual(open.permission, "not_allowed")
+  assert.ok(!open.cautions.some((caution) => caution.id === "zoning"))
+})

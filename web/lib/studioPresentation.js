@@ -1,5 +1,6 @@
 import { INITIAL_WEIGHTS } from './plannerState.js'
 export { studioSites } from './studioSiteDiscovery.js'
+import { signed } from './redevelopmentImpact.js'
 export const FACTOR_LABELS = { demand: 'Market fit', physical: 'Physical fit', affordability: 'Housing-cost burden', displacement: 'Lower neighborhood displacement risk', capacity: 'Assumed transit capacity', access: 'Access', carbon: 'Carbon estimate' }
 export const STUDIO_PRESETS = [
  { id:'balanced', label:'Balanced', description:'Spreads weight across the seven factors, with more weight on market fit and housing costs. This is a starting point, not an agreed public priority.', weights:{...INITIAL_WEIGHTS} },
@@ -35,4 +36,18 @@ export function comparisonScore(option, reform = false) {
   if (option?.eligible && Number.isFinite(option.total)) return { value: option.total, kind: 'score' }
   if (reform && option?.reformEligible && Number.isFinite(option.reformTotal)) return { value: option.reformTotal, kind: 'reform' }
   return { value: Number.isFinite(option?.suitability) ? option.suitability : null, kind: 'underlying' }
+}
+
+const scoreText = value => Number.isFinite(value) ? value.toFixed(1) : 'Not ranked'
+
+/** Compact plan totals shown above every inspector tab. Scores compare the same plan under current and changed infrastructure. */
+export function planImpact({ buildings = 0, demolitions = 0, net, placedPlan = null, pending = false }) {
+  if (!buildings && !demolitions) return { empty: true, text: 'No buildings added or removed yet.' }
+  const homes = net?.proposed ?? 0
+  const netValue = `${net?.uncertain ? 'up to ' : ''}${signed(net?.net ?? 0)}`
+  const score = pending ? { text: 'Updating…', detail: null }
+    : !placedPlan ? { text: '—', detail: buildings ? 'Score appears after evaluation.' : 'Add a building to score the plan.' }
+      : { text: `${scoreText(placedPlan.baseline.total)} → ${scoreText(placedPlan.proposal.total)}`,
+        detail: Number.isFinite(placedPlan.baseline.total) && Number.isFinite(placedPlan.proposal.total) ? 'Current → changed infrastructure' : 'Not ranked: a planned building needs zoning or physical review.' }
+  return { empty: false, homes, net: netValue, netDetail: `${homes} proposed − ${net?.replaced ?? 0}${net?.uncertain ? '+' : ''} replaced (estimate)`, score }
 }

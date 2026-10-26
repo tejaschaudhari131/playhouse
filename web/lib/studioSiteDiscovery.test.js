@@ -57,3 +57,9 @@ test('every result remains reachable beyond the first 60 and pagination clamps a
   assert.deepEqual(sitePage([], 10), { items: [], page: 0, pages: 1, total: 0, start: 0, end: 0 })
   assert.deepEqual([0, 1, 2].flatMap(page => sitePage(rows, page).items), rows)
 })
+
+test('studio discovery hides right-of-way and institutional public land by default but can show them', () => {
+  const rows = [feature('a', { land_use: 'RIGHT OF WAY - COMMERCIAL' }), feature('b', { land_use: 'OWNED BY COLLEGE/UNIV/ACADEMY', land_use_class: 'GOVERNMENT' }), feature('c', { land_use: 'MUNICIPAL GOVERNMENT', land_use_class: 'GOVERNMENT', city_owned: true, city_status: 'available' }), feature('d', { land_use: 'SINGLE FAMILY' })]
+  assert.deepEqual(pins(find(rows, {})), ['c', 'd'])
+  assert.deepEqual(pins(find(rows, { excludeRestricted: false })), ['a', 'b', 'c', 'd'])
+})

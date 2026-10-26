@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { templateTradeoffs,studioSites,STUDIO_PRESETS } from './studioPresentation.js'
+import { templateTradeoffs,studioSites,STUDIO_PRESETS,planImpact } from './studioPresentation.js'
 import { PLANNER_FACTORS } from './plannerState.js'
 test('pros/cons follow weighted differences and omit shared, excluded and ineligible factors',()=>{
  const a={id:'a',proposal:{eligible:true,total:60,scores:{demand:60,access:90,carbon:20}}}
@@ -48,4 +48,20 @@ test('compare always shows an underlying score with a zoning badge, and reform s
   assert.equal(result.comparison.entries.find(e => e.id === 'triplex').proposal.reformTotal, blocked.reformTotal)
   assert.ok(!result.comparison.proposal.order.includes('triplex'), 'reform simulation is display-only and never ranks')
   assert.equal(zoningBadge({}).text, 'Proposed use not reviewed')
+})
+
+test('plan impact bar reports homes, net homes and the plan score without inventing a ranking', () => {
+  assert.deepEqual(planImpact({ net: null }), { empty: true, text: 'No buildings added or removed yet.' })
+  const net = { proposed: 3, replaced: 1, net: 2, uncertain: false }
+  const bar = planImpact({ buildings: 1, demolitions: 1, net, placedPlan: { baseline: { total: 51.24 }, proposal: { total: 55 } } })
+  assert.equal(bar.homes, 3)
+  assert.equal(bar.net, '+2')
+  assert.equal(bar.netDetail, '3 proposed − 1 replaced (estimate)')
+  assert.equal(bar.score.text, '51.2 → 55.0')
+  assert.equal(bar.score.detail, 'Current → changed infrastructure')
+  const blocked = planImpact({ buildings: 1, net, placedPlan: { baseline: { total: null }, proposal: { total: null } } })
+  assert.equal(blocked.score.text, 'Not ranked → Not ranked')
+  assert.match(blocked.score.detail, /needs zoning or physical review/)
+  assert.equal(planImpact({ buildings: 1, net, pending: true }).score.text, 'Updating…')
+  assert.equal(planImpact({ demolitions: 1, net: { proposed: 0, replaced: 2, net: -2, uncertain: true } }).net, 'up to −2')
 })
