@@ -1,8 +1,11 @@
+import { useId, useState } from 'react'
 import { STUDIO_PRESETS, FACTOR_LABELS } from '../lib/studioPresentation.js'
 import { PLANNER_FACTORS } from '../lib/plannerState.js'
 import { priorityShares, samePriorityRatios } from '../lib/priorityWeights.js'
 
 export default function StudioPriorities({ weights, onChange, included = [], pending = false }) {
+  const [showPresetInfo, setShowPresetInfo] = useState(false)
+  const presetInfoId = useId()
   const shares = priorityShares(weights, included)
   const anyEnabled = PLANNER_FACTORS.some(f => weights[f.id] > 0)
   const preset = STUDIO_PRESETS.find(p => samePriorityRatios(weights, p.weights))
@@ -10,8 +13,8 @@ export default function StudioPriorities({ weights, onChange, included = [], pen
   return <section className="studio-priorities" aria-busy={pending}>
     <div className="section-heading"><h3>What matters most?</h3></div>
     <p className="compact-help">Only relative weights matter. All 1s, all 50s and all 100s give the same result. Percentages show each factor’s share of the score.</p>
-    <div className="priority-presets">{STUDIO_PRESETS.map(p => <button key={p.id} aria-pressed={samePriorityRatios(weights, p.weights)} onClick={() => onChange({ ...p.weights })}>{p.label}</button>)}<button onClick={() => equal(50)}>Equal priorities</button><button onClick={() => equal(0)}>All off</button></div>
-    <p className="compact-help"><strong>{preset ? preset.label : 'Custom priorities'}:</strong> {preset?.description || 'Your chosen relative weights.'} Presets are team-authored examples, not surveyed stakeholder preferences.</p>
+    <div className="priority-presets">{STUDIO_PRESETS.map(p => <button key={p.id} aria-pressed={samePriorityRatios(weights, p.weights)} onClick={() => onChange({ ...p.weights })}>{p.label}</button>)}<button onClick={() => equal(50)}>Equal priorities</button><button onClick={() => equal(0)}>All off</button><button type="button" className="preset-info-toggle" aria-label="About these presets" aria-expanded={showPresetInfo} aria-controls={presetInfoId} title="About these presets" onClick={() => setShowPresetInfo(value => !value)}><span aria-hidden="true">i</span></button></div>
+    <p id={presetInfoId} className="compact-help" hidden={!showPresetInfo}><strong>{preset ? preset.label : 'Custom priorities'}:</strong> {preset?.description || 'Your chosen relative weights.'} Presets are team-authored examples, not surveyed stakeholder preferences. The exact weights are value judgments, not measured or calibrated values.</p>
     {!pending && (!anyEnabled || !included.length) && <p className="planner-warning" role="status">{!anyEnabled ? 'All priorities are off. Turn on at least one factor to rank housing.' : 'The enabled priorities have no shared evidence. Enable a factor with available data.'}</p>}
     {PLANNER_FACTORS.map(f => <label className="priority-slider" key={f.id}>
       <span>{FACTOR_LABELS[f.id]} <b>{pending ? 'Updating…' : !included.includes(f.id) && weights[f.id] > 0 ? 'Not assessed' : `${(shares[f.id] * 100).toFixed(1)}% of score`}</b></span>

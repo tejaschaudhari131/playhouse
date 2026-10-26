@@ -563,6 +563,7 @@
 .fit-note strong, .planner-details > summary, .section-heading h3, .studio .service-slider, .service-baseline strong { font-size: 13px; }
 .data-badge, .site-tags span { font-size: 10px; }
 .studio .placement-actions button, .network-tools button, .service-presets button, .studio .priority-presets button { font-size: 12px; padding: 10px; }
+.studio .priority-presets .preset-info-toggle { flex: 0 0 32px; width: 32px; height: 32px; min-width: 0; padding: 0; border-radius: 50%; align-self: center; font-size: 16px; font-weight: 600; }
 .infrastructure-list small, .service-baseline small, .before-after span, .metric-highlight small, .planner-details summary span { font-size: 12px; }
 .housing-comparison-table small, .housing-comparison-table .card-tradeoffs p, .housing-comparison-table .card-tradeoffs small { font-size: 12px; }
 .housing-comparison-table th, .housing-comparison-table td { padding: 10px; }

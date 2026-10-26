@@ -79,7 +79,7 @@ The hackathon asks for housing alternatives, explained tradeoffs, adjustable pri
 
 Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin.
 
-Priority presets are team-authored examples, not surveyed stakeholder preferences. Their descriptions explain what they reward. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
+Priority presets are team-authored examples, not surveyed stakeholder preferences. Click the circular **i** beside the presets to see the selected preset’s reasoning and how its weights are value judgments. This explanation is hidden by default. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
 
 ## Affordability reference
 
