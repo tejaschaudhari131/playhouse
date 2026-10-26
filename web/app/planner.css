@@ -72,6 +72,15 @@
 .building-popup small { color: #72816e; }
 .placement-banner { position: absolute; top: 0; left: 0; right: 0; padding: 10px 16px; background: #274f3ff2; color: white; font-size: 12px; z-index: 2; display: flex; justify-content: space-between; align-items: center; }
 .placement-banner button { padding: 5px 9px; color: #274f3f; }
+.placement-banner > span:last-child { display: flex; flex-shrink: 0; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.redevelop-callout { margin: 12px 0; padding: 12px; border: 1px solid #d9b98a; border-left: 4px solid #b7792f; border-radius: 9px; background: #fff8ee; font-size: 12px; line-height: 1.5; }
+.redevelop-callout p { margin: 0; }
+.redevelop-callout .placement-actions { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); margin-top: 9px; }
+.redevelop-callout small { display: block; margin-top: 7px; color: #6d5f49; }
+.primary-build { color: #fff; background: #315b46; border-color: #315b46; font-weight: 600; }
+.primary-build:hover:not(:disabled) { background: #244c39; }
+.dock-action { width: 100%; margin-top: 8px; padding: 7px 9px; font-size: 12px; font-weight: 600; color: #fff; background: #8a5a22; border-color: #8a5a22; }
+.dock-action:hover:not(:disabled) { background: #744a1b; }
 .placement-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; }
 .placement-actions button { font-size: 10px; padding: 8px 5px; }
 .placement-controls > small { display: block; color: #7a856e; font-size: 12px; line-height: 1.6; }
@@ -521,12 +530,42 @@
 .site-details { margin: 10px 0 16px; border-bottom: 1px solid var(--line); padding-bottom: 12px; font-size: 12px; }
 .site-details > summary { cursor: pointer; color: #426450; padding: 4px 0; }
 .site-details > summary span { display: block; margin: 4px 0 0 14px; color: var(--muted); font-size: 12px; }
-.housing-picker { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 7px; align-items: end; margin: 12px 0; }
-.housing-picker > label { min-width: 0; }
-.housing-picker > label > span { display: block; margin-bottom: 5px; font-size: 12px; color: #5b6e5e; }
-.housing-picker > button { min-height: 44px; font-size: 19px; }
-.housing-picker .select-control { min-height: 44px; width: 100%; min-width: 0; border: 1px solid #cbd8ce; border-radius: 7px; background: #fff; padding: 9px; color: var(--ink); font: inherit; font-size: 14px; font-weight: 550; }
-.housing-picker .planner-field { margin: 0; }
+.typology-cards { margin: 12px 0; }
+.typology-heading { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 12px; color: #5b6e5e; }
+.studio .typology-heading .assumptions-link { width: auto; margin: 0; padding: 0; border: 0; font-size: 12px; text-decoration: underline; }
+.typology-cards [role=radiogroup] { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; }
+.typology-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: 84px; padding: 9px 10px 9px 13px; text-align: left; border: 1px solid #d4dfd2; border-left: 4px solid var(--type-color, #cbd5e1); border-radius: 8px; background: #fff; font-size: 12px; line-height: 1.35; cursor: pointer; }
+.typology-card:hover { border-color: #9fbea9; border-left-color: var(--type-color, #cbd5e1); }
+.typology-card.active { border-color: #315b46; border-left-color: var(--type-color, #cbd5e1); background: #eef5ee; box-shadow: 0 0 0 1px #315b46 inset; }
+.typology-card:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
+.typology-card strong { font-size: 13px; font-weight: 650; }
+.typology-meta { color: #5f7465; font-size: 11px; }
+.typology-status { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: auto; flex-wrap: wrap; }
+.typology-score { font-variant-numeric: tabular-nums; font-weight: 650; color: #2e4d3c; }
+.typology-score.unscored, .typology-score.noscore { font-weight: 500; color: #7a877c; }
+.typology-score.review { color: #9a4b2f; }
+.typology-cards > small { display: block; margin-top: 6px; color: #64745f; font-size: 11px; line-height: 1.45; }
+.permission-chip { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; background: #eef0ea; color: #56614f; }
+.permission-chip.permitted { background: #dff0e3; color: #22603a; }
+.permission-chip.partial, .permission-chip.special { background: #fbf0d9; color: #7d5715; }
+.permission-chip.not_permitted { background: #fbe4dc; color: #8f3b1f; }
+.quick-controls { min-width: 0; margin: 12px 0 0; padding: 10px; border: 1px solid #d6e2d0; border-radius: 9px; background: #fafcf8; }
+.quick-controls:disabled { opacity: .7; }
+.quick-steppers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stepper { display: grid; grid-template-columns: 32px minmax(0, 1fr) 32px; align-items: center; gap: 3px; font-size: 12px; }
+.stepper > span { grid-column: 1 / -1; color: #5b6e5e; font-size: 11px; }
+.stepper button { min-height: 34px; padding: 0; font-size: 16px; }
+.stepper output { text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+.quick-rotate { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 6px; margin-top: 9px; }
+.quick-rotate button { min-height: 36px; padding: 6px; font-size: 12px; }
+.quick-controls > small { display: block; margin-top: 7px; color: #64745f; font-size: 11px; line-height: 1.45; }
+.studio .quick-controls .assumptions-link { display: inline; width: auto; margin: 0; padding: 0; border: 0; font-size: 11px; text-decoration: underline; }
+.added-callout { margin: 12px 0; padding: 12px; border: 1px solid #a9cdb3; border-left: 4px solid #315b46; border-radius: 9px; background: #eef7f0; font-size: 12px; line-height: 1.5; }
+.added-callout p { margin: 0; }
+.added-callout .placement-actions { margin-top: 9px; }
+.placement-banner kbd { padding: 0 4px; border: 1px solid #ffffff80; border-radius: 3px; font-family: inherit; font-size: 11px; }
+.dock-action.next { background: #315b46; border-color: #315b46; }
+.dock-action.next:hover { background: #244c39; }
 .studio .housing-editor .compact-help .assumptions-link { width: auto; padding: 0; margin-left: 8px; border: 0; font-size: 12px; text-decoration: underline; }
 .build-actions { position: sticky; bottom: -24px; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin: 16px -2px 0; padding: 11px 2px; background: #fafbf7f7; border-top: 1px solid var(--line); }
 .studio .build-actions button { min-height: 44px; padding: 10px 13px; font-size: 13px; font-weight: 600; }
@@ -649,7 +688,7 @@
   .planner-site-marker { max-width: 70vw; white-space: normal; padding: 6px 8px; font-size: 10px; }
   .placement-banner { padding: 8px; font-size: 12px; gap: 8px; line-height: 1.4; }
   .build-actions { bottom: -18px; padding: 9px 0 calc(9px + env(safe-area-inset-bottom)); }
-  .studio .planner-field input, .studio .planner-field .select-control, .housing-picker .select-control { font-size: 16px; }
+  .studio .planner-field input, .studio .planner-field .select-control { font-size: 16px; }
   .field-grid.three { gap: 7px; }
   .network-notice { left: 12px; bottom: 12px; max-width: calc(100vw - 24px); padding: 10px 12px; }
 }
@@ -679,3 +718,64 @@
   .demolition-effect { display: none; }
   .demolition-block { animation: none; }
 }
+
+/* Net homes and the redevelopment screen */
+.net-homes { margin: 8px 0; padding: 8px 10px; border-radius: 8px; background: #f2f6ef; font-size: 12px; line-height: 1.45; }
+.net-homes strong { display: block; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.net-homes small { display: block; margin-top: 2px; color: #64745f; font-size: 11px; }
+.impact-panel { margin: 14px 0; padding: 10px 12px; border: 1px solid #d6dccb; border-radius: 9px; background: #fbfaf5; font-size: 12px; line-height: 1.5; }
+.impact-panel > summary { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; cursor: pointer; }
+.impact-panel > summary strong { font-size: 13px; }
+.impact-panel > summary span { color: #7a6f52; font-size: 11px; }
+.impact-panel dl { margin: 8px 0; }
+.impact-panel dl > div { padding: 7px 0; border-top: 1px solid #e7e4d6; }
+.impact-panel dt { display: flex; align-items: center; gap: 6px; font-weight: 650; color: #34483b; }
+.impact-panel dd { margin: 3px 0 0; color: #3f4d43; }
+.impact-panel > small { display: block; color: #6d6a58; font-size: 11px; }
+
+/* Compare: underlying scores, zoning status and reform simulation */
+.zoning-badge { display: inline-block; margin: 4px 0 2px; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.4; background: #eef0ea; color: #56614f; }
+.zoning-badge.permitted { background: #dff0e3; color: #22603a; }
+.zoning-badge.special { background: #fbf0d9; color: #7d5715; }
+.zoning-badge.reform { background: #fbe4dc; color: #8f3b1f; }
+.zoning-badge.conflict { background: #f8d9d9; color: #8a1f1f; }
+.comparison-total td.score-underlying strong { color: #7a877c; }
+.comparison-total td.score-reform strong { color: #8f3b1f; }
+.comparison-total .score-kind { font-weight: 600; }
+.comparison-factor.ineligible { opacity: .55; }
+.reform-toggle { display: flex; gap: 9px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; border: 1px dashed #d9b98a; border-radius: 9px; background: #fffaf2; font-size: 12px; line-height: 1.45; cursor: pointer; }
+.reform-toggle input { margin-top: 2px; width: 16px; height: 16px; accent-color: #8f3b1f; }
+.reform-toggle strong { display: block; font-size: 13px; }
+.reform-toggle small { display: block; color: #6d5f49; font-size: 11px; }
+.draft-result .zoning-badge { display: inline-block; }
+
+/* Housing-cost switch and AMI chips */
+.cost-switch { margin: 12px 0; padding: 10px 12px; border: 1px solid #d4dece; border-radius: 9px; background: #f7f8f3; font-size: 12px; line-height: 1.45; }
+.cost-switch.on { border-color: #a9cdb3; background: #eef7f0; }
+.cost-switch label { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
+.cost-switch input { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 2px; accent-color: #315b46; }
+.cost-switch strong { display: block; font-size: 13px; }
+.cost-switch small { display: block; color: #5f7465; font-size: 11px; }
+.cost-switch.compact { margin: 8px 0; padding: 8px 10px; }
+.studio .cost-switch button { margin-top: 7px; padding: 6px 9px; font-size: 12px; }
+.build-costs { margin: 12px 0 0; }
+.ami-chips > span { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; color: #5b6e5e; }
+.studio .ami-chips .ami-size { padding: 2px 7px; font-size: 11px; border-radius: 999px; }
+.ami-chips > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.studio .ami-chips > div button { display: flex; flex-direction: column; align-items: center; padding: 6px 4px; min-height: 42px; font-size: 12px; line-height: 1.25; }
+.ami-chips > div button small { color: #5f7465; font-size: 11px; }
+.ami-chips > div button[aria-pressed=true] { border-color: #315b46; background: #e1f0e5; }
+/* Persistent plan totals between the inspector tabs and the scrolling panel. */
+.plan-impact-bar { display: grid; gap: 4px; padding: 8px 18px; border-bottom: 1px solid var(--line); background: #f3f7ee; font-size: 12px; }
+.plan-impact-head { display: flex; align-items: center; gap: 10px; min-height: 24px; }
+.plan-impact-head strong { color: #214f40; }
+.plan-impact-head span { color: #5c6e55; }
+.studio .plan-impact-head button { margin-left: auto; padding: 3px 10px; font-size: 12px; }
+.plan-impact-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.plan-impact-stats div { min-width: 0; }
+.plan-impact-stats dt { color: #5c6e55; font-size: 11px; }
+.plan-impact-stats dd { margin: 0; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; color: #1f3d31; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plan-impact-note { color: #5c6e55; font-size: 11px; line-height: 1.3; }
+.site-caution-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.site-caution-tags span { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #fdf0d5; color: #6b4b12; }
+.site-caution-tags span.caution { background: #fde2e2; color: #7f1d1d; font-weight: 600; }

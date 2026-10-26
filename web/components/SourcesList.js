@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { externalLinkLabel, linkHost } from "../lib/links.js"
 
 /** The organizers'-list citation for each source the pipeline read, from sources.json. */
 export default function SourcesList({ sources, filter }) {
@@ -16,8 +17,8 @@ export default function SourcesList({ sources, filter }) {
         <ul>
           {rows.map((row) => (
             <li key={row.name}>
-              <a href={row.catalog_url || row.url} target="_blank" rel="noreferrer">
-                {row.catalog_name || row.name}
+              <a href={row.catalog_url || row.url} target="_blank" rel="noreferrer" aria-label={externalLinkLabel(row.catalog_name || row.name, linkHost(row.catalog_url || row.url) || "Data source")}>
+                {row.catalog_name || row.name || linkHost(row.catalog_url || row.url) || "Data source"}
               </a>
               {row.catalog_name && row.catalog_name !== row.name ? ` (${row.name})` : ""}
               {" · "}

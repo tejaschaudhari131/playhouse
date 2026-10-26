@@ -23,6 +23,7 @@ import { explainTemplate } from "../lib/explainTemplate.js"
 import { DEFAULT_WEIGHTS, rankTypes } from "../lib/rank.js"
 import { DEFAULT_SITE_FILTERS, EXAMPLE_QUERIES, filtersFor, findSites } from "../lib/sites.js"
 import { resolveZoning } from "../lib/zoning.js"
+import { parcelHref } from "../lib/links.js"
 
 const MapView = dynamic(() => import("./MapView.js"), {
   ssr: false,
@@ -353,7 +354,7 @@ function App({ data, chunk, additionalParcels }) {
           </p>
         </div>
         <span className="banner-help">
-          <a href="/" style={{ color: "white", alignSelf: "center", fontSize: 13 }}>Planning studio ↗</a>
+          <a href={parcelHref("/", selectedPin)} style={{ color: "white", alignSelf: "center", fontSize: 13 }}>{selectedPin ? "Open this lot in the studio" : "Planning studio"} →</a>
           <button type="button" className="primary" onClick={startGuide} disabled={!parcels}>
             Start guided example
           </button>

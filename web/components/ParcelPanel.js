@@ -18,6 +18,7 @@ import { TYPE_COLORS } from "../lib/colors.js"
 import { clearFlag, loadFlags, saveFlag } from "../lib/flags.js"
 import { TYPE_LABELS, WEIGHT_LABELS } from "../lib/rank.js"
 import { dropZoningBadge, unitPermission } from "../lib/zoning.js"
+import { codeLinkLabel } from "../lib/links.js"
 
 const CODE_URL = "https://ecode360.com/45474054"
 const MAP_URL =
@@ -432,7 +433,7 @@ export default function ParcelPanel({
             <p className="hint">
               Use table {zoningInfo.codeSection}. Still needs expert review. {zoningInfo.note}{" "}
               {zoningInfo.codeUrl ? (
-                <a href={zoningInfo.codeUrl} target="_blank" rel="noreferrer">
+                <a href={zoningInfo.codeUrl} target="_blank" rel="noreferrer" aria-label={codeLinkLabel('911.02', 'use table')}>
                   §911.02
                 </a>
               ) : null}
@@ -445,7 +446,7 @@ export default function ParcelPanel({
             <p className="hint">
               {zoningInfo?.note}{" "}
               {zoningInfo?.codeUrl ? (
-                <a href={zoningInfo.codeUrl} target="_blank" rel="noreferrer">
+                <a href={zoningInfo.codeUrl} target="_blank" rel="noreferrer" aria-label={codeLinkLabel(zoningInfo.codeSection)}>
                   Open the code
                 </a>
               ) : null}

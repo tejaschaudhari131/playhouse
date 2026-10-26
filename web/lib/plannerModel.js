@@ -88,7 +88,9 @@ function screenZoningPortfolio(members, context) {
     const titleNine = evaluateTitleNine({ ...site, option: member, massing: member.massing, zoning, members: legalMembers,
       siteInputs: scenario.zoningInputsByPin?.[member.pin], projectInputs: scenario.projectInputs })
     const conflict = titleNine.checks.find(c => c.status === 'conflict')
-    return { ...member, titleNine, permission: titleNine.permission, eligible: member.physicalEligible && !titleNine.conflict,
+    // By-right reform simulation lifts only the §911.02 use-row conflict; every other gate stays.
+    const useOnly = titleNine.checks.every(c => c.status !== 'conflict' || c.id === 'use')
+    return { ...member, titleNine, permission: titleNine.permission, eligible: member.physicalEligible && !titleNine.conflict, reformEligible: member.physicalEligible && useOnly,
       gate: !member.physicalEligible ? member.gate : conflict ? `Zoning conflict: ${conflict.label}` : `${titleNine.assessed.length} checks assessed · ${titleNine.excluded.length} not assessed` }
   })
 }
@@ -103,7 +105,11 @@ function weightScreen({ baseline, proposal }, weights) {
   const values = [...Object.values(baseline), ...Object.values(proposal)]
   const included = PLANNER_FACTORS.map(f => f.id).filter(id => numeric(weights[id]) && weights[id] > 0 && values.every(o => numeric(o.scores[id])))
   const excluded = PLANNER_FACTORS.map(f => f.id).filter(id => !included.includes(id))
-  const reweight = options => Object.fromEntries(Object.entries(options).map(([id, option]) => [id, { ...option, total: option.eligible ? weighted(option, weights, included) : null }]))
+  // suitability is the weighted factor score before eligibility gates; it is never a ranking.
+  const reweight = options => Object.fromEntries(Object.entries(options).map(([id, option]) => {
+    const suitability = weighted(option, weights, included)
+    return [id, { ...option, suitability, total: option.eligible ? suitability : null, reformTotal: option.reformEligible ? suitability : null }]
+  }))
   return { baseline: reweight(baseline), proposal: reweight(proposal), included, excluded }
 }
 
@@ -144,6 +150,7 @@ function screenOptions(options, context) {
         invalid: members.filter(m => !m.eligible).map(m => ({ id: m.id, pin: m.pin, gate: m.gate })) }
       candidate.scores = Object.fromEntries(PLANNER_FACTORS.map(f => [f.id, portfolio.every(m => numeric(m.scores[f.id])) ? portfolio.reduce((n, m) => n + m.scores[f.id] * m.units, 0) / units : null]))
       candidate.eligible = portfolio.every(m => m.eligible)
+      candidate.reformEligible = portfolio.every(m => m.reformEligible)
       if (candidate.area.invalid.length) candidate.gate = `${candidate.area.invalid.length} placed building(s) need review`
     }
   // One evidence denominator across every candidate AND both infrastructure states.

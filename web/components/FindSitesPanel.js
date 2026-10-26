@@ -226,6 +226,14 @@ export default function FindSitesPanel({
             Leave out City greenways and parks
           </label>
           <label className="toggle">
+            <input
+              type="checkbox"
+              checked={filters.excludeRestricted}
+              onChange={(event) => set({ excludeRestricted: event.target.checked })}
+            />
+            Leave out right-of-way, institutional public land, HUD-assisted housing, and lots where zoning prohibits the type
+          </label>
+          <label className="toggle">
             <input type="checkbox" checked={filters.qctOnly} onChange={(event) => set({ qctOnly: event.target.checked })} />
             HUD Qualified Census Tract (2026) only
           </label>
@@ -394,6 +402,15 @@ export default function FindSitesPanel({
                 {PERMISSION_LABELS[selected.permission]}
               </span>
             </p>
+            {selected.cautions?.length ? (
+              <ul className="site-cautions">
+                {selected.cautions.map((caution) => (
+                  <li key={caution.id}>
+                    <strong>{caution.label}.</strong> {caution.detail}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <SiteFacts props={selected.props} compact />
             <div className="action-row">
               {onCompareSite ? (
@@ -439,6 +456,11 @@ export default function FindSitesPanel({
                       : ""}
                   </span>
                   <span className="chips">
+                    {(row.cautions || []).map((caution) => (
+                      <span key={caution.id} className={`chip ${caution.hides ? "caution" : "warn"}`} title={caution.detail}>
+                        {caution.label}
+                      </span>
+                    ))}
                     <Chip on={props.vacant_lot}>Vacant</Chip>
                     <Chip on={props.city_owned} tone="city">
                       City · {CITY_STATUS_LABELS[props.city_status] || "status unknown"}

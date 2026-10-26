@@ -1,6 +1,7 @@
 /** Grounded facts and a template for a Find Sites result list. Same rules as the parcel facts. */
 
 import { VALUE_JUDGMENTS, scoreRow, sourceList, weightFacts } from "./explainFacts.js"
+import { CAUTION_FILTER_TEXT } from "./siteCautions.js"
 import {
   CITY_STATUS_LABELS,
   DEFAULT_SITE_FILTERS,
@@ -29,6 +30,7 @@ const FILTER_TEXT = {
   taxDelinquentPrior: () => "tax-delinquent for more than the current year",
   condemned: () => "condemned or dead-end record",
   excludeOpenSpace: () => "City open space and parks left out",
+  excludeRestricted: () => CAUTION_FILTER_TEXT,
   typeId: (value) => `ranked as ${typeLabel(value)}`,
   permission: (value) => ({ by_right: "§911.02 permits it by right", by_right_or_special: "§911.02 permits it by right or with special approval" })[value] || null,
   flood: (value) => ({ none: "no mapped FEMA flood zone", no_sfha: "no FEMA Special Flood Hazard Area" })[value] || null,
@@ -64,6 +66,7 @@ function siteFacts(row, index) {
     zoning_district: props.zoning_code || null,
     ranked_as: typeLabel(row.typeId),
     zoning_reading: PERMISSION_LABELS[row.permission] || "Check with the City",
+    record_cautions: (row.cautions || []).map((caution) => caution.label),
     weighted_total: row.composite,
     scores: row.row ? scoreRow(row.row) : null,
     records: {

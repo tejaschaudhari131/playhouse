@@ -1,5 +1,6 @@
 import { housingPermission, housingSpec, housingUseOptions } from '../lib/titleNine.js'
 import { resolveZoning } from '../lib/zoning.js'
+import { codeLinkLabel } from '../lib/links.js'
 
 const labels = { permitted: 'By right · use only', not_permitted: 'Not permitted', special: 'Needs approval / conditions', unknown: 'Not assessed', partial: 'Depends on unit count' }
 
@@ -20,7 +21,7 @@ export default function SiteZoning({ properties, zoning, option, showHousing }) 
         <summary>Housing use permissions</summary>
         <p className="compact-help">Existing use does not decide what you can build. These are mapped district use rules; fit, dimensions and other checks still apply.</p>
         <ul>{housingUseOptions(code, zoning).map(item => <li key={item.useRow + item.typeId} className={item.permission.category}><span>{item.label}</span><strong>{labels[item.permission.category]}</strong></li>)}</ul>
-        {district.codeUrl && <a href={district.codeUrl} target="_blank" rel="noreferrer">Source: {district.codeSection || 'district review'} ↗</a>}
+        {district.codeUrl && <a href={district.codeUrl} target="_blank" rel="noreferrer" aria-label={codeLinkLabel(district.codeSection, 'housing use table')}>Source: {district.codeSection || 'district review'} ↗</a>}
       </details>
     </>}
   </div>

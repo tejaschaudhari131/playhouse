@@ -2,6 +2,7 @@
 
 import { TYPE_LABELS, rankTypes } from "./rank.js"
 import { dropZoningBadge, resolveZoning } from "./zoning.js"
+import { hiddenByRecord, siteCautions } from "./siteCautions.js"
 
 export const SITE_CAVEAT =
   "A public record is not availability. City ownership, vacancy, tax delinquency, and condemnation do not mean a parcel is for sale, empty today, or buildable. Verify with the Urban Redevelopment Authority (URA), the Pittsburgh Land Bank, or the City before acting."
@@ -34,6 +35,7 @@ export const DEFAULT_SITE_FILTERS = {
   condemned: false,
   combine: "all",
   excludeOpenSpace: true,
+  excludeRestricted: true,
   typeId: "",
   permission: "any",
   flood: "any",
@@ -161,6 +163,7 @@ export function passesRecordFilters(props, filters) {
     if (!ok) return false
   }
   if (filters.excludeOpenSpace && (props.city_open_space === true || props.land_use === "PUBLIC PARK")) return false
+  if (filters.excludeRestricted && hiddenByRecord(props)) return false
   if (filters.area && props.area !== filters.area && props.neighborhood !== filters.area) return false
   if (filters.flood === "none") {
     if (props.sfha_overlap === null || props.sfha_overlap === undefined) return false
@@ -200,14 +203,14 @@ export function evaluateSite(props, filters, weights, zoningRules) {
   const ranked = rankTypes(props.scores, weights, { allowed: zoningInfo.allowed, whatIf: false })
   if (filters.typeId) {
     const permission = typePermission(filters.typeId, zoningInfo)
-    if (!permissionPasses(permission, filters.permission)) return null
+    if (!permissionPasses(permission, filters.permission) || filters.excludeRestricted && permission === "not_allowed") return null
     const scoreType = scoreTypeFor(filters.typeId)
     const row = ranked.find((item) => item.id === scoreType)
     return { typeId: filters.typeId, scoreType, permission, composite: row?.composite ?? null, row, zoningInfo }
   }
   for (const row of ranked) {
     const permission = typePermission(row.id, zoningInfo)
-    if (row.composite === null || !permissionPasses(permission, filters.permission)) continue
+    if (row.composite === null || !permissionPasses(permission, filters.permission) || filters.excludeRestricted && permission === "not_allowed") continue
     return { typeId: row.id, scoreType: row.id, permission, composite: row.composite, row, zoningInfo }
   }
   return null
@@ -236,7 +239,7 @@ export function findSites(features, filters, weights, zoningRules, sort = "score
     if (!passesRecordFilters(props, filters)) continue
     const site = evaluateSite(props, filters, weights, zoningRules)
     if (!site) continue
-    rows.push({ pin: props.pin, props, ...site })
+    rows.push({ pin: props.pin, props, ...site, cautions: siteCautions(props, site.permission) })
   }
   const key = SORTS[sort] || SORTS.score
   rows.sort((a, b) => key(b) - key(a) || String(a.pin).localeCompare(String(b.pin)))
@@ -263,6 +266,7 @@ export const CSV_COLUMNS = [
   ["weighted_score", (row) => row.composite],
   ["lot_sqft", (row) => row.props.lot_sqft],
   ["land_use", (row) => row.props.land_use],
+  ["cautions", (row) => (row.cautions || []).map((caution) => caution.label).join("; ")],
   ["vacant_lot", (row) => row.props.vacant_lot],
   ["city_owned", (row) => row.props.city_owned],
   ["city_inventory", (row) => row.props.city_inventory],
