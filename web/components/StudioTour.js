@@ -5,7 +5,7 @@ const SEEN_KEY = 'playhouse.studio-tour.v2'
 let dismissedThisSession = false
 
 /** Native modal supplies focus containment and makes the background inert. No tour dependency. */
-export default function StudioTour({ startRequest, onStep, onFinish, triggerRef, ready, error, evidence, onRetry }) {
+export default function StudioTour({ startRequest, autoStart = true, onStep, onFinish, triggerRef, ready, error, evidence, onRetry }) {
   const dialog = useRef(null), title = useRef(null)
   const [open, setOpen] = useState(false), [step, setStep] = useState(0)
   const current = STEPS[step]
@@ -13,10 +13,10 @@ export default function StudioTour({ startRequest, onStep, onFinish, triggerRef,
   useEffect(() => {
     let seen = dismissedThisSession
     try { seen ||= window.localStorage.getItem(SEEN_KEY) === 'seen' } catch { /* Storage may be disabled. */ }
-    if (startRequest > 0 || !seen) {
+    if (startRequest > 0 || autoStart && !seen) {
       onStep(STEPS[0]); setStep(0); setOpen(true)
     }
-  }, [startRequest, onStep])
+  }, [startRequest, onStep, autoStart])
 
   useEffect(() => {
     const node = dialog.current
@@ -55,6 +55,6 @@ export default function StudioTour({ startRequest, onStep, onFinish, triggerRef,
     <p className="tour-evidence" role="status">{error ? `Example unavailable: ${error}` : ready ? evidence : 'Loading the example and recalculating…'}</p>
     {error && <button onClick={onRetry}>Retry example</button>}
     <div className="tour-progress" aria-hidden="true">{STEPS.map((item, i) => <i key={item.title} className={i === step ? 'active' : ''}/>)}</div>
-    <div className="tour-actions"><button disabled={step === 0 || !ready} onClick={() => move(step - 1)}>Back</button><button className="tour-next" disabled={!ready} onClick={() => step === STEPS.length - 1 ? finish() : move(step + 1)}>{step === STEPS.length - 1 ? 'Return to my plan' : 'Next'}</button></div>
+    <div className="tour-actions"><button disabled={step === 0 || !ready} onClick={() => move(step - 1)}>Back</button><button className="tour-next" disabled={step !== STEPS.length - 1 && !ready} onClick={() => step === STEPS.length - 1 ? finish() : move(step + 1)}>{step === STEPS.length - 1 ? 'Return to my plan' : 'Next'}</button></div>
   </dialog>
 }

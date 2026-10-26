@@ -36,7 +36,7 @@ Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F0033
 4. **Set your priorities.** Use **Priorities** to change what matters. Relative weights matter: all 1s and all 100s produce the same ranking.
 5. **Test infrastructure.** Add bus service, a walking/street connection or a park. Compare the baseline with your proposal.
 
-Adjust income, rent, utilities and dimensions under **Assumptions**. **Tour** walks through a real Hazelwood example, then restores your plan. **Export scenario** before reloading to keep your work.
+Adjust income, rent, utilities and dimensions under **Advanced**. **Tour** walks through a real Hazelwood example, then restores your plan. Edits save on this device automatically; **Export scenario** keeps a portable backup. Storage failures are shown explicitly.
 
 Dropdowns stay open after a click so you can browse before choosing. Use arrow keys and Enter, or type a neighborhood name; Escape closes without changing your choice.
 

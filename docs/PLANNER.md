@@ -26,7 +26,7 @@ The original dataset is unchanged. **Demolished in this plan** lists removed foo
 
 Demolition applies to both **Current infrastructure / With changes** views: these compare infrastructure for the same housing plan, not the untouched city against redevelopment. Only explicitly selected footprints stop blocking placement. Neighboring buildings, zoning and missing-evidence rules still apply. Manual retained floor-area/coverage inputs are cleared when a footprint is removed or restored; Undo recovers the previous values. Partial clearance does not invent the remaining floor area.
 
-Demolition costs, permission, occupancy, relocation and demolition carbon are not assessed. Existing displacement/carbon proxies remain unchanged; proposed homes are gross additions, not net growth after removing occupied homes. Studio exports use schema 7 with exact `demolitions: [{id, pin}]` references and the existing building-source snapshot hash. Legacy scenarios without removals remain evaluable. Plans remain in memory until reload; export before leaving.
+Demolition costs, permission, occupancy, relocation and demolition carbon are not assessed. Existing displacement/carbon proxies remain unchanged; proposed homes are gross additions, not net growth after removing occupied homes. Studio exports use schema 7 with exact `demolitions: [{id, pin}]` references and the existing building-source snapshot hash. Legacy scenarios without removals remain evaluable. Edits save automatically on this device. Export before switching browsers or clearing browser data.
 
 ## Two-point road and path routing (planner-screen-1.9)
 
@@ -262,8 +262,16 @@ Rankings show all seven suitability scores (higher is preferred), evidence kinds
 
 The Assumptions tab retains **Advanced options · exact values**: width, depth, height, bearing/offsets, household income, rent, utilities, service span and optional boarding-capacity inputs. Numeric edits commit on Enter/blur and retain entered fractional values. They edit the current draft; previously placed buildings retain their saved inputs. The full comparison audit, source provenance and limitations remain available behind disclosures. Height/dimension edits do not infer a new unit count.
 
-A separate current-plan score excludes the next-building draft. The shortlist and custom A/B compare the plan **plus** that next building; these are different alternatives, not interchangeable scores. Current-plan scores use their own common baseline/proposal evidence coverage. Plans are local in-memory scenarios with JSON export, not saved accounts or citywide forecasts.
+A separate current-plan score excludes the next-building draft. The shortlist and custom A/B compare the plan **plus** that next building; these are different alternatives, not interchangeable scores. Current-plan scores use their own common baseline/proposal evidence coverage. Plans autosave locally on this device, with JSON export for backups. They are not shared accounts or citywide forecasts.
 
 Verification: 18 JavaScript test files and the production build; browser checks of stakeholder presets, site filters, three placements across two real Lawrenceville parcels, green/red placement screening, and exact fractional dimensions/income/rent/utilities. No new dependencies.
 
 Coverage note: the 142,865 mapped records include 142,571 identified parcels and 294 county polygons without a unique PIN. Those polygons have stable `SITE…` map IDs, retain the source label, and disclose that assessment and parcel-ID-based property flags are unknown. No neighborhood is omitted.
+
+## Plan reliability
+
+Studio saves edited scenario inputs locally after a short pause and on page exit. It restores referenced neighborhoods before evaluation and recalculates results; it does not persist scores. Missing parcels, changed network references and invalid saves show a recovery download rather than silently dropping edits. Storage errors remain visible. **New plan** clears the working scenario; Undo restores it.
+
+An explicit parcel link opens that parcel without an automatic tour. If it differs from the saved plan, Undo recovers the saved plan; that save is not replaced until an actual edit. The Hazelwood tour uses temporary inputs and does not write its parcel to the URL or overwrite the personal save. Exit remains available while calculations run.
+
+Pending calculations hide stale transit values. Placement eligibility, missing weighted evidence and all-zero priorities have distinct explanations. Routine confirmations expire; errors remain dismissible.

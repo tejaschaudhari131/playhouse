@@ -5,7 +5,7 @@ export { loadNeighborhood as fetchNeighborhood } from '../lib/neighborhoodLoader
 import { loadNeighborhood as fetchNeighborhood, loadNeighborhoodBatch } from '../lib/neighborhoodLoader.js'
 
 export default function useNeighborhoodData(manifest, initialChunk, requiredIds, viewport, extraIds = [], activeId = initialChunk.id, neighborhoods, requestViewport = viewport) {
-  const cache = useRef(new Map([[initialChunk.id, initialChunk.data]]))
+  const cache = useRef(new Map(initialChunk.chunks || [[initialChunk.id, initialChunk.data]]))
   const display = useRef(null)
   display.current ||= createNeighborhoodDisplay()
   const [chunks, setChunks] = useState(() => new Map(cache.current)), [error, setError] = useState(null), [pending, setPending] = useState(false), [attempt, setAttempt] = useState(0)
