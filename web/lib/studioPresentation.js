@@ -1,6 +1,5 @@
 import { INITIAL_WEIGHTS } from './plannerState.js'
-import { passesRecordFilters, DEFAULT_SITE_FILTERS, typePermission } from './sites.js'
-import { resolveZoning } from './zoning.js'
+export { studioSites } from './studioSiteDiscovery.js'
 export const FACTOR_LABELS = { demand: 'Market fit', physical: 'Physical fit', affordability: 'Housing-cost burden', displacement: 'Lower neighborhood displacement risk', capacity: 'Assumed transit capacity', access: 'Access', carbon: 'Carbon estimate' }
 export const STUDIO_PRESETS = [
  { id:'balanced', label:'Balanced', description:'Spreads weight across the seven factors, with more weight on market fit and housing costs. This is a starting point, not an agreed public priority.', weights:{...INITIAL_WEIGHTS} },
@@ -16,14 +15,4 @@ export function templateTradeoffs(entry, entries, factors, state) {
  if(!reference || !candidate.eligible) return {reference:null,pros:[],cons:[]}
  const changes=factors.filter(f=>f.included).map(f=>({id:f.id,label:FACTOR_LABELS[f.id],points:(candidate.scores[f.id]-reference[state].scores[f.id])*f.effectiveWeight}))
  return {reference:reference[state].label,pros:changes.filter(f=>f.points>=.05).sort((a,b)=>b.points-a.points).slice(0,2),cons:changes.filter(f=>f.points<=-.05).sort((a,b)=>a.points-b.points).slice(0,2)}
-}
-export function studioSites(parcels, zoning, area, filters) {
- const query=(filters.query||'').trim().toLowerCase()
- return parcels.features.filter(f=>{
-  const p=f.properties
-  if(!passesRecordFilters(p,{...DEFAULT_SITE_FILTERS,...filters,area})) return false
-  if(query && !`${p.address||''} ${p.pin}`.toLowerCase().includes(query)) return false
-  if(filters.typeId && typePermission(filters.typeId,resolveZoning(p.zoning_code,zoning))!=='by_right' && typePermission(filters.typeId,resolveZoning(p.zoning_code,zoning))!=='partial') return false
-  return true
- }).sort((a,b)=>Number(!a.properties.address)-Number(!b.properties.address)||(a.properties.address||a.properties.pin).localeCompare(b.properties.address||b.properties.pin, undefined, {numeric:true}))
 }
