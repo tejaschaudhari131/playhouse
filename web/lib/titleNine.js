@@ -1,6 +1,6 @@
 import { BUILDINGS } from './buildings.js'
 import { resolveZoning, unitPermission } from './zoning.js'
-import { geometryCenter } from './plannerGeometry.js'
+import { geometryCenter, geometriesOverlap } from './plannerGeometry.js'
 import { CODE, codeLink, districtStandards, TITLE_NINE_VERSION } from './titleNineRules.js'
 
 const number = x => typeof x === 'number' && Number.isFinite(x)
@@ -8,6 +8,31 @@ const nonnegative = x => number(x) && x >= 0
 const count = x => nonnegative(x) && Number.isInteger(x)
 const FT = 1 / .3048, SQFT = FT * FT
 const show = x => number(x) ? Math.round(x * 10) / 10 : 'Unknown'
+
+function usablePolygon(geometry) {
+  const polygons = geometry?.type === 'Polygon' ? [geometry.coordinates] : geometry?.type === 'MultiPolygon' ? geometry.coordinates : null
+  return Array.isArray(polygons) && polygons.length > 0 && polygons.every(polygon => Array.isArray(polygon) && polygon.length > 0 && polygon.every(ring => {
+    if (!Array.isArray(ring) || ring.length < 4 || !ring.every(p => Array.isArray(p) && number(p[0]) && number(p[1]))) return false
+    if (ring[0][0] !== ring.at(-1)[0] || ring[0][1] !== ring.at(-1)[1]) return false
+    const [x, y] = ring[0]
+    return Math.abs(ring.slice(1).reduce((sum, p, i) => sum + (ring[i][0] - x) * (p[1] - y) - (p[0] - x) * (ring[i][1] - y), 0)) > 0
+  }))
+}
+
+/** Nearby collision candidates may belong to adjacent lots. Only infer an empty lot
+ * when every known candidate can be demonstrated to lie outside its actual polygon.
+ * A same-PIN record or any touching footprint remains retained-building evidence.
+ */
+export function hasRetainedLotBuildings(feature, existingBuildings) {
+  if (!Array.isArray(existingBuildings) || !usablePolygon(feature?.geometry)) return null
+  let unknown = false
+  for (const building of existingBuildings) {
+    if (feature.properties?.pin && building?.properties?.pin === feature.properties.pin) return true
+    if (!usablePolygon(building?.geometry)) { unknown = true; continue }
+    if (geometriesOverlap(feature.geometry, building.geometry)) return true
+  }
+  return unknown ? null : false
+}
 
 /** Studio's combined colour family must not stand in for two different legal uses. */
 export function housingSpec(option) {
@@ -79,7 +104,7 @@ export function evaluateTitleNine({ option, feature, zoning, massing, existingBu
   const lot = number(inputs.lotSqft) && inputs.lotSqft > 0 ? inputs.lotSqft : number(props.lot_sqft) && props.lot_sqft > 0 ? props.lot_sqft : null
   const footprint = local.reduce((n, m) => n + m.option.width * m.option.depth * SQFT, 0)
   const floorArea = local.reduce((n, m) => n + m.option.width * m.option.depth * (m.option.floors ?? housingSpec(m.option).floors) * SQFT, 0)
-  const empty = existingBuildings !== null && existingBuildings.length === 0
+  const empty = hasRetainedLotBuildings(feature, existingBuildings) === false
   const existingGfa = nonnegative(inputs.existingGfaSqft) ? inputs.existingGfaSqft : empty ? 0 : null
   const existingFootprint = nonnegative(inputs.existingFootprintSqft) ? inputs.existingFootprintSqft : empty ? 0 : null
   if (!district) add('district', 'Base district dimensions', 'special', 'unknown', `${code || 'Unknown district'} needs its own adopted standards, height map or development plan. No generic district rules are substituted.`)
