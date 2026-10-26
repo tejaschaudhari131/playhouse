@@ -1,3 +1,4 @@
+import Select from './Select.js'
 const statusLabel = { pass: 'Pass', conflict: 'Conflict', unknown: 'Not assessed', conditional: 'Not assessed · review', not_applicable: 'Not applicable' }
 
 function Rule({ check }) {
@@ -20,7 +21,7 @@ export default function TitleNineChecks({ result, compact = false }) {
 }
 
 function Choice({ label, value, options, onChange }) {
-  return <label className="planner-field"><span>{label}</span><select value={value ?? ''} onChange={e => onChange(e.target.value || null)}><option value="">Unknown / not assessed</option>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></label>
+  return <label className="planner-field"><span>{label}</span><Select aria-label={label} value={value ?? ''} onChange={e => onChange(e.target.value || null)}><option value="">Unknown / not assessed</option>{options.map(([id, text]) => <option key={id} value={id}>{text}</option>)}</Select></label>
 }
 function YesNo({ label, value, onChange }) {
   return <Choice label={label} value={value === true ? 'yes' : value === false ? 'no' : ''} options={[["yes", "Yes (assumed)"], ["no", "No (assumed)"]]} onChange={v => onChange(v === 'yes' ? true : v === 'no' ? false : null)}/>

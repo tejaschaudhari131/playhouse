@@ -2,7 +2,7 @@
 .studio button, .planner-loading button { font: inherit; cursor: pointer; border-radius: 7px; border: 1px solid var(--line, #d6e0d9); color: inherit; background: #fff; transition: background .15s, border-color .15s; }
 .studio button:hover { background: #edf2eb; border-color: #9eb4a7; }
 .studio button:disabled { opacity: .4; cursor: not-allowed; }
-.studio button:focus-visible, .studio a:focus-visible, .studio input:focus-visible, .studio select:focus-visible, .studio summary:focus-visible { outline: 3px solid #4b8cad; outline-offset: 3px; }
+.studio button:focus-visible, .studio a:focus-visible, .studio input:focus-visible, .studio .select-control:focus-visible, .studio summary:focus-visible { outline: 3px solid #4b8cad; outline-offset: 3px; }
 .studio a { color: var(--green); }
 .studio-header { height: 76px; flex: 0 0 76px; background: #fafbf7; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 0 25px; border-bottom: 1px solid var(--line); z-index: 5; }
 .studio-brand { display: flex; gap: 12px; align-items: center; }
@@ -122,7 +122,7 @@
 .section-help { font-size: 10px; line-height: 1.65; color: #7b8475; margin: 9px 0 13px; }
 .studio .planner-field { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; font-size: 10px; }
 .planner-field > span { color: #5b6e5e; font-weight: 500; }
-.studio .planner-field input, .studio .planner-field select { font: inherit; font-size: 12px; color: #354e3a; background: #fff; width: 100%; min-width: 0; border: 1px solid #dce4d6; border-radius: 6px; padding: 9px; }
+.studio .planner-field input, .studio .planner-field .select-control { font: inherit; font-size: 12px; color: #354e3a; background: #fff; width: 100%; min-width: 0; border: 1px solid #dce4d6; border-radius: 6px; padding: 9px; }
 .planner-field small { font-size: 9px; color: #85907e; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .field-grid.three { grid-template-columns: repeat(3, 1fr); }
@@ -525,7 +525,7 @@
 .housing-picker > label { min-width: 0; }
 .housing-picker > label > span { display: block; margin-bottom: 5px; font-size: 12px; color: #5b6e5e; }
 .housing-picker > button { min-height: 44px; font-size: 19px; }
-.housing-picker select { min-height: 44px; width: 100%; min-width: 0; border: 1px solid #cbd8ce; border-radius: 7px; background: #fff; padding: 9px; color: var(--ink); font: inherit; font-size: 14px; font-weight: 550; }
+.housing-picker .select-control { min-height: 44px; width: 100%; min-width: 0; border: 1px solid #cbd8ce; border-radius: 7px; background: #fff; padding: 9px; color: var(--ink); font: inherit; font-size: 14px; font-weight: 550; }
 .housing-picker .planner-field { margin: 0; }
 .studio .housing-editor .compact-help .assumptions-link { width: auto; padding: 0; margin-left: 8px; border: 0; font-size: 12px; text-decoration: underline; }
 .build-actions { position: sticky; bottom: -24px; z-index: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin: 16px -2px 0; padding: 11px 2px; background: #fafbf7f7; border-top: 1px solid var(--line); }
@@ -558,7 +558,7 @@
 .building-selection .placement-actions button:first-child { border-color: #b4c8b7; }
 .building-selection .selection-back { border: 0; background: transparent; padding: 0; font-size: 12px; margin-bottom: 10px; }
 .studio .planner-field { font-size: 12px; }
-.studio .planner-field input, .studio .planner-field select { min-height: 40px; font-size: 13px; }
+.studio .planner-field input, .studio .planner-field .select-control { min-height: 40px; font-size: 13px; }
 .planner-field small, .section-help, .planner-details p, .fit-note p, .fit-note small, .planner-warning, .site-buildings small { font-size: 12px; line-height: 1.55; }
 .fit-note strong, .planner-details > summary, .section-heading h3, .studio .service-slider, .service-baseline strong { font-size: 13px; }
 .data-badge, .site-tags span { font-size: 10px; }
@@ -590,7 +590,7 @@
   .studio-brand small, .studio-beta { display: none; }
   .studio .neighborhood-picker { flex: 1; min-width: 0; max-width: 230px; margin-left: auto; }
   .studio .neighborhood-picker > span { display: none; }
-  .studio .neighborhood-picker select { padding: 7px; font-size: 13px; }
+  .studio .neighborhood-picker .select-control { padding: 7px; font-size: 13px; }
   .planner-brandmark { width: 30px; height: 30px; }
   .studio-header-actions { flex: 1 0 100%; justify-content: space-between; flex-wrap: nowrap; gap: 5px; }
   .studio-header-actions button { min-height: 36px; }
@@ -633,7 +633,7 @@
   .planner-site-marker { max-width: 70vw; white-space: normal; padding: 6px 8px; font-size: 10px; }
   .placement-banner { padding: 8px; font-size: 11px; gap: 8px; line-height: 1.4; }
   .build-actions { bottom: -18px; padding: 9px 0 calc(9px + env(safe-area-inset-bottom)); }
-  .studio .planner-field input, .studio .planner-field select, .housing-picker select { font-size: 16px; }
+  .studio .planner-field input, .studio .planner-field .select-control, .housing-picker .select-control { font-size: 16px; }
   .field-grid.three { gap: 7px; }
   .network-notice { left: 12px; bottom: 12px; max-width: calc(100vw - 24px); padding: 10px 12px; }
 }

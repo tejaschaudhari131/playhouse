@@ -201,7 +201,17 @@ button.text-button { border: 0; background: transparent; color: #1d4e89; padding
 .filters fieldset { border: 1px solid #e4e7eb; padding: 6px 10px 8px; margin: 0 0 10px; }
 .filters legend { font-weight: 600; font-size: 13px; padding: 0 4px; }
 .filters .toggle { display: flex; gap: 6px; align-items: baseline; margin: 4px 0; }
-select { font: inherit; width: 100%; margin-top: 4px; padding: 4px; }
+.select-control { font: inherit; width: 100%; margin-top: 4px; padding: 8px 10px; min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 10px; text-align: left; }
+.select-control > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select-control > svg { flex: 0 0 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.select-control:focus-visible { outline: 3px solid #4b8cad; outline-offset: 3px; }
+.select-menu { position: fixed; z-index: 10000; overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 4px; border: 1px solid #b7c9bd; border-radius: 8px; background: #fff; color: #233d35; box-shadow: 0 8px 26px #1a30292b; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; }
+.select-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 9px 10px; border-radius: 4px; cursor: pointer; }
+.select-option.active { background: #e8f0e9; outline: 1px solid #d2e1d5; outline-offset: -1px; }
+.select-option[aria-selected=true] { font-weight: 600; }
+.select-option[aria-disabled=true] { opacity: .45; cursor: not-allowed; }
+.select-check { width: 16px; flex: 0 0 16px; color: #2e6951; }
+@media (max-width: 760px) { .select-menu { font-size: 16px; } .select-option { min-height: 44px; } }
 .results-tools { display: flex; gap: 8px; align-items: flex-end; }
 .results-tools label { flex: 1; margin: 0; }
 .site-list { list-style: none; padding: 0; margin: 8px 0; }
@@ -467,5 +477,5 @@ button.explain { font-weight: 700; }
 .studio .zoning-inputs small { display: block; line-height: 1.5; color: #52616b; }
 
 .neighborhood-picker { display:flex; flex-direction:column; gap:3px; font-size:11px; min-width:170px; max-width:280px; }
-.neighborhood-picker select { width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:7px; color:#183147; background:white; font:inherit; font-size:13px; }
+.neighborhood-picker .select-control { width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:7px; color:#183147; background:white; font:inherit; font-size:13px; }
 .city-neighborhood-status { padding:8px 16px; background:#edf4f8; color:#183147; font-size:13px; }
