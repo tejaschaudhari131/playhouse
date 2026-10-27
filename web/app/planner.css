@@ -766,10 +766,21 @@
 .comparison-total td.score-reform strong { color: #8f3b1f; }
 .comparison-total .score-kind { font-weight: 600; }
 .comparison-factor.ineligible { opacity: .55; }
-.reform-toggle { display: flex; gap: 9px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; border: 1px dashed #d9b98a; border-radius: 9px; background: #fffaf2; font-size: 12px; line-height: 1.45; cursor: pointer; }
-.reform-toggle input { margin-top: 2px; width: 16px; height: 16px; accent-color: #8f3b1f; }
-.reform-toggle strong { display: block; font-size: 13px; }
-.reform-toggle small { display: block; color: #6d5f49; font-size: 11px; }
+.reform-simulator { margin: 10px 0; padding: 10px 12px; border: 1px dashed #d9b98a; border-radius: 9px; background: #fffaf2; font-size: 12px; line-height: 1.45; }
+.reform-simulator.compact { margin: 8px 0; }
+.reform-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.reform-head strong { font-size: 13px; color: #5b2a14; }
+.reform-status { padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 650; background: #e3efe5; color: #1f6b35; }
+.reform-status.pending { background: #fbf0d4; color: #7a5a0c; }
+.reform-status.hypothetical { background: #fbe4dc; color: #8f3b1f; }
+.reform-presets { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 4px; }
+.reform-presets button { padding: 4px 9px; border: 1px solid #d9b98a; border-radius: 99px; background: #fff; color: #5b4630; font-size: 11.5px; cursor: pointer; }
+.reform-presets button.active { background: #8f3b1f; border-color: #8f3b1f; color: #fff; }
+.reform-rules { margin: 6px 0; padding-left: 16px; }
+.reform-rules li { margin: 2px 0; }
+.reform-rules a, .reform-simulator .compact-help a { color: #8f3b1f; font-weight: 650; }
+.reform-draft, .reform-count { margin: 6px 0; }
+.reform-simulator > small { display: block; color: #6d5f49; font-size: 11px; }
 .draft-result .zoning-badge { display: inline-block; }
 
 /* Housing-cost switch and AMI chips */

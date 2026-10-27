@@ -46,6 +46,8 @@ import { housingCostInputs, housingCostConfirmed } from '../lib/housingCosts.js'
 import HudIncomeReference from './HudIncomeReference.js'
 import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
+import PolicyReformSimulator from './PolicyReformSimulator.js'
+import { reformSummary } from '../lib/policyReform.js'
 import useAddressSearch from './useAddressSearch.js'
 import { isParcelSearch } from '../lib/addressSearch.js'
 import { parcelHref } from '../lib/links.js'
@@ -324,7 +326,7 @@ function Studio({ data }) {
   const [placing, setPlacing] = useState(false)
   const [hoverPoint, setHoverPoint] = useState(null)
   const [justAdded, setJustAdded] = useState(null)
-  const [simulateReform, setSimulateReform] = useState(false)
+  const [reformPreset, setReformPreset] = useState('current')
   useEffect(() => { if (!placing) setHoverPoint(null) }, [placing])
   const [drawing, setDrawing] = useState(null), [draftNode, setDraftNode] = useState(null)
   const drawingRevision = useRef(0), drawingBusy = useRef(false)
@@ -634,7 +636,7 @@ function Studio({ data }) {
     finally { if (revision === drawingRevision.current) drawingBusy.current = false }
   }
   function download() {
-    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
+    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, policyReform: options ? reformSummary(Object.values(options), reformPreset, props.zoning_code ?? null) : null, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
     const link = document.createElement('a'); link.href = url; link.download = `housing-scenario-${scenario.pin}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     setNotice('Scenario exported with model version, assumptions and comparison results.', 'transient')
@@ -707,7 +709,7 @@ function Studio({ data }) {
             <ul>{(scenario.demolitions || []).map(b => <li key={demolitionKey(b)}><button onClick={() => inspectDemolition(b)}><strong>{byPin.get(demolitionSite(b))?.properties.address || demolitionSite(b)}</strong><small>Outline {b.id} · demolished{b.site || b.unmatched ? ' · crossed the parcel boundary' : ''}</small></button><button onClick={() => restoreExisting(b)} aria-label={`Restore building ${b.id}`}>Restore</button></li>)}</ul>
             {planTax && <TaxLedger tax={planTax} title="Whole-plan Annual Property Tax Ledger"/>}
           </div></details>}
-          {inspectorTab === 'rankings' && <HousingComparison comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={simulateReform} onReform={setSimulateReform} costControl={costSwitch(true)}/>}
+          {inspectorTab === 'rankings' && <HousingComparison comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={reformPreset} onReform={setReformPreset} zoningCode={props.zoning_code ?? null} costControl={costSwitch(true)}/>}
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
             <div className="drawer-heading"><h3>New building</h3><p>Preview a housing type, then add it to your plan.</p></div>
             <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
@@ -724,6 +726,7 @@ function Studio({ data }) {
               {fitIssue && <div className="placement-actions"><button className="primary-build" disabled={evaluation.pending} onClick={fitDraftToLot}>Fit dimensions to lot</button></div>}
               <small>{fitIssue ? `Finds the largest ${housingSpec(option).label.toLowerCase()} footprint, down to the type minimum, that fits at a position aligned to a parcel edge${districtStandards(props.zoning_code)?.coverage ? ' and within the district’s lot coverage' : ''}. Stories stay the same. Lot size is measured from the map outline, not legal frontage.` : 'Fit to lot changes only width and depth. Height, stories and lot-area limits need a smaller type, a variance or a reform scenario.'}</small>
             </div>}
+            {!evaluation.pending && evaluated?.titleNine?.conflict && options && <PolicyReformSimulator compact presetId={reformPreset} onPreset={setReformPreset} options={Object.values(options)} code={props.zoning_code ?? null} focusTypeId={option.typeId}/>}
             {!!blockingBuildings.length && <div className="redevelop-callout" role="group" aria-label="Existing buildings under this draft">
               <p><strong>{blockingBuildings.length === 1 ? 'An existing building sits' : `${blockingBuildings.length} existing buildings sit`} under this draft.</strong> Demolish {blockingBuildings.length === 1 ? 'it' : 'them'} in the plan to test a replacement here, or move the draft.</p>
               <div className="placement-actions"><button className="primary-build" disabled={evaluation.pending || !context} onClick={() => demolishFootprints(blockingBuildings)}>Demolish & replace existing building{blockingBuildings.length === 1 ? '' : 's'}</button><button onClick={() => inspectOnSite(blockingBuildings[0])}>Inspect first</button></div>

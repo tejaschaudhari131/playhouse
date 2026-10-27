@@ -3,13 +3,15 @@ import TitleNineChecks from './TitleNine.js'
 import { housingSpec } from '../lib/titleNine.js'
 import { simulatedColor } from '../lib/buildingUses.js'
 import { FACTOR_LABELS, templateTradeoffs, zoningBadge, comparisonScore } from '../lib/studioPresentation.js'
+import { simulateReform, presetById, REFORM_STATUS_TEXT } from '../lib/policyReform.js'
+import PolicyReformSimulator from './PolicyReformSimulator.js'
 
 const number = n => Number.isFinite(n) ? n.toFixed(1) : '—'
-export default function HousingComparison({ comparison, draft, selectedTypes = [], onSelection, proposed, pending, expanded, onExpand, onBack, area, onUse, onAssumptions, reform = false, onReform, costControl = null }) {
+export default function HousingComparison({ comparison, draft, selectedTypes = [], onSelection, proposed, pending, expanded, onExpand, onBack, area, onUse, onAssumptions, reform = 'current', onReform, zoningCode = null, costControl = null }) {
   const state = proposed ? 'proposal' : 'baseline'
   const entries = comparison?.entries || []
   const totals = entries.map(entry => entry[state]).filter(option => option.eligible && Number.isFinite(option.total)).map(option => option.total)
-  const useBlocked = entries.filter(entry => zoningBadge(entry[state]).tone === 'reform' && entry[state].reformEligible).length
+  const simulations = Object.fromEntries(entries.map(entry => [entry.id, reform === 'current' ? null : simulateReform(entry[state], reform, zoningCode)]))
   function toggle(id) { onSelection(selectedTypes.includes(id) ? selectedTypes.filter(type => type !== id) : [...selectedTypes, id]) }
   return <section data-tour="comparison" className="studio-rankings housing-comparison" aria-label="Housing type comparison" aria-busy={pending}>
     <div className="section-heading"><h3>{area ? 'Your plan + next building' : 'Compare housing types'}</h3>{!expanded && <button onClick={onExpand}>Expand comparison</button>}</div>
@@ -22,7 +24,7 @@ export default function HousingComparison({ comparison, draft, selectedTypes = [
     {pending || !comparison ? <p role="status">Calculating the current comparison…</p> : <>
       <p className="coverage-pill">{comparison.included.length}/7 factors weighted · {proposed ? 'Proposed' : 'Existing'} infrastructure <button onClick={onAssumptions}>Advanced</button></p>
       {costControl}
-      <label className="reform-toggle"><input type="checkbox" role="switch" checked={reform} onChange={event => onReform?.(event.target.checked)}/><span><strong>Simulate zoning reform (by-right)</strong><small>Treats the proposed use as permitted where the §911.02 use row is the only zoning conflict{useBlocked ? ` (${useBlocked} of ${entries.length} types here)` : ''}. Fit, height, area and evidence checks still apply. A what-if, not current law; rankings are unchanged.</small></span></label>
+      <PolicyReformSimulator presetId={reform} onPreset={onReform} options={entries.map(entry => entry[state])} code={zoningCode} focusTypeId={draft.typeId}/>
       {totals.length > 1 && <p className="compact-help">Modeled scores span {number(Math.min(...totals))}–{number(Math.max(...totals))}. Small gaps are not proof of a better project: the model has no validated uncertainty margin.</p>}
       {entries.length === 1 && <p className="compact-help">Select another type above to compare side by side.</p>}
       {entries.some(entry => !entry[state].eligible) && <p className="compact-help">Types that are not eligible still show their underlying score (greyed) so you can see the tradeoff; that score is not a ranking. Eligibility applies to that proposal, not every possible building on this parcel. Check the reason below; <button onClick={onAssumptions}>adjust dimensions and assumptions</button> to test another fit.</p>}
@@ -32,10 +34,10 @@ export default function HousingComparison({ comparison, draft, selectedTypes = [
           <caption>Factor scores: higher is preferred. Shared evidence and relative weights apply to every column.</caption>
           <thead><tr><th scope="col">Housing type</th>{entries.map(entry => <th scope="col" key={entry.id} style={{ borderTopColor: simulatedColor(entry.id) }}><strong>{entry[state].label}</strong><small>{entry.id === draft.typeId ? 'Current draft · your dimensions' : 'Standard template'}</small></th>)}</tr></thead>
           <tbody>
-            <tr className="comparison-total"><th scope="row">Modeled preference<small>Under your priorities{reform ? ' · reform simulated' : ''}</small></th>{entries.map(entry => {
-              const option = entry[state], score = comparisonScore(option, reform), badge = zoningBadge(option)
+            <tr className="comparison-total"><th scope="row">Modeled preference<small>Under your priorities{reform !== 'current' ? ` · ${presetById(reform).label}` : ''}</small></th>{entries.map(entry => {
+              const option = entry[state], score = comparisonScore(option, simulations[entry.id]), badge = zoningBadge(option)
               return <td key={entry.id} className={`score-${score.kind}`}><strong>{score.value === null ? 'No score' : number(score.value)}</strong>
-                <small className="score-kind">{score.kind === 'score' ? 'Eligible score' : score.kind === 'reform' ? 'Simulated by-right score · not current law' : `Underlying score · not eligible: ${option.gate}`}</small>
+                <small className="score-kind">{score.kind === 'score' ? 'Eligible score' : score.kind === 'reform' ? `Simulated by-right score · ${REFORM_STATUS_TEXT[presetById(reform).status].toLowerCase()}` : `Underlying score · not eligible: ${option.gate}`}</small>
                 <span className={`zoning-badge ${badge.tone}`}>{badge.text}</span>
                 <small>{option.titleNine?.assessed.length ?? 0} zoning checks completed · {option.titleNine?.excluded.length ?? 0} not checked</small></td>
             })}</tr>

@@ -31,10 +31,14 @@ export function zoningBadge(option) {
   return { tone: 'unknown', text: 'Proposed use not reviewed' }
 }
 
-/** Headline number for a compared type. A simulated by-right score is labelled as such and never ranks. */
-export function comparisonScore(option, reform = false) {
+/**
+ * Headline number for a compared type. A simulated by-right score is labelled as such and never ranks.
+ * `reform` is a `simulateReform` result, or `true` for the use-row-only simulation.
+ */
+export function comparisonScore(option, reform = null) {
   if (option?.eligible && Number.isFinite(option.total)) return { value: option.total, kind: 'score' }
-  if (reform && option?.reformEligible && Number.isFinite(option.reformTotal)) return { value: option.reformTotal, kind: 'reform' }
+  const simulated = reform === true ? option?.reformEligible : !!reform?.eligible
+  if (simulated && Number.isFinite(option?.suitability)) return { value: option.suitability, kind: 'reform' }
   return { value: Number.isFinite(option?.suitability) ? option.suitability : null, kind: 'underlying' }
 }
 
