@@ -1,4 +1,4 @@
-import { BUILDINGS } from './buildings.js'
+import { BUILDINGS, BUILDING_IDS } from './buildings.js'
 import { normalizeDemolition, buildingRefKey } from './redevelopment.js'
 import { housingCostInputs } from './housingCosts.js'
 
@@ -43,11 +43,14 @@ export function initialScenario(pin, props = {}, stopId = '') {
   }
 }
 
+/** Every type other than the draft, so each typology card has a score on first load. */
+export const defaultComparisonTypes = typeId => BUILDING_IDS.filter(id => id !== typeId)
+
 /** Studio edits one draft. Legacy A/B scenarios remain evaluable for older exports. */
 export function initialStudioScenario(pin, props = {}, stopId = '') {
   const { options, ...scenario } = initialScenario(pin, props, stopId)
   // Live mode: housing costs count as scenario assumptions and follow every rent, utility or income edit.
-  const studio = { ...scenario, capacityMode: 'schedule', baselinePlacesPerDeparture: 1, draft: options.A, comparisonTypes: [], affordabilityAuto: true }
+  const studio = { ...scenario, capacityMode: 'schedule', baselinePlacesPerDeparture: 1, draft: options.A, comparisonTypes: defaultComparisonTypes(options.A.typeId), affordabilityAuto: true }
   return { ...studio, affordabilityConfirmation: housingCostInputs(studio, studio.draft) }
 }
 

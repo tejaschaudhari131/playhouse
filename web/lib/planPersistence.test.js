@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { initialStudioScenario, optionFor } from './plannerState.js'
-import { PLAN_STORAGE_KEY, parseSavedPlan, readSavedPlan, restorePlanContext, savePlan, shouldSavePlan, validatePlan } from './planPersistence.js'
+import { PLAN_STORAGE_KEY, migrateSavedScenario, parseSavedPlan, readSavedPlan, restorePlanContext, savePlan, shouldSavePlan, validatePlan } from './planPersistence.js'
 
 const PIN = '0056F00338000000', OTHER = '0049N00010000000'
 const sources = { dataVersion: '2026-09-01', networkFile: 'region-1-network.abcd.json' }
@@ -14,7 +14,7 @@ function fullPlan() {
   scenario.accessMode = 'network'
   scenario.targetIncome = 41234.56
   scenario.draft = { ...optionFor('triplex', 1200.12), width: 11.13, depth: 17.79, utilities: 102.22, placement: { east: -3.14, north: 9.99, bearing: 15.125 } }
-  scenario.comparisonTypes = ['small_apartment', 'townhouse_duplex']
+  scenario.comparisonTypes = ['small_apartment', 'townhouse_duplex', 'large_apartment', 'single_family']
   scenario.buildings = [{ id: 'placed-one', pin: OTHER, option: { ...optionFor('single_family', 987), placement: { east: 1, north: -4, bearing: 22 } }, targetIncome: 30123, stopId: '42' }]
   scenario.demolitions = [{ id: 'source-one', pin: PIN }]
   scenario.connections = [{ id: 'path-one', kind: 'path', from: { edge: [1, 2], t: .3 }, to: 7, width: 3, neighborhoodIds: ['hazelwood'] }]
@@ -134,4 +134,27 @@ test('missing parcel or changed graph refuses unsafe restoration before fetching
   await assert.rejects(restorePlanContext(saved, manifest, { locate: async () => null, load }), /not in this data release/)
   await assert.rejects(restorePlanContext(saved, manifest, { locate: async () => manifest.neighborhoods[0], load }), /walking network changed/)
   assert.equal(loads, 0)
+})
+
+test('saved plans from earlier releases restore with live housing costs and every type scored', () => {
+  const legacy = fullPlan()
+  delete legacy.affordabilityAuto
+  legacy.affordabilityConfirmation = null
+  legacy.comparisonTypes = []
+  legacy.buildings[0].affordabilityConfirmation = null
+  const target = storage()
+  assert.equal(savePlan(target, legacy, sources).ok, true)
+  const restored = readSavedPlan(target)
+  assert.equal(restored.migrated, true)
+  const scenario = restored.saved.scenario
+  assert.equal(scenario.affordabilityAuto, true)
+  assert.deepEqual(scenario.affordabilityConfirmation, { targetIncome: legacy.targetIncome, rent: legacy.draft.rent, utilities: legacy.draft.utilities })
+  assert.deepEqual(scenario.buildings[0].affordabilityConfirmation, { targetIncome: 30123, rent: 987, utilities: 150 })
+  assert.deepEqual(scenario.comparisonTypes.sort(), ['large_apartment', 'single_family', 'small_apartment', 'townhouse_duplex'])
+  assert.equal(validatePlan(scenario), null)
+  const off = { ...fullPlan(), affordabilityAuto: false, affordabilityConfirmation: null }
+  assert.equal(migrateSavedScenario(off).affordabilityAuto, false)
+  const current = fullPlan()
+  assert.equal(migrateSavedScenario(current), current)
+  assert.equal(readSavedPlan((() => { const t = storage(); savePlan(t, current, sources); return t })()).migrated, false)
 })

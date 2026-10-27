@@ -779,3 +779,8 @@
 .site-caution-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .site-caution-tags span { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #fdf0d5; color: #6b4b12; }
 .site-caution-tags span.caution { background: #fde2e2; color: #7f1d1d; font-weight: 600; }
+.fit-callout { margin: 12px 0; padding: 12px; border: 1px solid #e2b4b4; border-left: 4px solid #b54848; border-radius: 9px; background: #fff5f5; font-size: 12px; line-height: 1.5; }
+.fit-callout p { margin: 0; }
+.fit-callout ul { margin: 6px 0 0; padding-left: 18px; }
+.fit-callout .placement-actions { grid-template-columns: minmax(0, 1fr); margin-top: 9px; }
+.fit-callout small { display: block; margin-top: 7px; color: #6d4b4b; }

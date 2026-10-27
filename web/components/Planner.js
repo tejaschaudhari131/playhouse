@@ -37,7 +37,7 @@ import { homesReplaced, netHomes, combinedHomes, recordedHomes, homesText, redev
 import { typologyCards, resizeDraft, rotatePlacement, draftKey, previewPaused } from '../lib/buildControls.js'
 import { nearbyStops, preferredStop, round } from '../lib/plannerModel.js'
 import { createPlannerEvaluator, sameEvaluationContext } from '../lib/plannerEvaluation.js'
-import { EXAMPLES, PLANNER_FACTORS, MASSING_DEFAULTS, optionFor, initialStudioScenario, historyFor, scenarioReducer, scenarioExport } from '../lib/plannerState.js'
+import { EXAMPLES, PLANNER_FACTORS, MASSING_DEFAULTS, optionFor, initialStudioScenario, historyFor, scenarioReducer, scenarioExport, defaultComparisonTypes } from '../lib/plannerState.js'
 import { readSavedPlan, savePlan, restorePlanContext, shouldSavePlan } from '../lib/planPersistence.js'
 import { draftStatus } from '../lib/plannerStatus.js'
 import { housingCostInputs, housingCostConfirmed } from '../lib/housingCosts.js'
@@ -47,6 +47,8 @@ import PolicyContext from './PolicyContext.js'
 import useAddressSearch from './useAddressSearch.js'
 import { isParcelSearch } from '../lib/addressSearch.js'
 import { parcelHref } from '../lib/links.js'
+import { fitDiagnosis, fitToLot, fitSummary } from '../lib/lotFit.js'
+import { districtStandards } from '../lib/titleNineRules.js'
 
 const PlannerMap = dynamic(() => import('./PlannerMap.js'), { ssr: false, loading: () => <div className="planner-loading">Preparing the map…</div> })
 const fmt = (value, suffix = '') => typeof value === 'number' && Number.isFinite(value) ? `${round(value).toLocaleString()}${suffix}` : 'Unknown'
@@ -452,7 +454,7 @@ function Studio({ data }) {
     if (pin === scenario.pin) { if (!building && emptyCandidates.has(pin)) changeType(emptyCandidates.get(pin)); setTool('housing'); setInspectorTab('edit'); setQuery(''); return }
     const sameArea = byPin.get(pin).properties.area === props.area
     const next = makeScenario(pin)
-    if (!building && emptyCandidates.has(pin)) next.draft = optionFor(emptyCandidates.get(pin), next.draft.rent)
+    if (!building && emptyCandidates.has(pin)) Object.assign(next, { draft: optionFor(emptyCandidates.get(pin), next.draft.rent), comparisonTypes: defaultComparisonTypes(emptyCandidates.get(pin)) })
     if (sameArea) Object.assign(next, { zoningInputsByPin: scenario.zoningInputsByPin, projectInputs: scenario.projectInputs, connections: scenario.connections, routes: scenario.routes, parks: scenario.parks, parkAccessShare: scenario.parkAccessShare, weights: scenario.weights, comparisonTypes: scenario.comparisonTypes, buildings: scenario.buildings || [], demolitions: scenario.demolitions || [], additionalDepartures: scenario.additionalDepartures, serviceHours: scenario.serviceHours, serviceStopId: scenario.serviceStopId || scenario.stopId, capacityStopId: scenario.capacityStopId || scenario.stopId, spareBoardings: scenario.spareBoardings, capacityMode: scenario.capacityMode, baselinePlacesPerDeparture: scenario.baselinePlacesPerDeparture, availablePlacesPerDeparture: scenario.availablePlacesPerDeparture, boardingsPerHome: scenario.boardingsPerHome })
     if (sameArea && typeof scenario.affordabilityAuto === 'boolean') next.affordabilityAuto = scenario.affordabilityAuto
     if (sameArea && nearbyStops(byPin.get(pin), stops).some(s => String(s.stop_id) === next.serviceStopId)) next.stopId = next.serviceStopId
@@ -536,6 +538,17 @@ function Studio({ data }) {
   const draftMassing = hoverMassing || result?.proposal?.[option.typeId]?.massing
   const blockingBuildings = useMemo(() => paused || evaluation.pending || !draftMassing?.geometry || !draftMassing.collisions ? [] : blockingFootprints(retainedNearbyBuildings, draftMassing.geometry), [paused, evaluation.pending, draftMassing, retainedNearbyBuildings])
   const otherCollision = !paused && !evaluation.pending && draftMassing?.collisions > 0 && !blockingBuildings.length
+  const fitIssue = !paused && !evaluation.pending && evaluated && !hoverMassing ? fitDiagnosis(option, selected.geometry, evaluated.massing) : null
+  const dimensionConflicts = !paused && !evaluation.pending && evaluated ? (evaluated.titleNine?.checks || []).filter(c => c.status === 'conflict' && ['coverage', 'far', 'height', 'stories', 'lot'].includes(c.id)) : []
+  function fitDraftToLot() {
+    if (evaluation.pending) return
+    const district = districtStandards(props.zoning_code), lotM2 = Number.isFinite(props.lot_sqft) ? props.lot_sqft / 10.7639 : null
+    const fit = fitToLot({ option, geometry: selected.geometry, obstacles: proposalObstacles, maxFootprintM2: district?.coverage && lotM2 ? lotM2 * district.coverage / 100 : null })
+    if (!fit) { setNotice(fitSummary(null, option)); return }
+    setJustAdded(null); setPlacing(false)
+    dispatch({ type: 'draft', value: { width: fit.width, depth: fit.depth, placement: null } })
+    setNotice(`Fitted to the lot: ${fitSummary(fit, option)} Undo restores the previous size.`, 'transient')
+  }
   const previewOption = hoverMassing && evaluated ? { ...evaluated, massing: hoverMassing, titleNine: screenPlacement(hoverMassing) } : evaluated
   const buildingPreview = useMemo(() => draftPreview(previewOption, evaluation.pending), [previewOption, evaluation.pending])
   function addBuilding(massing = result?.proposal?.[option.typeId]?.massing) {
@@ -691,6 +704,12 @@ function Studio({ data }) {
               <small>{option.height} m high · {option.placement ? `manual position, bearing ${round(placement.bearing)}°` : 'automatic parcel alignment'} · <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Exact values in Advanced</button></small>
             </fieldset>
             <div className="draft-result" aria-busy={evaluation.pending}><div><span>Current draft</span><strong>{draftState.title}</strong><small>{draftState.detail}</small>{!evaluation.pending && evaluated && <span className={`zoning-badge ${zoningBadge(evaluated).tone}`}>{zoningBadge(evaluated).text}</span>}{!evaluation.pending && evaluated && !evaluated.eligible && Number.isFinite(evaluated.suitability) && <small>Underlying score {evaluated.suitability.toFixed(1)} / 100 before eligibility gates; not a ranking.</small>}</div><button onClick={() => setInspectorTab('rankings')}>Compare types →</button></div>
+            {(fitIssue || dimensionConflicts.length > 0) && <div className="fit-callout" role="group" aria-label="Why this draft does not fit">
+              <p><strong>{fitIssue ? 'This footprint does not fit the parcel outline.' : 'The footprint fits, but zoning dimensions conflict.'}</strong></p>
+              <ul>{fitIssue?.reasons.map(r => <li key={r.id}>{r.text}</li>)}{dimensionConflicts.map(c => <li key={c.id}>{c.label} (§{c.section}): {c.detail}</li>)}</ul>
+              {fitIssue && <div className="placement-actions"><button className="primary-build" disabled={evaluation.pending} onClick={fitDraftToLot}>Fit dimensions to lot</button></div>}
+              <small>{fitIssue ? `Finds the largest ${housingSpec(option).label.toLowerCase()} footprint, down to the type minimum, that fits at a position aligned to a parcel edge${districtStandards(props.zoning_code)?.coverage ? ' and within the district’s lot coverage' : ''}. Stories stay the same. Lot size is measured from the map outline, not legal frontage.` : 'Fit to lot changes only width and depth. Height, stories and lot-area limits need a smaller type, a variance or a reform scenario.'}</small>
+            </div>}
             {!!blockingBuildings.length && <div className="redevelop-callout" role="group" aria-label="Existing buildings under this draft">
               <p><strong>{blockingBuildings.length === 1 ? 'An existing building sits' : `${blockingBuildings.length} existing buildings sit`} under this draft.</strong> Demolish {blockingBuildings.length === 1 ? 'it' : 'them'} in the plan to test a replacement here, or move the draft.</p>
               <div className="placement-actions"><button className="primary-build" disabled={evaluation.pending || !context} onClick={() => demolishFootprints(blockingBuildings)}>Demolish & replace existing building{blockingBuildings.length === 1 ? '' : 's'}</button><button onClick={() => inspectOnSite(blockingBuildings[0])}>Inspect first</button></div>

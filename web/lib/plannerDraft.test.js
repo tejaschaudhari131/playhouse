@@ -35,6 +35,9 @@ test('Glenwood residential parcel: a smaller proposal can score when the standar
 test('Studio stores and exports one draft; comparison types are unique and optional', () => {
   const { scenario } = fixture()
   assert.equal(scenario.options, undefined)
+  assert.deepEqual(scenario.comparisonTypes, BUILDING_IDS.filter(id => id !== scenario.draft.typeId))
+  assert.equal(Object.keys(comparisonTemplates(scenario)).length, 5)
+  scenario.comparisonTypes = []
   assert.deepEqual(Object.keys(comparisonTemplates(scenario)), [scenario.draft.typeId])
   scenario.comparisonTypes = [...BUILDING_IDS, ...BUILDING_IDS, 'invalid']
   assert.equal(Object.keys(comparisonTemplates(scenario)).length, 5)
@@ -63,6 +66,7 @@ test('selected comparison uses the exact custom draft and shared costs, with no 
 test('only selected types determine shared evidence coverage', () => {
   const input = fixture()
   input.feature.properties.scores.large_apartment.carbon_index = null
+  input.scenario.comparisonTypes = []
   assert.ok(evaluatePlanner(input).included.includes('carbon'))
   input.scenario.comparisonTypes = BUILDING_IDS
   const r = evaluatePlanner(input)
