@@ -14,7 +14,7 @@ const PUBLIC_OWNER = [
   [/MUNICIPAL/, 'City owner'],
 ]
 // City inventory statuses with a published disposition route stay listed.
-const DISPOSITION = new Set(['available', 'sale_pending', 'acquisition_pending', 'hold_for_study'])
+export const DISPOSITION = new Set(['available', 'sale_pending', 'acquisition_pending', 'hold_for_study'])
 
 export const CAUTION_FILTER_TEXT = 'right-of-way, institutional public land, HUD-assisted housing and zoning-prohibited parcels left out'
 

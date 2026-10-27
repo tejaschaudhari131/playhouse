@@ -1,5 +1,5 @@
 import { EXAMPLES, initialStudioScenario, optionFor } from './plannerState.js'
-import { STUDIO_PRESETS } from './studioPresentation.js'
+import { PRIORITY_STANCES } from './priorityStances.js'
 
 export const TOUR_PIN = EXAMPLES[0].pin
 export const TOUR_STEPS = [
@@ -10,7 +10,7 @@ export const TOUR_STEPS = [
   { id: 'compare', title: 'Compare three housing choices', target: 'comparison', tool: 'compare', tab: 'rankings',
     text: 'Now compare that house with a duplex and triplex on the same parcel. Read the factor differences. A “No score” result applies to the tested proposal; its blocker explains what needs to change.' },
   { id: 'priorities', title: 'Choose what matters to you', target: 'inspector', tool: 'housing', tab: 'priorities',
-    text: 'We switch to Costs & stability, a team-authored example that favors lower housing costs and neighborhood vulnerability. Unconfirmed costs stay excluded until reviewed in Advanced. The sliders express priorities; they do not change the evidence.' },
+    text: 'We switch to Anti-Displacement & Affordability, a team-authored stance that favors lower housing costs and lower neighborhood vulnerability. Unconfirmed costs stay excluded until reviewed in Advanced. The sliders express priorities; they do not change the evidence.' },
   { id: 'transit', title: 'Test more bus service', target: 'inspector', tool: 'service', tab: 'edit',
     text: 'We add 60 hypothetical weekday departures at an existing nearby stop. Compare walking plus waiting before and after. Scheduled service is evidence; the additional departures and even spacing are assumptions.' },
   { id: 'finish', title: 'Take this workflow to your own parcel', target: 'comparison', tool: 'housing', tab: 'rankings',
@@ -26,7 +26,7 @@ export function tourScenario(stepId, feature, stop) {
   scenario.accessMode = 'network'
   scenario.draft = optionFor('single_family', scenario.draft.rent)
   if (index >= 2) scenario.comparisonTypes = ['townhouse_duplex', 'triplex']
-  if (index >= 3) scenario.weights = { ...STUDIO_PRESETS.find(p => p.id === 'resident').weights }
+  if (index >= 3) scenario.weights = { ...PRIORITY_STANCES.find(p => p.id === 'anti-displacement').weights }
   if (index >= 4 && stop) { scenario.additionalDepartures = 60; scenario.serviceStopId = String(stop.stop_id) }
   return scenario
 }

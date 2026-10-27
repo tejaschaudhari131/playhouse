@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { templateTradeoffs,studioSites,STUDIO_PRESETS,planImpact } from './studioPresentation.js'
+import { templateTradeoffs,studioSites,planImpact } from './studioPresentation.js'
+import { PRIORITY_STANCES } from './priorityStances.js'
 import { PLANNER_FACTORS } from './plannerState.js'
 test('pros/cons follow weighted differences and omit shared, excluded and ineligible factors',()=>{
  const a={id:'a',proposal:{eligible:true,total:60,scores:{demand:60,access:90,carbon:20}}}
@@ -16,7 +17,7 @@ test('discovery filters records within the study area and never ranks by recomme
  assert.deepEqual(studioSites(parcels,{},'Hazelwood',{vacant:true}).map(f=>f.properties.pin),['a','b'])
  assert.equal(studioSites(parcels,{},'Hazelwood',{flood:'none'}).length,0)
  assert.equal(studioSites(parcels,{},'Hazelwood',{typeId:'triplex'}).length,0)
- for(const p of STUDIO_PRESETS) for(const f of PLANNER_FACTORS) assert.ok(Number.isFinite(p.weights[f.id]))
+ for(const p of PRIORITY_STANCES) for(const f of PLANNER_FACTORS) assert.ok(Number.isFinite(p.weights[f.id]))
 })
 
 test('compare always shows an underlying score with a zoning badge, and reform simulation lifts only the use-row conflict', async () => {

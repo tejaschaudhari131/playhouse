@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BUILDING_IDS } from './buildings.js'
 import { typologyCards, resizeDraft, rotatePlacement, draftKey, previewPaused } from './buildControls.js'
-import { initialStudioScenario, optionFor, historyFor, scenarioReducer } from './plannerState.js'
+import { initialStudioScenario, optionFor, historyFor, scenarioReducer, defaultComparisonTypes } from './plannerState.js'
 import { evaluatePlanner } from './plannerModel.js'
 import { rectangleAt } from './plannerGeometry.js'
 
@@ -16,6 +16,9 @@ function fixture() {
 test('typology cards list every type with units, dimensions, zoning badge and only evaluated scores', () => {
   const input = fixture()
   input.scenario.draft = { ...optionFor('triplex', 1100), width: 11, depth: 15 }
+  input.scenario.comparisonTypes = defaultComparisonTypes('triplex')
+  assert.ok(typologyCards({ draft: input.scenario.draft, options: evaluatePlanner(input).proposal, code: 'TEST', zoning: input.zoning }).every(c => c.status !== 'unscored'), 'new plans score every type')
+  input.scenario.comparisonTypes = []
   const result = evaluatePlanner(input)
   const cards = typologyCards({ draft: input.scenario.draft, options: result.proposal, code: 'TEST', zoning: input.zoning })
   assert.deepEqual(cards.map(c => c.typeId), BUILDING_IDS)

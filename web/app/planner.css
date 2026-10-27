@@ -732,6 +732,135 @@
 .impact-panel dt { display: flex; align-items: center; gap: 6px; font-weight: 650; color: #34483b; }
 .impact-panel dd { margin: 3px 0 0; color: #3f4d43; }
 .impact-panel > small { display: block; color: #6d6a58; font-size: 11px; }
+.impact-panel dd small, .tax-ledger > small, .capital-stack > small { display: block; margin-top: 4px; color: #6d6a58; font-size: 11px; }
+.impact-line { display: block; }
+.impact-table { width: 100%; margin: 4px 0; border-collapse: collapse; font-size: 11.5px; }
+.impact-table th, .impact-table td { padding: 3px 4px; border-bottom: 1px solid #ebe8dc; text-align: left; font-weight: 450; vertical-align: top; }
+.impact-table td { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.impact-table thead th { color: #6d6a58; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .02em; }
+.impact-table thead th:not(:first-child) { text-align: right; }
+.impact-table th small { display: block; color: #7a6f52; font-size: 10.5px; }
+.impact-table tr.subtotal th, .impact-table tr.subtotal td { font-weight: 650; }
+.impact-table tr.total th, .impact-table tr.total td { font-weight: 700; border-top: 1.5px solid #8f9a83; border-bottom: none; }
+.capital-stack, .tax-ledger { margin: 10px 0; padding: 9px 10px; border: 1px solid #e0dccb; border-radius: 8px; background: #fff; }
+.capital-stack h4, .tax-ledger h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12.5px; color: #26382c; }
+.capital-stack > p, .tax-ledger > p { margin: 4px 0; }
+.capital-stack ul { margin: 6px 0; padding: 0; list-style: none; }
+.capital-stack li.program { padding: 6px 0; border-top: 1px solid #ebe8dc; }
+.capital-stack li.program p { margin: 2px 0; }
+.capital-stack li.program a { color: #1f4f8a; }
+.capital-stack li.program > small { color: #6d6a58; }
+.program-status { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 99px; font-size: 10.5px; font-weight: 650; background: #e8ecef; color: #3e4b55; }
+.program.eligible .program-status { background: #dff1e3; color: #1f6b35; }
+.program.conditional .program-status { background: #fbf0d4; color: #7a5a0c; }
+.program-link { display: block; font-size: 11px; }
+.plan-summary .tax-ledger { margin-top: 8px; font-size: 12px; }
+
+/* 1-page site brief */
+.studio-header-actions .studio-brief { padding: 9px 11px; font-size: 12px; background: #fff; color: #284f3e; border: 1px solid #284f3e; }
+.site-brief-overlay { position: fixed; inset: 0; z-index: 2000; overflow: auto; padding: 20px; background: rgba(18, 28, 22, .6); }
+.site-brief-overlay:focus { outline: none; }
+.site-brief-toolbar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; max-width: 8.5in; margin: 0 auto 10px; padding: 8px 12px; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .2); }
+.site-brief-toolbar span { display: flex; gap: 8px; }
+.site-brief-toolbar button { padding: 7px 14px; font-size: 12px; }
+.site-brief { max-width: 8.5in; margin: 0 auto; padding: .45in; background: #fff; color: #111; font-size: 10.5px; line-height: 1.35; box-shadow: 0 4px 24px rgba(0, 0, 0, .3); }
+.site-brief h1 { margin: 2px 0; font-size: 18px; }
+.site-brief h2 { margin: 8px 0 3px; font-size: 12px; border-bottom: 1px solid #2f5d45; color: #1f3b2d; }
+.site-brief p { margin: 2px 0; }
+.brief-kicker { color: #555; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; }
+.brief-meta { color: #333; }
+.brief-callout { padding: 3px 6px; border: 1.2px solid #111; }
+.brief-top { display: grid; grid-template-columns: 2.6in 1fr; gap: 14px; margin-top: 6px; }
+.brief-diagram { margin: 0; }
+.brief-diagram svg { display: block; width: 100%; height: auto; border: 1px solid #c9cfc2; }
+.brief-diagram figcaption { margin-top: 2px; color: #444; font-size: 9px; }
+.brief-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.brief-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+.brief-table th, .brief-table td { padding: 1.5px 4px; border-bottom: .5px solid #aaa; text-align: left; vertical-align: top; }
+.brief-table th { background: #eef0ea; font-weight: 650; }
+.brief-table th small { display: block; font-weight: 400; color: #555; font-size: 8px; }
+.brief-table tr.conflict td { color: #8a1f1f; font-weight: 600; }
+.brief-table tfoot td { font-weight: 650; border-top: 1px solid #555; }
+.brief-table.numeric td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.brief-table tr.total td { font-weight: 700; }
+.brief-table.receipts td:last-child { font-size: 8.5px; color: #333; }
+.brief-proforma .brief-two { align-items: start; }
+.brief-small { color: #444; font-size: 9px; }
+.site-brief footer { margin-top: 6px; padding-top: 3px; border-top: .5px solid #999; }
+@media print {
+  @page { size: letter; margin: .35in; }
+  body.site-brief-open { background: #fff; }
+  body.site-brief-open .studio { display: block; height: auto; overflow: visible; }
+  body.site-brief-open .studio > :not(.site-brief-overlay) { display: none !important; }
+  body.site-brief-open .site-brief-overlay { position: static; padding: 0; overflow: visible; background: none; }
+  .site-brief-toolbar { display: none !important; }
+  .site-brief { max-width: none; padding: 0; box-shadow: none; font-size: 7.3pt; line-height: 1.22; }
+  .site-brief h1 { font-size: 13pt; }
+  .site-brief h2 { font-size: 9pt; margin: 4px 0 1px; }
+  .brief-top { grid-template-columns: 2.05in 1fr; gap: 10px; }
+  .brief-two { gap: 10px; }
+  .brief-table th, .brief-table td { padding: 1px 3px; }
+  .brief-table.receipts th:nth-child(1) { width: 14%; }
+  .brief-table.receipts th:nth-child(2), .brief-table.receipts th:nth-child(3) { width: 5%; }
+  .brief-table.receipts th:nth-child(4) { width: 13%; }
+  .brief-table.receipts th:nth-child(5) { width: 15%; }
+  html, body.site-brief-open { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
+  body.site-brief-open .studio { min-height: 0; margin: 0; padding: 0; border: 0; }
+  body.site-brief-open .site-brief-overlay { margin: 0; }
+  .brief-pathway h2 { margin-top: 6px; }
+  .brief-table.standards td:nth-child(n + 2):nth-child(-n + 5), .brief-table.standards th:nth-child(n + 2):nth-child(-n + 5) { white-space: nowrap; }
+  .brief-table.standards th:first-child { width: 26%; }
+  .brief-table.standards.with-relief th:nth-child(6) { width: 30%; }
+  .brief-table { font-size: 7pt; }
+  .brief-table.receipts td:last-child, .brief-small, .brief-diagram figcaption { font-size: 6.2pt; }
+  .brief-table { font-size: 6.8pt; }
+  .brief-table, .brief-two, .brief-top { break-inside: avoid; }
+}
+
+/* Priority stances, close call and factor receipts */
+.stance-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 8px 0; }
+.stance-pills button { padding: 5px 10px; border: 1px solid #b9c7b4; border-radius: 99px; background: #fff; color: #315b46; font-size: 11.5px; cursor: pointer; }
+.stance-pills button[aria-pressed=true] { background: #315b46; border-color: #315b46; color: #fff; }
+.stance-custom { color: #6d6a58; font-size: 11px; }
+.close-call { margin: 8px 0; padding: 8px 10px; border: 1px solid #d6dccb; border-radius: 8px; background: #f6f8f3; font-size: 12px; }
+.close-call.is-close { border-color: #e0b85c; background: #fff8e6; }
+.close-call-badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: #dff0e3; color: #22603a; }
+.close-call.is-close .close-call-badge { background: #f6d98b; color: #5d4306; }
+.close-call p { margin: 4px 0; }
+.stance-winners { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 4px 0; padding: 0; list-style: none; font-size: 11px; color: #4f5d52; }
+.stance-winners li.flips strong { color: #8f3b1f; }
+.close-call > small { display: block; color: #6d6a58; font-size: 10.5px; }
+.evidence-badge { display: inline-block; padding: 0 6px; border-radius: 99px; font-size: 10px; font-weight: 650; line-height: 1.6; white-space: nowrap; vertical-align: middle; }
+.evidence-badge.observed { background: #dcebf7; color: #1f4f8a; }
+.evidence-badge.judgment { background: #f3e3f5; color: #6b2a73; }
+.priority-slider > span .evidence-badge { margin: 0 auto 0 6px; align-self: center; }
+.factor-receipt { margin-top: 3px; font-size: 11px; font-weight: 400; text-align: left; }
+.factor-receipt > summary { display: inline; color: #1f4f8a; cursor: pointer; text-decoration: underline; }
+.factor-receipt dl { margin: 4px 0; padding: 6px 8px; border: 1px solid #e0dccb; border-radius: 6px; background: #fff; min-width: 220px; white-space: normal; }
+.factor-receipt dl > div { padding: 2px 0; }
+.factor-receipt dt { font-weight: 650; color: #34483b; }
+.factor-receipt dd { margin: 0; color: #3f4d43; }
+.confidence { display: inline-block; padding: 0 6px; border-radius: 99px; font-weight: 700; }
+.confidence.high { background: #dff0e3; color: #22603a; }
+.confidence.medium { background: #fbf0d4; color: #7a5a0c; }
+.confidence.low { background: #f8dcdc; color: #8a1f1f; }
+
+/* Permit & acquisition pathway */
+.pathway-step, .variance-worksheet { margin: 10px 0; padding: 9px 10px; border: 1px solid #e0dccb; border-radius: 8px; background: #fff; }
+.pathway-step h4, .variance-worksheet h4 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 4px; font-size: 12.5px; color: #26382c; }
+.pathway-step ol { margin: 4px 0; padding-left: 18px; }
+.pathway-step li { margin: 2px 0; }
+.pathway-step > small, .variance-worksheet > small { display: block; margin-top: 4px; color: #6d6a58; font-size: 11px; }
+.pathway-links { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 0; font-size: 11px; }
+.pathway-links a, .pathway-step .compact-help a, .worksheet-table a { color: #1f4f8a; }
+.worksheet-table td { text-align: left; white-space: normal; }
+.worksheet-table thead th:not(:first-child) { text-align: left; }
+.worksheet-table th a { display: block; font-size: 10.5px; }
+.variance-criteria { margin: 8px 0 4px; padding-left: 18px; }
+.variance-criteria > li { margin: 6px 0; }
+.variance-criteria p { margin: 2px 0; color: #3f4d43; }
+.variance-criteria ul { margin: 2px 0; padding-left: 16px; }
+.variance-criteria small { display: block; color: #7a5a0c; font-size: 11px; }
 
 /* Compare: underlying scores, zoning status and reform simulation */
 .zoning-badge { display: inline-block; margin: 4px 0 2px; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.4; background: #eef0ea; color: #56614f; }
@@ -743,10 +872,21 @@
 .comparison-total td.score-reform strong { color: #8f3b1f; }
 .comparison-total .score-kind { font-weight: 600; }
 .comparison-factor.ineligible { opacity: .55; }
-.reform-toggle { display: flex; gap: 9px; align-items: flex-start; margin: 10px 0; padding: 10px 12px; border: 1px dashed #d9b98a; border-radius: 9px; background: #fffaf2; font-size: 12px; line-height: 1.45; cursor: pointer; }
-.reform-toggle input { margin-top: 2px; width: 16px; height: 16px; accent-color: #8f3b1f; }
-.reform-toggle strong { display: block; font-size: 13px; }
-.reform-toggle small { display: block; color: #6d5f49; font-size: 11px; }
+.reform-simulator { margin: 10px 0; padding: 10px 12px; border: 1px dashed #d9b98a; border-radius: 9px; background: #fffaf2; font-size: 12px; line-height: 1.45; }
+.reform-simulator.compact { margin: 8px 0; }
+.reform-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.reform-head strong { font-size: 13px; color: #5b2a14; }
+.reform-status { padding: 1px 7px; border-radius: 99px; font-size: 10.5px; font-weight: 650; background: #e3efe5; color: #1f6b35; }
+.reform-status.pending { background: #fbf0d4; color: #7a5a0c; }
+.reform-status.hypothetical { background: #fbe4dc; color: #8f3b1f; }
+.reform-presets { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 4px; }
+.reform-presets button { padding: 4px 9px; border: 1px solid #d9b98a; border-radius: 99px; background: #fff; color: #5b4630; font-size: 11.5px; cursor: pointer; }
+.reform-presets button.active { background: #8f3b1f; border-color: #8f3b1f; color: #fff; }
+.reform-rules { margin: 6px 0; padding-left: 16px; }
+.reform-rules li { margin: 2px 0; }
+.reform-rules a, .reform-simulator .compact-help a { color: #8f3b1f; font-weight: 650; }
+.reform-draft, .reform-count { margin: 6px 0; }
+.reform-simulator > small { display: block; color: #6d5f49; font-size: 11px; }
 .draft-result .zoning-badge { display: inline-block; }
 
 /* Housing-cost switch and AMI chips */
@@ -779,3 +919,8 @@
 .site-caution-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .site-caution-tags span { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: #fdf0d5; color: #6b4b12; }
 .site-caution-tags span.caution { background: #fde2e2; color: #7f1d1d; font-weight: 600; }
+.fit-callout { margin: 12px 0; padding: 12px; border: 1px solid #e2b4b4; border-left: 4px solid #b54848; border-radius: 9px; background: #fff5f5; font-size: 12px; line-height: 1.5; }
+.fit-callout p { margin: 0; }
+.fit-callout ul { margin: 6px 0 0; padding-left: 18px; }
+.fit-callout .placement-actions { grid-template-columns: minmax(0, 1fr); margin-top: 9px; }
+.fit-callout small { display: block; margin-top: 7px; color: #6d4b4b; }

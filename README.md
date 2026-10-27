@@ -36,7 +36,7 @@ Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F0033
 4. **Set your priorities.** Use **Priorities** to change what matters. Relative weights matter: all 1s and all 100s produce the same ranking.
 5. **Test infrastructure.** Add bus service, a walking/street connection or a park. Compare the baseline with your proposal.
 
-Adjust income, rent, utilities and dimensions under **Advanced**. **Tour** walks through a real Hazelwood example, then restores your plan. Edits save on this device automatically; **Export scenario** keeps a portable backup. Storage failures are shown explicitly.
+Adjust income, rent, utilities and dimensions under **Advanced**. **Tour** walks through a real Hazelwood example, then restores your plan. Edits save on this device automatically; **Export scenario** keeps a portable backup. Storage failures are shown explicitly. **Print / View 1-Page Site Brief** opens a one-page letter brief of the current draft: a site and massing diagram, the zoning and reform table, the pro forma and tax ledger, the permit pathway and the seven-factor receipts. [What the brief contains](docs/PLANNER.md).
 
 The sidebar keeps its width between sections. Drag its divider or use **Widen / Reset**; the comparison table scrolls sideways when needed. Keyboard users can skip directly to planning controls.
 
@@ -77,9 +77,9 @@ The hackathon asks for housing alternatives, explained tradeoffs, adjustable pri
 
 ## Reading the results
 
-Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin.
+Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin. Compare marks a **Close call (±X pts)** when the top two types are within 3.0 points, or when another priority stance would change the leader, and names that stance.
 
-Priority presets are team-authored examples, not surveyed stakeholder preferences. Click the circular **i** beside the presets to see the selected preset’s reasoning and how its weights are value judgments. This explanation is hidden by default. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
+Priorities and Compare offer five stances: **Balanced**, **Anti-Displacement & Affordability**, **Transit-Oriented Density**, **Climate & Low-Carbon** and **Fast Market Infill**. They are team-authored value judgments, not surveyed stakeholder preferences. Each factor is labelled **Observed Data** or **Value Judgment / Assumption**; its **Receipt** gives the source dataset, the formula, this draft's inputs and a High, Medium or Low confidence rating. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
 
 ## Affordability reference
 
@@ -87,13 +87,15 @@ Priority presets are team-authored examples, not surveyed stakeholder preference
 
 Starting Census rents describe existing stock, not new construction. Housing-cost scoring starts **excluded**. Confirm the exact rent, utilities and income to include it; changing those inputs requires confirmation again. Placed buildings retain their own assumptions. Compared housing types deliberately share the draft’s costs, so equal cost-burden scores do not demonstrate equal construction economics.
 
-The displayed 30%-of-income budget is a planning benchmark, **not a HOME/LIHTC rent ceiling**. Construction costs, land purchase price, financing, subsidies, vouchers, tenant occupancy and project displacement effects remain unassessed. Existing inclusionary-zoning checks still need district coverage, project inputs and legal review; the HUD table does not certify compliance.
+The displayed 30%-of-income budget is a planning benchmark, **not a HOME/LIHTC rent ceiling**. Build's pro forma screens construction and acquisition costs, break-even rent, residual land value, a capital-stack guide and the annual property tax ledger. These figures come from labelled cost assumptions and the last recorded sale; they are not a lender's underwriting. Actual financing terms, subsidy awards, vouchers, tenant occupancy and project displacement effects remain unassessed. Existing inclusionary-zoning checks still need district coverage, project inputs and legal review; the HUD table does not certify compliance.
 
 ## Policy follow-up
 
 Advanced shows the parcel’s recorded City inventory, vacancy and tax-delinquency flags, with links to the [Pittsburgh Land Bank’s acquisition routes](https://pghlandbank.org/how-to-buy-vacant-blighted-or-tax-delinquent-property-in-pittsburgh/), [URA property purchase process](https://www.ura.org/pages/property-disposition) and [tenant/homeowner support](https://www.ura.org/pages/housing). These are investigation leads, not proof that a property or program is available to you.
 
-Follow [City housing policy updates](https://engage.pittsburghpa.gov/implementing-housing-needs-assessment) for proposed reforms. Proposals are not automatically treated as enacted zoning. No citywide housing-target progress metric is shown without a verified adopted target and comparable outcome data.
+The **Permit & Acquisition Pathway** card in Build and Advanced names the likely acquisition channel (URA, City or a private sale; Playhouse never shows private owner names or private tax-delinquency records), the zoning route (by right, special exception or ZBA variance) and a pre-filled § 922.09.E variance worksheet. It is a planning aid, not legal advice.
+
+Follow [City housing policy updates](https://engage.pittsburghpa.gov/implementing-housing-needs-assessment) for proposed reforms. The **Pittsburgh Policy Reform Simulator** in Compare tests the pending Council Bill 2025-1545 and two hypothetical reforms against the parcel. Their scores are labelled with each preset's legal status and never rank; proposals are not treated as enacted zoning. No citywide housing-target progress metric is shown without a verified adopted target and comparable outcome data.
 
 ## Coverage and limits
 

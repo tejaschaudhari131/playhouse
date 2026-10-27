@@ -1,5 +1,6 @@
 import { BUILDING_IDS } from './buildings.js'
-import { MODEL_VERSION, PLANNER_FACTORS } from './plannerState.js'
+import { MODEL_VERSION, PLANNER_FACTORS, defaultComparisonTypes } from './plannerState.js'
+import { housingCostInputs } from './housingCosts.js'
 import { demolitionKey, footprintKey } from './redevelopment.js'
 
 export const PLAN_STORAGE_KEY = 'playhouse.plan.v1'
@@ -57,6 +58,22 @@ export function validatePlan(scenario) {
   return null
 }
 
+/**
+ * Validated saves from earlier releases get the current Studio defaults: live housing
+ * costs (draft and placed buildings, each with its own recorded inputs) and a score for
+ * every housing type. An explicit "costs off" choice is kept.
+ */
+export function migrateSavedScenario(scenario) {
+  if (!object(scenario?.draft)) return scenario
+  let next = scenario
+  if (next.affordabilityAuto === undefined) next = { ...next, affordabilityAuto: true,
+    affordabilityConfirmation: housingCostInputs(next, next.draft),
+    buildings: next.buildings.map(b => ({ ...b, affordabilityConfirmation: housingCostInputs(b, b.option) })) }
+  const missing = defaultComparisonTypes(next.draft.typeId).filter(id => !next.comparisonTypes.includes(id))
+  if (missing.length) next = { ...next, comparisonTypes: [...next.comparisonTypes, ...missing] }
+  return next
+}
+
 export function planPins(scenario) {
   return [...new Set([scenario.pin, ...scenario.buildings.map(b => b.pin), ...scenario.demolitions.flatMap(b => [b.pin, b.site].filter(Boolean)), ...Object.keys(scenario.zoningInputsByPin)])]
 }
@@ -76,7 +93,8 @@ export function parseSavedPlan(raw) {
     const issue = saved.version !== PLAN_STORAGE_VERSION ? 'This saved plan uses an unsupported version.' : validatePlan(saved.scenario)
     if (issue) return { saved: null, raw, issue }
     if (!object(saved.sources) || typeof saved.sources.networkFile !== 'string') return { saved: null, raw, issue: 'The saved plan has no verifiable network version.' }
-    return { saved, raw, issue: null }
+    const scenario = migrateSavedScenario(saved.scenario)
+    return { saved: scenario === saved.scenario ? saved : { ...saved, scenario }, raw, issue: null, migrated: scenario !== saved.scenario }
   } catch { return { saved: null, raw, issue: 'The saved plan could not be read.' } }
 }
 
