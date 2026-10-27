@@ -55,6 +55,17 @@ A receipt gives the source dataset, the metric formula, the inputs behind each c
 
 Scenario exports include `permitPathway`. The `/explore` Decision Brief prints the acquisition channel, the use-only zoning route and the relief for sides A and B. This is a planning aid, not legal advice. Code: `web/lib/permitPathway.js`.
 
+**Print / View 1-Page Site Brief.** The Studio header button next to **Export scenario** opens a printable brief for the current draft. **Print** gives one US-letter page; Escape or **Close** returns to the Studio. The brief contains:
+
+- A plan-view SVG site and massing diagram: the parcel boundary, the draft footprint with its width and depth edges labelled in metres and feet, retained buildings in grey and demolished ones dashed red, a north arrow, a scale bar, and the lot dimensions and footprint bearing.
+- The proposal, its score and zoning badge, the active stance and the close-call reading.
+- The permit and acquisition pathway, with the § 922.09.E findings when relief is needed.
+- The Title Nine table. Each standard with a threshold, every conflict and every approval-needed check gets a row with its section, requirement, proposed value, status, the exact ZBA relief and whether each reform preset lifts it. Plain passes and unassessed checks are listed in one line each.
+- The pro forma and tax ledger: Hard Redevelopment Cost, Total Development Cost incl. Acquisition, break-even rent, residual land value, subsidy gap, Net New Annual Tax Revenue, the capital-stack screen and the abatement note.
+- Seven-factor receipts: score, share, evidence type, confidence, dataset, formula and this draft's inputs.
+
+The brief was checked in headless Chrome at letter size, one page each for a conforming house and for a 40-home apartment with five conflicts. Diagram and table helpers live in `web/lib/siteBrief.js`.
+
 **Fit dimensions to lot.** When the draft's footprint does not fit the parcel outline, Build says why, from the lot's oriented outline (for example, *Footprint is 9 m across; the lot is about 7 m wide* on 4822 Chatsworth Ave), and lists any lot coverage, floor-area, height, story or lot-area conflicts with their sections. **Fit dimensions to lot** searches widths and depths in 0.5 m steps for the largest footprint that fits at a position aligned to a parcel edge, keeps the original footprint area as a ceiling (a slimmer building may grow deeper, up to twice its depth or 40 m), stays within the district's lot coverage when one applies, and prefers a position clear of retained buildings. Stories and height are unchanged; placement returns to automatic alignment. The search stops at team-set minimums (single-family 4.5 × 8 m, duplex 5 × 10 m, triplex 5.5 × 12 m, 12-unit 9 × 15 m, 40-unit 15 × 20 m) and says so when nothing fits. On 4822 Chatsworth the default 9 × 14 m duplex becomes 6 × 21 m. Lot dimensions are map measurements, not legal frontage. Code: `web/lib/lotFit.js`.
 
 **Your plan bar.** A strip between the inspector tabs and their content stays visible in Build, Sites, Transit, Streets, Compare, Priorities and Advanced. It shows proposed homes, net homes (`proposed − replaced`, an estimate from County land use, prefixed "up to" when some replaced homes are unknown or counted at their band minimum) and the plan score as current → changed infrastructure. When a planned building fails a zoning or physical check, the score reads **Not ranked** instead of a number. **Review** returns to Build, where **Your plan** lists each building and demolition.

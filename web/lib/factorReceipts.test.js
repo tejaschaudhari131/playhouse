@@ -7,7 +7,7 @@ test('every factor has a receipt with evidence type, source, formula and confide
   for (const f of PLANNER_FACTORS) {
     const r = factorReceipt(f.id)
     assert.ok(['Observed Data', 'Value Judgment / Assumption'].includes(r.badge), f.id)
-    assert.ok(r.source.length > 30 && r.formula.length > 30, f.id)
+    assert.ok(r.source.length > 30 && r.formula.length > 30 && r.dataset.length > 8, f.id)
     assert.ok(CONFIDENCE.includes(r.confidence), f.id)
   }
   const kinds = Object.fromEntries(PLANNER_FACTORS.map(f => [f.id, factorReceipt(f.id).evidence]))

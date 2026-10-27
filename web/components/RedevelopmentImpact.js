@@ -1,12 +1,12 @@
 import { IMPACT_ASSUMPTIONS, homesText } from '../lib/redevelopmentImpact.js'
 import { AREA_BASIS_TEXT, PRO_FORMA_ASSUMPTIONS } from '../lib/proForma.js'
 
-const money = value => {
+export const money = value => {
   const sign = value < 0 ? '−' : '', v = Math.abs(value)
   return `${sign}$${v >= 1e6 ? `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : v >= 1e3 ? `${Math.round(v / 1e3)}k` : Math.round(v)}`
 }
-const dollars = value => `${value < 0 ? '−' : ''}$${Math.round(Math.abs(value)).toLocaleString()}`
-const span = ([lo, hi], format = money) => format(lo) === format(hi) ? format(lo) : `${format(lo)}–${format(hi)}`
+export const dollars = value => `${value < 0 ? '−' : ''}$${Math.round(Math.abs(value)).toLocaleString()}`
+export const span = ([lo, hi], format = money) => format(lo) === format(hi) ? format(lo) : `${format(lo)}${lo < 0 || hi < 0 ? ' to ' : '–'}${format(hi)}`
 const sqft = value => `${Math.round(value).toLocaleString()} sq ft`
 const pct = value => `${(value * 100).toFixed(value < 0.1 ? 1 : 0)}%`
 function gapText([lo, hi]) {

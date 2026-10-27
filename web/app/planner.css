@@ -756,6 +756,67 @@
 .program-link { display: block; font-size: 11px; }
 .plan-summary .tax-ledger { margin-top: 8px; font-size: 12px; }
 
+/* 1-page site brief */
+.studio-header-actions .studio-brief { padding: 9px 11px; font-size: 12px; background: #fff; color: #284f3e; border: 1px solid #284f3e; }
+.site-brief-overlay { position: fixed; inset: 0; z-index: 2000; overflow: auto; padding: 20px; background: rgba(18, 28, 22, .6); }
+.site-brief-overlay:focus { outline: none; }
+.site-brief-toolbar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; max-width: 8.5in; margin: 0 auto 10px; padding: 8px 12px; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .2); }
+.site-brief-toolbar span { display: flex; gap: 8px; }
+.site-brief-toolbar button { padding: 7px 14px; font-size: 12px; }
+.site-brief { max-width: 8.5in; margin: 0 auto; padding: .45in; background: #fff; color: #111; font-size: 10.5px; line-height: 1.35; box-shadow: 0 4px 24px rgba(0, 0, 0, .3); }
+.site-brief h1 { margin: 2px 0; font-size: 18px; }
+.site-brief h2 { margin: 8px 0 3px; font-size: 12px; border-bottom: 1px solid #2f5d45; color: #1f3b2d; }
+.site-brief p { margin: 2px 0; }
+.brief-kicker { color: #555; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; }
+.brief-meta { color: #333; }
+.brief-callout { padding: 3px 6px; border: 1.2px solid #111; }
+.brief-top { display: grid; grid-template-columns: 2.6in 1fr; gap: 14px; margin-top: 6px; }
+.brief-diagram { margin: 0; }
+.brief-diagram svg { display: block; width: 100%; height: auto; border: 1px solid #c9cfc2; }
+.brief-diagram figcaption { margin-top: 2px; color: #444; font-size: 9px; }
+.brief-two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.brief-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+.brief-table th, .brief-table td { padding: 1.5px 4px; border-bottom: .5px solid #aaa; text-align: left; vertical-align: top; }
+.brief-table th { background: #eef0ea; font-weight: 650; }
+.brief-table th small { display: block; font-weight: 400; color: #555; font-size: 8px; }
+.brief-table tr.conflict td { color: #8a1f1f; font-weight: 600; }
+.brief-table tfoot td { font-weight: 650; border-top: 1px solid #555; }
+.brief-table.numeric td:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.brief-table tr.total td { font-weight: 700; }
+.brief-table.receipts td:last-child { font-size: 8.5px; color: #333; }
+.brief-proforma .brief-two { align-items: start; }
+.brief-small { color: #444; font-size: 9px; }
+.site-brief footer { margin-top: 6px; padding-top: 3px; border-top: .5px solid #999; }
+@media print {
+  @page { size: letter; margin: .35in; }
+  body.site-brief-open { background: #fff; }
+  body.site-brief-open .studio { display: block; height: auto; overflow: visible; }
+  body.site-brief-open .studio > :not(.site-brief-overlay) { display: none !important; }
+  body.site-brief-open .site-brief-overlay { position: static; padding: 0; overflow: visible; background: none; }
+  .site-brief-toolbar { display: none !important; }
+  .site-brief { max-width: none; padding: 0; box-shadow: none; font-size: 7.3pt; line-height: 1.22; }
+  .site-brief h1 { font-size: 13pt; }
+  .site-brief h2 { font-size: 9pt; margin: 4px 0 1px; }
+  .brief-top { grid-template-columns: 2.05in 1fr; gap: 10px; }
+  .brief-two { gap: 10px; }
+  .brief-table th, .brief-table td { padding: 1px 3px; }
+  .brief-table.receipts th:nth-child(1) { width: 14%; }
+  .brief-table.receipts th:nth-child(2), .brief-table.receipts th:nth-child(3) { width: 5%; }
+  .brief-table.receipts th:nth-child(4) { width: 13%; }
+  .brief-table.receipts th:nth-child(5) { width: 15%; }
+  html, body.site-brief-open { height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
+  body.site-brief-open .studio { min-height: 0; margin: 0; padding: 0; border: 0; }
+  body.site-brief-open .site-brief-overlay { margin: 0; }
+  .brief-pathway h2 { margin-top: 6px; }
+  .brief-table.standards td:nth-child(n + 2):nth-child(-n + 5), .brief-table.standards th:nth-child(n + 2):nth-child(-n + 5) { white-space: nowrap; }
+  .brief-table.standards th:first-child { width: 26%; }
+  .brief-table.standards.with-relief th:nth-child(6) { width: 30%; }
+  .brief-table { font-size: 7pt; }
+  .brief-table.receipts td:last-child, .brief-small, .brief-diagram figcaption { font-size: 6.2pt; }
+  .brief-table { font-size: 6.8pt; }
+  .brief-table, .brief-two, .brief-top { break-inside: avoid; }
+}
+
 /* Priority stances, close call and factor receipts */
 .stance-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 8px 0; }
 .stance-pills button { padding: 5px 10px; border: 1px solid #b9c7b4; border-radius: 99px; background: #fff; color: #315b46; font-size: 11.5px; cursor: pointer; }

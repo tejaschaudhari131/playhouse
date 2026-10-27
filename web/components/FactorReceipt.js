@@ -8,7 +8,7 @@ export function FactorReceipt({ receipt, rows = null }) {
     <summary>Receipt</summary>
     <dl>
       <div><dt>Evidence</dt><dd>{receipt.badge}</dd></div>
-      <div><dt>Source</dt><dd>{receipt.source}</dd></div>
+      <div><dt>Source</dt><dd><strong>{receipt.dataset}.</strong> {receipt.source}</dd></div>
       <div><dt>Formula</dt><dd>{receipt.formula}</dd></div>
       {lines.map(line => <div key={line.label}><dt>{line.label}</dt><dd>{line.inputs || '—'}</dd></div>)}
       <div><dt>Confidence</dt><dd><span className={`confidence ${receipt.confidence.toLowerCase()}`}>{receipt.confidence}</span></dd></div>
