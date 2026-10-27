@@ -5,6 +5,7 @@ import { PLANNER_FACTORS } from '../lib/plannerState.js'
 import { FACTOR_LABELS, zoningBadge, comparisonScore } from '../lib/studioPresentation.js'
 import { stanceFor } from '../lib/priorityStances.js'
 import { money, dollars, span } from './RedevelopmentImpact.js'
+import { trapDialogTab } from '../lib/dialogFocus.js'
 
 const FT = 3.28084
 const STATUS = { pass: 'Pass', conflict: 'Conflict', unknown: 'Not assessed', conditional: 'Approval needed' }
@@ -39,14 +40,21 @@ function Diagram({ d, label }) {
 
 /** One-page printable site brief for the current draft. */
 export default function SiteBrief({ props, geometry, option, evaluated, label, retained = [], demolished = [], impact, pathway, comparison, weights, call, reformPreset, snapshot, onClose }) {
-  const dialog = useRef(null)
+  const dialog = useRef(null), closeButton = useRef(null), backdropPress = useRef(false)
   useEffect(() => {
+    const node = dialog.current
+    const prior = document.activeElement
     document.body.classList.add('site-brief-open')
-    dialog.current?.focus()
-    const key = event => { if (event.key === 'Escape') onClose() }
-    window.addEventListener('keydown', key)
-    return () => { document.body.classList.remove('site-brief-open'); window.removeEventListener('keydown', key) }
-  }, [onClose])
+    // Native modal containment keeps keyboard and pointer interaction off the map.
+    node.showModal()
+    closeButton.current?.focus({ preventScroll: true })
+    return () => {
+      node.close()
+      document.body.classList.remove('site-brief-open')
+      const target = prior?.isConnected && prior !== document.body ? prior : document.querySelector('.studio-brief')
+      target?.focus({ preventScroll: true })
+    }
+  }, [])
   const diagram = siteDiagram({ parcel: geometry, footprint: evaluated?.massing?.geometry, bearing: evaluated?.massing?.placement?.bearing, retained, demolished })
   const table = evaluated ? standardsTable(evaluated, props.zoning_code ?? null) : null
   const score = evaluated ? comparisonScore(evaluated) : null, badge = evaluated ? zoningBadge(evaluated) : null
@@ -55,8 +63,13 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
   const share = id => comparison?.factors.find(f => f.id === id)
   const { cost, value, affordability, capitalStack, tax, replacement } = impact
   const generated = new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })
-  return <div className="site-brief-overlay" role="dialog" aria-modal="true" aria-label="1-page site brief" tabIndex={-1} ref={dialog}>
-    <div className="site-brief-toolbar"><strong>1-page site brief</strong><span><button className="primary-build" onClick={() => window.print()}>Print</button><button onClick={onClose}>Close</button></span></div>
+  return <dialog className="site-brief-overlay" aria-label="1-page site brief" tabIndex={-1} ref={dialog}
+    onKeyDown={event => { event.stopPropagation(); trapDialogTab(event, dialog.current) }}
+    onCancel={event => { event.preventDefault(); event.stopPropagation(); onClose() }}
+    onPointerDown={event => { backdropPress.current = event.target === event.currentTarget; event.stopPropagation() }}
+    onPointerCancel={() => { backdropPress.current = false }}
+    onClick={event => { event.stopPropagation(); if (backdropPress.current && event.target === event.currentTarget) onClose(); backdropPress.current = false }}>
+    <div className="site-brief-toolbar"><strong>1-page site brief</strong><span><button type="button" className="primary-build" onClick={() => window.print()}>Print</button><button type="button" ref={closeButton} onClick={onClose}>Close</button></span></div>
     <article className="site-brief">
       <header className="brief-head">
         <h1>{label} at {props.address || props.pin}</h1>
@@ -82,7 +95,7 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
 
       {table && <section>
         <h2>Title Nine standards and reform presets</h2>
-        <table className={`brief-table standards${relief ? ' with-relief' : ''}`}>
+        <table className={`brief-table standards${relief ? ' with-relief' : ''}`} tabIndex={0} aria-label="Title Nine standards and reform presets">
           <thead><tr><th>Standard</th><th>§</th><th>Required</th><th>Proposed</th><th>Current code</th>{relief && <th>Relief needed (ZBA)</th>}<th>Reform presets<small>{table.presets.map(p => `${REFORM_SHORT[p.id]} ${p.status}`).join(' · ')}</small></th></tr></thead>
           <tbody>{table.shown.map(r => <tr key={r.id} className={r.status}>
             <td>{r.label}</td><td>{r.section}</td><td>{r.required || '—'}</td><td>{r.proposed || '—'}</td><td>{STATUS[r.status] || r.status}</td>{relief && <td>{relief[r.id] || ''}</td>}
@@ -117,7 +130,7 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
 
       <section>
         <h2>Seven-factor receipts</h2>
-        <table className="brief-table receipts">
+        <table className="brief-table receipts" tabIndex={0} aria-label="Seven-factor receipts">
           <thead><tr><th>Factor</th><th>Score</th><th>Share</th><th>Evidence · confidence</th><th>Dataset</th><th>Formula · this draft</th></tr></thead>
           <tbody>{PLANNER_FACTORS.map(f => {
             const r = factorReceipt(f.id, evaluated), s = share(f.id)
@@ -127,5 +140,5 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
       </section>
       <footer className="brief-small">Snapshot {snapshot || 'unknown'} · County parcels and assessments, ACS, HUD CHAS and FY2026 income limits, PRT, OpenStreetMap, Title Nine · no owner names or tax-delinquency records.</footer>
     </article>
-  </div>
+  </dialog>
 }

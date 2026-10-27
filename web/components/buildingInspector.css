@@ -1,0 +1,29 @@
+.building-inspector .building-selection { margin: 10px 0; padding: 12px; }
+.building-inspector .building-selection .section-heading { margin: 0 0 8px; }
+.building-inspector .building-selection .section-heading > button { min-width: 28px; min-height: 28px; font-size: 18px; line-height: 1; }
+.building-inspector .building-selection-use { display: block; font-size: 13px; }
+.building-inspector .building-selection-measures { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 3px 0 0; color: #526b60; font-variant-numeric: tabular-nums; }
+.building-inspector .building-selection .placement-actions { margin-top: 10px; }
+.building-inspector .building-evidence { margin-top: 10px; color: #526b60; }
+.building-inspector .building-evidence > summary, .building-inspector .building-list-evidence > summary { cursor: pointer; font-size: 12px; }
+.building-inspector .building-evidence p { margin: 7px 0; }
+.building-inspector .site-buildings { margin: 10px 0; }
+.building-inspector .site-buildings > summary { font-weight: 650; }
+.building-inspector .site-buildings > summary span { float: none; }
+.building-inspector .site-buildings-count { display: inline-block; padding: 1px 6px; margin-left: 4px; border-radius: 5px; background: #e9eee5; font-size: 11px; font-variant-numeric: tabular-nums; }
+.building-inspector .site-buildings-removed { margin-left: 8px; color: #6f6a5e; font-size: 11px; font-weight: 400; }
+.building-inspector .site-buildings ul { margin: 8px 0; }
+.building-inspector .site-buildings li { gap: 6px; margin: 5px 0; align-items: stretch; }
+.building-inspector .site-buildings .building-row-inspect { display: flex; align-items: flex-start; min-width: 0; gap: 8px; padding: 8px; }
+.building-inspector .building-number { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 28px; min-height: 26px; padding: 0 3px; border: 1px solid #aec0b1; border-radius: 5px; background: #f0f5ed; color: #2a5542; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.building-inspector .building-row-inspect[aria-pressed=true] .building-number { background: #315b46; border-color: #315b46; color: #fff; }
+.building-inspector .building-row-info { min-width: 0; flex: 1; }
+.building-inspector .building-row-info > strong { display: block; font-size: 12px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
+.building-inspector .site-buildings .building-row-measures { display: flex; flex-wrap: wrap; gap: 1px 8px; margin-top: 2px; font-size: 11px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+.building-inspector .building-row-measures > span { white-space: nowrap; }
+.building-inspector .site-buildings .building-row-action { flex: 0 0 auto; align-self: center; min-height: 36px; padding: 7px; font-size: 11px; }
+.building-inspector .building-statuses { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.building-inspector .building-status { display: inline-block; border-radius: 4px; padding: 1px 5px; background: #f2ecdc; color: #6d5834; font-size: 10px; line-height: 1.5; font-weight: 500; }
+.building-inspector .building-status.is-demolished { color: #76594c; background: #f0e7e1; }
+.building-inspector .building-list-evidence { margin-top: 7px; color: #64745f; }
+.building-inspector .building-list-evidence p { margin: 6px 0; font-size: 12px; line-height: 1.5; }

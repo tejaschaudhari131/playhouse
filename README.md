@@ -30,13 +30,15 @@ Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F0033
 
 ## Try it
 
-1. **Pick a place.** Choose a neighborhood, then a parcel. Use **Find sites** to filter records and sort by lot size, vacancy, City ownership, tax delinquency or transit walk. Every match is reachable through pages. Turn on **Highlight empty sites** to find screened vacant candidates; click one to try a fitting template.
+1. **Pick a place.** Choose a neighborhood, then a parcel. Use **Find sites** to filter records and sort by lot size, vacancy, City ownership, tax delinquency or transit walk. Every match is reachable through pages. Turn on **Highlight empty sites** to find screened vacant candidates that also pass your current filters; click one to try a fitting template.
 2. **Try housing types.** Preview houses, duplexes, triplexes and apartments. Place several to form a plan.
 3. **Compare options.** Open **Rankings → Compare to**. See scores, factor differences and zoning checks side by side.
 4. **Set your priorities.** Use **Priorities** to change what matters. Relative weights matter: all 1s and all 100s produce the same ranking.
 5. **Test infrastructure.** Add bus service, a walking/street connection or a park. Compare the baseline with your proposal.
 
 Adjust income, rent, utilities and dimensions under **Advanced**. **Tour** walks through a real Hazelwood example, then restores your plan. Edits save on this device automatically; **Export scenario** keeps a portable backup. Storage failures are shown explicitly. **Print / View 1-Page Site Brief** opens a one-page letter brief of the current draft: a site and massing diagram, the zoning and reform table, the pro forma and tax ledger, the permit pathway and the seven-factor receipts. [What the brief contains](docs/PLANNER.md).
+
+Buildings on the selected parcel have matching numbers in the list and on the map. Click a row to focus and highlight that outline; footprint sizes and height labels help tell similar buildings apart. Numbers stay the same through demolition and Undo. Full evidence stays under **Building evidence**.
 
 The sidebar keeps its width between sections. Drag its divider or use **Widen / Reset**; the comparison table scrolls sideways when needed. Keyboard users can skip directly to planning controls.
 
@@ -80,6 +82,10 @@ The hackathon asks for housing alternatives, explained tradeoffs, adjustable pri
 Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin. Compare marks a **Close call (±X pts)** when the top two types are within 3.0 points, or when another priority stance would change the leader, and names that stance.
 
 Priorities and Compare offer five stances: **Balanced**, **Anti-Displacement & Affordability**, **Transit-Oriented Density**, **Climate & Low-Carbon** and **Fast Market Infill**. They are team-authored value judgments, not surveyed stakeholder preferences. Each factor is labelled **Observed Data** or **Value Judgment / Assumption**; its **Receipt** gives the source dataset, the formula, this draft's inputs and a High, Medium or Low confidence rating. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
+
+**Flood evidence is visible.** Find sites offers any status, no mapped overlap, mapped overlap and unknown. Selected parcels show their recorded overlap with [FEMA's National Flood Hazard Layer](https://www.fema.gov/flood-maps/national-flood-hazard-layer), retrieved **September 27, 2026**, plus a source link. The screen covers Special Flood Hazard Areas and 0.2% annual-chance zones. “No mapped overlap” requires both recorded fractions to be zero; missing evidence stays unknown. It does not mean flood-free. The download date is not a map panel's effective date, which this dataset does not retain.
+
+Empty-site highlights follow the active Find sites filters, including flood. Their count can be lower than the list: highlights also require an empty-space fit and are limited to the map's visible neighborhood scope.
 
 ## Affordability reference
 

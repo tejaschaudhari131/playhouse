@@ -157,3 +157,53 @@ Headless Chrome on the build VM, local `next start`, three runs each. `parcels.g
 - All 43 web test files pass, including saved-plan validation/recovery, explicit cost confirmation, relative priority invariance and citywide address source parity. All 53 pipeline tests pass using the repository virtual environment, including the HUD reference and provenance checks.
 - Production build succeeds. Browser checks cover exact fractional input restoration, placed-building restoration, tour return, cost-confirmation invalidation, stable sidebar sizing and citywide address selection.
 - Scores remain a preference screen without validated model uncertainty. HOME income references do not establish program rent limits or financial feasibility. Missing construction, acquisition, financing and tenant-level evidence remains unassessed.
+
+## Flood evidence follow-up (2026-10-27)
+
+The flood selector is visible without opening the zoning disclosure. Site results and the selected parcel show the same status used by filtering. Parcel evidence includes the fraction of parcel area intersecting Special Flood Hazard Areas (SFHA) and 0.2% annual-chance zones, with the [FEMA NFHL source](https://www.fema.gov/flood-maps/national-flood-hazard-layer) and the recorded retrieval date, **2026-09-27**, from `web/public/data/sources.json`.
+
+The shared filter has four meanings:
+
+- **Any flood status:** includes parcels with missing evidence.
+- **No mapped flood overlap:** both overlap fractions are valid, known zeroes.
+- **Mapped flood overlap:** at least one valid fraction is positive. A known overlap remains visible even if the other fraction is missing.
+- **Unknown flood status:** no known positive overlap, and at least one required fraction is absent or invalid.
+
+Unknown evidence is no longer allowed through the no-overlap filter when SFHA is zero but the 0.2% field is missing. The existing Explorer “no SFHA” option continues to require a known zero for SFHA only. Empty-site highlights use the active site filters across loaded neighborhoods; the highlight count remains a subset because it also requires pre-screened physical fit and the map's visible neighborhood scope. Sorting never changes filter membership.
+
+`floodEvidence.test.js`, `studioSiteDiscovery.test.js` and `sites.test.js` pass. They cover zero versus missing/invalid fractions, both mapped categories, partial evidence, precise percentage display, source-date provenance, combination with vacancy/tax-delinquency flags and applying the same filters across neighboring areas, preserving fitting template IDs and intersecting empty-site candidates with active filters. Existing restricted-record exclusions and caution tags are preserved. A read-only check of the saved parcel partitions confirms 14 mapped-overlap parcels in Hazelwood; the current default record exclusions leave 3,168 sites, and the no-overlap filter leaves 3,154. In South Side Flats the corresponding list changes from 3,378 to 3,202 (176 removed). No flood geometries or parcel observations were changed.
+
+**Limits:** percentages describe parcel area, not the probability that a parcel floods. The saved export retains SFHA/0.2% categories, not detailed FEMA zone codes or map panel effective dates. Minimal-hazard Zone X polygons are outside the source query; no overlap is not proof of safety. Current FEMA maps, amendments and site-specific review remain necessary before a development decision. These changes expose existing evidence; they do not refresh or certify it.
+
+Browser checks on the production build confirmed Hazelwood's 3,168 → 3,154 list change and South Side Flats' 3,378 → 3,202. Selecting Lower Lawrenceville screens the grouped Lawrenceville area and shows 323 mapped-overlap results. South Side Flats' visible empty highlights changed from 3 for mapped overlap to 1 for no overlap. The selected riverfront parcel at 1 Vesuvius St showed 6.5% SFHA and 0.9% 0.2%-zone overlap, its FEMA link and retrieval date. The unknown-status filter shows an empty result where all saved records are known.
+
+
+## Dropdown pointer dismissal (2026-10-27)
+
+Closing a dropdown with an outside pointer gesture consumes that gesture's compatibility mouse/click events, so it cannot also select a map parcel. The guard releases after the click, cancellation, blur or the next pointerdown; wheel and touch scrolling remain native. `dismissPointer.test.js` and `selectMenu.test.js` pass. Browser check: opening Neighborhood then clicking an existing building kept PIN 0056F00336000000 unchanged while closing the menu; a second click at the same point selected PIN 0056F00332000000. Keyboard selection and Escape remain available. Resize events whose target is Window or VisualViewport no longer reach `Node.contains`.
+
+
+## Search, inspector and notification keyboard follow-up (2026-10-27)
+
+Citywide suggestions close on Escape from either the input or a result, and on outside interaction, without clearing the query. Arrow keys navigate suggestions; Escape returns focus to the search field without reopening results. Inspect moves focus to the building heading, and closing details returns to its Inspect button (or the address search if that button no longer exists). Closing detail actions and a focused expiring toast also recover focus. A focused toast consumes Escape before workspace tools; open map-key and modal interactions keep their own dismissal priority.
+
+Production-browser checks: search text survived input/result Escape and outside click; building Inspect → Escape returned to the same Inspect control; toast Escape dismissed the toast while leaving building details open. All four street tools and building placement still cancelled with Escape, and the tour returned focus to Tour. No browser errors were captured. Full web suite passed (55 files before the added dialog-focus test), all 53 pipeline tests passed with the existing virtual environment, and production compilation passed. No source records, housing scores or geometry were changed by these keyboard fixes.
+
+
+## Site brief dialog follow-up (2026-10-27)
+
+The Studio's 1-page site brief is a native modal with explicit forward/reverse Tab wrapping for embedded browsers, initial Close focus, Escape handling and trigger-focus restoration. Backdrop gestures dismiss it without selecting the map; clicks on the report stay inside. Keyboard events in the brief cannot trigger map rotation or placement shortcuts. The scrollable standards and receipts tables are keyboard-focusable. Narrow screens stack the diagram, proposal and pro forma, with wide tables scrolling inside the report. Print-specific rules preserve the existing letter-page layout and override the global hidden-dialog print rule.
+
+`dialogFocus.test.js` covers forward/reverse wrapping, hidden/disabled controls, non-control focus recovery, browser shortcut passthrough and empty-dialog fallback; it and `siteBrief.test.js` pass. Browser checks confirm initial focus, Tab/Shift+Tab containment, Escape/Close/backdrop restoration and unchanged parcel selection after backdrop dismissal. At 390×844 the modal's scroll width equals its client width (375 px); wide tables scroll within the 319 px report column. Desktop layout was visually checked. Physical printing was not performed; print preservation was checked in the CSS. Production build passes after these changes.
+
+## Distinguishing buildings within a parcel (2026-10-27)
+
+The Studio numbers the complete set of site outlines north-to-south, then west-to-east, with source identity as a tie-break. The list and map use the same numbers; demolition, restoration and Undo change status without renumbering. Numbers identify outlines within the selected site, not addresses or verified individual occupancies. The recorded parcel use can still apply to multiple footprints.
+
+Rows show footprint area and a compact height label. Mapped, estimated, inferred and placeholder heights remain distinct, with full source context under Building evidence. Selecting a row focuses the map and highlights the matching outline; clicking a crossing outline's numbered badge keeps the current parcel workflow. The small label layer only covers the selected site and hides during placement, street drawing, overview browsing or when existing buildings are hidden. Source geometry, heights and scores are unchanged.
+
+`buildingIdentity.test.js` and `siteBuildingLabels.test.js` cover stable ordering, duplicate chunk records, matched/crossing/unmatched identity, demolition/restoration, missing evidence, unchanged source records, and marker positions inside concave, courtyard and multipart outlines. A read-only check of all 6,660 Hazelwood context outlines found every marker on its roof and no missing footprint areas. The full web suite passes (58 test files).
+
+Production-browser checks covered three same-use apartments at 554 Bigelow St (`0055G00282000000`), the crossing single-family outline at 5415 Glenwood Ave (`0057C00388000000`), and two unmatched outlines at 5037 Steele Ct (`0056L00279000000`). List and map selection agree; crossing-badge selection keeps the original site; demolition/Undo preserves numbers; Escape returns to the originating list button. Hiding existing buildings also hides their selection outline. At 390×844 the page width is 390 px and every building row's scroll width equals its client width (352 px). No browser warnings or errors were captured, and the production build passes.
+
+Native symbol collision handling gives the selected number priority and omits overlapping unselected badges until there is room; the complete numbered list remains available. This prevents an adjacent badge's invisible hitbox from selecting the wrong building. Roof markers use the existing display height, without turning illustrative heights into measured evidence. The address marker hides while building labels are displayed to avoid covering them.

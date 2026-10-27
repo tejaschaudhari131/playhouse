@@ -1,5 +1,6 @@
 import { DEFAULT_SITE_FILTERS, passesRecordFilters, typePermission } from './sites.js'
 import { resolveZoning } from './zoning.js'
+import { floodStatus } from './floodEvidence.js'
 
 export const SITE_PAGE_SIZE = 60
 export const SITE_SORT_OPTIONS = [
@@ -72,9 +73,16 @@ export function siteRecordSummary(properties) {
   const lot = numeric(properties.lot_sqft) ? `${Math.round(properties.lot_sqft).toLocaleString()} sq ft` : 'Lot area unknown'
   const walk = numeric(properties.walk_min_frequent) ? `${properties.walk_min_frequent.toFixed(1)} min estimated walk` : 'Transit walk unknown'
   const record = (key, yes, no) => properties[key] === true ? yes : properties[key] === false ? no : `${yes}: unknown`
-  return { lot, walk, flags: [
+  return { lot, walk, flood: floodStatus(properties).label, flags: [
     record('vacant_lot', 'Vacancy recorded', 'No vacancy flag'),
     record('city_owned', 'City ownership recorded', 'No City ownership flag'),
     record('tax_delinquent', 'Tax delinquency recorded', 'No tax-delinquency flag'),
   ] }
+}
+
+/** Keep the fitting template ID, while applying the list's filters to visible candidates. */
+export function filteredEmptyCandidates(parcels, zoning, filters, candidates) {
+  if (!candidates.size) return candidates
+  const subset = { features: (parcels?.features || []).filter(f => candidates.has(f.properties.pin)) }
+  return new Map(studioSites(subset, zoning, null, filters, candidates).map(f => [f.properties.pin, candidates.get(f.properties.pin)]))
 }

@@ -1,43 +1,67 @@
-import { buildingHeightDescription, buildingHeightSource } from '../lib/buildingHeights.js'
+import { useEffect, useRef } from 'react'
 import { housingSpec } from '../lib/titleNine.js'
 import { housingCostConfirmed } from '../lib/housingCosts.js'
-import { footprintRef, isDemolished } from '../lib/redevelopment.js'
+import { footprintKey, footprintRef, isDemolished } from '../lib/redevelopment.js'
+import './buildingInspector.css'
 
-function relation(building, sitePin) {
+function parcelRelation(building, sitePin) {
   const pin = building.properties?.pin
-  return pin === sitePin ? 'Matched to this parcel' : pin ? `Crosses into this parcel · matched to ${pin}` : 'Crosses into this parcel · no matched parcel record'
+  return pin === sitePin ? 'Matched to this parcel.' : pin ? `Crosses into this parcel; matched to parcel ${pin}.` : 'Crosses into this parcel; no matched parcel record.'
+}
+
+function BuildingStatus({ relation, removed }) {
+  if (!removed && relation !== 'crossing' && relation !== 'unmatched') return null
+  return <span className="building-statuses">
+    {relation === 'crossing' && <span className="building-status">Crossing parcel</span>}
+    {relation === 'unmatched' && <span className="building-status">Unmatched parcel</span>}
+    {removed && <span className="building-status is-demolished">Demolished in plan</span>}
+  </span>
 }
 
 /** Selection is UI state. Removal is an explicit, undoable scenario command. */
-export default function BuildingInspector({ existing, placed, sitePin, siteBuildings, demolitions = [], onSelect, onDemolish, onRestore, onEditPlaced, onClose, pending, existingHomes, planNet, children }) {
+export default function BuildingInspector({ existing, placed, sitePin, buildingRows = [], demolitions = [], onSelect, onDemolish, onRestore, onEditPlaced, onClose, pending, existingHomes, planNet, children }) {
+  const heading = useRef(null)
+  const existingKey = existing && footprintKey(existing)
+  const selectedRow = existingKey && buildingRows.find(row => row.key === existingKey)
+  const selectionKey = existing ? `${sitePin}:${existingKey}` : placed?.id
+  useEffect(() => { if (selectionKey) heading.current?.focus({ preventScroll: true }) }, [selectionKey])
   const ref = existing && footprintRef(existing, sitePin)
   const isRemoved = existing && isDemolished(existing, demolitions)
-  const source = existing && buildingHeightSource(existing.properties)
-  const retained = siteBuildings.filter(building => !isDemolished(building, demolitions)).length
+  const selectedName = selectedRow ? `existing building ${selectedRow.number}` : 'existing building'
+  const removedCount = buildingRows.filter(row => isDemolished(row.building, demolitions)).length
   return <section className="building-inspector" aria-label="Buildings on this site">
     {(existing || placed) && <div className="building-selection">
-      <div className="section-heading"><h3>{placed ? 'Planned building' : isRemoved ? 'Demolished in this plan' : 'Existing building'}</h3><button onClick={onClose} aria-label="Close building details">×</button></div>
-      <strong>{placed ? housingSpec(placed.option).label : existing.properties.use_label || 'Recorded building'}</strong>
-      <p>{placed ? `${placed.option.width} × ${placed.option.depth} m · ${placed.option.height} m high` : buildingHeightDescription(existing.properties)}</p>
-      {existing && <p className="compact-help">{relation(existing, sitePin)}</p>}
-      {existing && <p className="compact-help">{existing.properties.footprint_role === 'auxiliary' ? 'Accessory outline: its parcel’s recorded homes are not counted as replaced when only this is demolished.' : `Recorded homes on its parcel (estimate from land use): ${existingHomes}`}</p>}
+      <div className="section-heading"><h3 ref={heading} tabIndex={-1}>{placed ? 'Planned building' : `Existing building${selectedRow ? ` #${selectedRow.number}` : ''}`}</h3><button onClick={onClose} aria-label="Close building details">×</button></div>
+      <strong className="building-selection-use">{placed ? housingSpec(placed.option).label : existing.properties.use_label || 'Use unknown'}</strong>
+      {placed ? <p className="building-selection-measures">{placed.option.width} × {placed.option.depth} m · {placed.option.height} m high</p> : selectedRow && <p className="building-selection-measures"><span>{selectedRow.areaLabel}</span><span>{selectedRow.heightLabel}</span></p>}
+      {existing && <BuildingStatus relation={selectedRow?.relation} removed={isRemoved}/>}
       {placed && <p className="compact-help">Adds {housingSpec(placed.option).units} proposed {housingSpec(placed.option).units === 1 ? 'home' : 'homes'}.</p>}
-      {planNet && <p className="net-homes"><strong>{planNet.text}</strong><small>Whole plan · {planNet.note}</small></p>}
       {placed && <p className="compact-help">{housingCostConfirmed(placed, placed.option) ? 'Housing costs: included as scenario assumptions recorded at placement.' : 'Housing costs: excluded from the plan score. Turn on Housing costs in score (Build, Compare or Advanced) to include them.'}</p>}
-      {existing && <details><summary>Building evidence</summary><p>{existing.properties.recorded_land_use || 'Use unknown'} · {existing.properties.use_evidence || 'Occupancy unverified.'}</p>{source && <a href={source} target="_blank" rel="noreferrer">Height source for this building ↗</a>}</details>}
-      <div className="placement-actions">{placed ? <><button onClick={() => onEditPlaced(true)} disabled={pending}>Replace planned building</button><button onClick={() => onEditPlaced(false)}>Remove from plan</button></> : isRemoved ? <button onClick={() => onRestore(ref)}>Restore original building</button> : <><button className="primary-build" onClick={() => onDemolish(existing, true)} disabled={pending || !ref}>Demolish & replace</button><button onClick={() => onDemolish(existing, false)} disabled={pending || !ref}>Demolish only</button></>}</div>
+      <div className="placement-actions">{placed ? <><button onClick={() => onEditPlaced(true)} disabled={pending}>Replace planned building</button><button onClick={() => onEditPlaced(false)}>Remove from plan</button></> : isRemoved ? <button aria-label={`Restore original ${selectedName}`} onClick={() => onRestore(ref)}>Restore original building</button> : <><button className="primary-build" aria-label={`Demolish and replace ${selectedName}`} onClick={() => onDemolish(existing, true)} disabled={pending || !ref}>Demolish & replace</button><button aria-label={`Demolish ${selectedName} only`} onClick={() => onDemolish(existing, false)} disabled={pending || !ref}>Demolish only</button></>}</div>
+      <details className="building-evidence"><summary>{existing ? 'Building evidence' : 'Plan notes'}</summary>
+        {existing && <>
+          <p>{selectedRow?.heightDescription || 'Height unknown. No recorded height evidence is available.'}</p>
+          {selectedRow?.heightSource && <a href={selectedRow.heightSource} target="_blank" rel="noreferrer">Height source for this building ↗</a>}
+          <p>Recorded outline ID: {existing.properties.id ?? existing.id ?? 'Unknown'}</p>
+          <p>{parcelRelation(existing, sitePin)}</p>
+          <p>{existing.properties.recorded_land_use || 'Use unknown'} · {existing.properties.use_evidence || 'Occupancy unverified.'}</p>
+          <p>{existing.properties.footprint_role === 'auxiliary' ? 'Accessory outline: its parcel’s recorded homes are not counted as replaced when only this is demolished.' : `Recorded homes on its parcel (estimate from land use): ${existingHomes}`}</p>
+        </>}
+        <p>Scenario only · reversible with Undo or Restore. Source records are unchanged.</p>
+      </details>
+      {planNet && <p className="net-homes"><strong>{planNet.text}</strong><small>Whole plan · {planNet.note}</small></p>}
       {children}
-      <small>Scenario only · reversible with Undo or Restore. Source records are unchanged.</small>
     </div>}
-    {!!siteBuildings.length && <details className="site-buildings" open><summary>Existing buildings on this site <span>{retained} standing · {siteBuildings.length - retained} demolished in plan</span></summary>
-      <p className="compact-help">County outlines matched to this parcel, plus any outline crossing its boundary. They block new buildings until demolished in the plan.</p>
-      <ul>{siteBuildings.map((building, i) => {
+    {!!buildingRows.length && <details className="site-buildings" open><summary>Existing buildings <span className="site-buildings-count">{buildingRows.length}</span>{removedCount > 0 && <span className="site-buildings-removed">{removedCount} demolished</span>}</summary>
+      <ul>{buildingRows.map(row => {
+        const { building, key, number, areaLabel, heightLabel, relation } = row
         const item = footprintRef(building, sitePin)
         if (!item) return null
         const removed = isDemolished(building, demolitions)
-        return <li key={`${item.pin}:${item.id}`}><button aria-label={`Inspect existing building ${i + 1}`} aria-pressed={existing === building} onClick={() => onSelect({ ...item, kind: 'existing' })}><strong>{building.properties.use_label || 'Recorded building'}</strong><small>{relation(building, sitePin)}{removed ? ' · demolished in plan' : ''}</small></button>
-          {removed ? <button aria-label={`Restore existing building ${i + 1}`} onClick={() => onRestore(item)}>Restore</button> : <button aria-label={`Demolish existing building ${i + 1}`} disabled={pending} onClick={() => onDemolish(building, false)}>Demolish</button>}</li>
+        return <li key={key}><button className="building-row-inspect" aria-label={`Inspect existing building ${number}`} aria-pressed={existingKey === key} onClick={event => onSelect({ ...item, kind: 'existing' }, event.currentTarget)}><span className="building-number" aria-hidden="true">#{number}</span><span className="building-row-info"><strong>{building.properties?.use_label || 'Use unknown'}</strong><small className="building-row-measures"><span>{areaLabel}</span><span>{heightLabel}</span></small><BuildingStatus relation={relation} removed={removed}/></span></button>
+          {removed ? <button className="building-row-action" aria-label={`Restore existing building ${number}`} onClick={() => onRestore(item)}>Restore</button> : <button className="building-row-action" aria-label={`Demolish existing building ${number}`} disabled={pending} onClick={() => onDemolish(building, false)}>Demolish</button>}</li>
       })}</ul>
+      <details className="building-list-evidence"><summary>About these outlines</summary><p>County outlines matched to this parcel, plus any outline crossing its boundary. They block new buildings until demolished in the plan. Numbers are map labels, not street addresses; they identify the same outlines in this list and on the map. Zoom in to separate closely spaced labels.</p></details>
     </details>}
   </section>
 }

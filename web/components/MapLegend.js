@@ -12,7 +12,8 @@ export default function MapLegend({ showExisting, onShowExisting, error, onRetry
     if (!open) return
     const outside = event => { if (!container.current.contains(event.target)) container.current.open = false }
     const escape = event => {
-      if (event.key !== 'Escape') return
+      if (event.key !== 'Escape' || event.defaultPrevented) return
+      event.preventDefault()
       container.current.open = false
       container.current.querySelector('summary').focus()
     }
