@@ -924,3 +924,8 @@
 .fit-callout ul { margin: 6px 0 0; padding-left: 18px; }
 .fit-callout .placement-actions { grid-template-columns: minmax(0, 1fr); margin-top: 9px; }
 .fit-callout small { display: block; margin-top: 7px; color: #6d4b4b; }
+
+/* Keep evidence readable in the narrow site-facts drawer. */
+.flood-evidence { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.flood-evidence .section-heading { flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.flood-evidence .section-heading > strong { font-size: 12px; }

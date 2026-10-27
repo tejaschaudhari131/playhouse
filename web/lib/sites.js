@@ -2,6 +2,7 @@
 
 import { TYPE_LABELS, rankTypes } from "./rank.js"
 import { dropZoningBadge, resolveZoning } from "./zoning.js"
+import { passesFloodFilter } from './floodEvidence.js'
 import { hiddenByRecord, siteCautions } from "./siteCautions.js"
 
 export const SITE_CAVEAT =
@@ -165,13 +166,7 @@ export function passesRecordFilters(props, filters) {
   if (filters.excludeOpenSpace && (props.city_open_space === true || props.land_use === "PUBLIC PARK")) return false
   if (filters.excludeRestricted && hiddenByRecord(props)) return false
   if (filters.area && props.area !== filters.area && props.neighborhood !== filters.area) return false
-  if (filters.flood === "none") {
-    if (props.sfha_overlap === null || props.sfha_overlap === undefined) return false
-    if ((props.sfha_overlap || 0) > 0 || (props.flood_02_overlap || 0) > 0) return false
-  } else if (filters.flood === "no_sfha") {
-    if (props.sfha_overlap === null || props.sfha_overlap === undefined) return false
-    if ((props.sfha_overlap || 0) > 0) return false
-  }
+  if (!passesFloodFilter(props, filters.flood)) return false
   if (filters.maxSlopePct !== null && filters.maxSlopePct !== undefined && filters.maxSlopePct !== "") {
     if (props.steep_slope_overlap === null || props.steep_slope_overlap === undefined) return false
     if (props.steep_slope_overlap * 100 > Number(filters.maxSlopePct)) return false

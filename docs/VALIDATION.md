@@ -157,3 +157,22 @@ Headless Chrome on the build VM, local `next start`, three runs each. `parcels.g
 - All 43 web test files pass, including saved-plan validation/recovery, explicit cost confirmation, relative priority invariance and citywide address source parity. All 53 pipeline tests pass using the repository virtual environment, including the HUD reference and provenance checks.
 - Production build succeeds. Browser checks cover exact fractional input restoration, placed-building restoration, tour return, cost-confirmation invalidation, stable sidebar sizing and citywide address selection.
 - Scores remain a preference screen without validated model uncertainty. HOME income references do not establish program rent limits or financial feasibility. Missing construction, acquisition, financing and tenant-level evidence remains unassessed.
+
+## Flood evidence follow-up (2026-10-27)
+
+The flood selector is visible without opening the zoning disclosure. Site results and the selected parcel show the same status used by filtering. Parcel evidence includes the fraction of parcel area intersecting Special Flood Hazard Areas (SFHA) and 0.2% annual-chance zones, with the [FEMA NFHL source](https://www.fema.gov/flood-maps/national-flood-hazard-layer) and the recorded retrieval date, **2026-09-27**, from `web/public/data/sources.json`.
+
+The shared filter has four meanings:
+
+- **Any flood status:** includes parcels with missing evidence.
+- **No mapped flood overlap:** both overlap fractions are valid, known zeroes.
+- **Mapped flood overlap:** at least one valid fraction is positive. A known overlap remains visible even if the other fraction is missing.
+- **Unknown flood status:** no known positive overlap, and at least one required fraction is absent or invalid.
+
+Unknown evidence is no longer allowed through the no-overlap filter when SFHA is zero but the 0.2% field is missing. The existing Explorer “no SFHA” option continues to require a known zero for SFHA only. Empty-site highlights use the active site filters across loaded neighborhoods; the highlight count remains a subset because it also requires pre-screened physical fit and the map's visible neighborhood scope. Sorting never changes filter membership.
+
+`floodEvidence.test.js`, `studioSiteDiscovery.test.js` and `sites.test.js` pass. They cover zero versus missing/invalid fractions, both mapped categories, partial evidence, precise percentage display, source-date provenance, combination with vacancy/tax-delinquency flags and applying the same filters across neighboring areas, preserving fitting template IDs and intersecting empty-site candidates with active filters. Existing restricted-record exclusions and caution tags are preserved. A read-only check of the saved parcel partitions confirms 14 mapped-overlap parcels in Hazelwood; the current default record exclusions leave 3,168 sites, and the no-overlap filter leaves 3,154. In South Side Flats the corresponding list changes from 3,378 to 3,202 (176 removed). No flood geometries or parcel observations were changed.
+
+**Limits:** percentages describe parcel area, not the probability that a parcel floods. The saved export retains SFHA/0.2% categories, not detailed FEMA zone codes or map panel effective dates. Minimal-hazard Zone X polygons are outside the source query; no overlap is not proof of safety. Current FEMA maps, amendments and site-specific review remain necessary before a development decision. These changes expose existing evidence; they do not refresh or certify it.
+
+Browser checks on the production build confirmed Hazelwood's 3,168 → 3,154 list change and South Side Flats' 3,378 → 3,202. Selecting Lower Lawrenceville screens the grouped Lawrenceville area and shows 323 mapped-overlap results. South Side Flats' visible empty highlights changed from 3 for mapped overlap to 1 for no overlap. The selected riverfront parcel at 1 Vesuvius St showed 6.5% SFHA and 0.9% 0.2%-zone overlap, its FEMA link and retrieval date. The unknown-status filter shows an empty result where all saved records are known.

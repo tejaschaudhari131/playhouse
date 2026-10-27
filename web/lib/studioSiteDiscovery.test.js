@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sitePage, siteRecordSummary, studioSites } from './studioSiteDiscovery.js'
+import { filteredEmptyCandidates, sitePage, siteRecordSummary, studioSites } from './studioSiteDiscovery.js'
 
 const feature = (pin, props = {}) => ({ type: 'Feature', properties: { pin, address: `${pin} Main St`, area: 'Hazelwood', ...props } })
 const pins = rows => rows.map(row => row.properties.pin)
@@ -62,4 +62,55 @@ test('studio discovery hides right-of-way and institutional public land by defau
   const rows = [feature('a', { land_use: 'RIGHT OF WAY - COMMERCIAL' }), feature('b', { land_use: 'OWNED BY COLLEGE/UNIV/ACADEMY', land_use_class: 'GOVERNMENT' }), feature('c', { land_use: 'MUNICIPAL GOVERNMENT', land_use_class: 'GOVERNMENT', city_owned: true, city_status: 'available' }), feature('d', { land_use: 'SINGLE FAMILY' })]
   assert.deepEqual(pins(find(rows, {})), ['c', 'd'])
   assert.deepEqual(pins(find(rows, { excludeRestricted: false })), ['a', 'b', 'c', 'd'])
+})
+
+test('flood categories compose with record flags and use the same evidence shown on each result', () => {
+  const rows = [
+    feature('dry', { sfha_overlap: 0, flood_02_overlap: 0, vacant_lot: true, tax_delinquent: true }),
+    feature('sfha', { sfha_overlap: .5, flood_02_overlap: 0, vacant_lot: true, tax_delinquent: true }),
+    feature('annual02', { sfha_overlap: 0, flood_02_overlap: .2, vacant_lot: true, tax_delinquent: false }),
+    feature('missing', { sfha_overlap: 0, flood_02_overlap: null, vacant_lot: true, tax_delinquent: true }),
+  ]
+  assert.deepEqual(pins(find(rows, { flood: 'none', vacant: true, taxDelinquent: true })), ['dry'])
+  assert.deepEqual(pins(find(rows, { flood: 'mapped', vacant: true })), ['annual02', 'sfha'])
+  assert.deepEqual(pins(find(rows, { flood: 'mapped', taxDelinquent: true })), ['sfha'])
+  assert.deepEqual(pins(find(rows, { flood: 'unknown' })), ['missing'])
+  assert.equal(siteRecordSummary(rows[0].properties).flood, 'No mapped flood overlap')
+  assert.equal(siteRecordSummary(rows[1].properties).flood, 'Mapped flood overlap')
+  assert.equal(siteRecordSummary(rows[3].properties).flood, 'Flood status unknown')
+})
+
+test('null area applies the same active filters across loaded neighboring parcels for map highlighting', () => {
+  const features = [
+    feature('local', { sfha_overlap: 0, flood_02_overlap: 0, vacant_lot: true }),
+    feature('neighbor', { area: 'Greenfield', sfha_overlap: 0, flood_02_overlap: 0, vacant_lot: true }),
+    feature('flooded', { area: 'Greenfield', sfha_overlap: .1, flood_02_overlap: 0, vacant_lot: true }),
+  ]
+  const filters = { flood: 'none', vacant: true }
+  assert.deepEqual(pins(studioSites({ features }, {}, 'Hazelwood', filters)), ['local'])
+  assert.deepEqual(pins(studioSites({ features }, {}, null, filters)), ['local', 'neighbor'])
+})
+
+
+test('empty highlights intersect all active filters and retain fitting types across neighborhoods', () => {
+  const features = [
+    feature('clear', { vacant_lot: true, sfha_overlap: 0, flood_02_overlap: 0, lot_sqft: 1200 }),
+    feature('flood', { vacant_lot: true, sfha_overlap: .2, flood_02_overlap: 0, lot_sqft: 1200 }),
+    feature('neighbor', { area: 'Greenfield', vacant_lot: true, sfha_overlap: 0, flood_02_overlap: 0, lot_sqft: 1200 }),
+    feature('missing', { vacant_lot: true, sfha_overlap: 0, lot_sqft: 1200 }),
+    feature('not-empty', { vacant_lot: true, sfha_overlap: 0, flood_02_overlap: 0, lot_sqft: 1200 }),
+  ]
+  const candidates = new Map([['clear', 'single_family'], ['flood', 'duplex'], ['neighbor', 'small_multi'], ['missing', 'single_family']])
+  const result = filteredEmptyCandidates({ features }, {}, { flood: 'none', vacant: true, minLotSqft: 1000 }, candidates)
+  assert.deepEqual([...result], [['clear', 'single_family'], ['neighbor', 'small_multi']])
+  assert.equal(candidates.size, 4)
+  assert.equal(filteredEmptyCandidates({ features }, {}, { flood: 'none', minLotSqft: 1300 }, candidates).size, 0)
+  assert.deepEqual([...filteredEmptyCandidates({ features }, {}, { flood: 'mapped' }, candidates).keys()], ['flood'])
+})
+
+test('empty highlights preserve current restricted-record exclusions and their explicit override', () => {
+  const features = [feature('right-of-way', { land_use: 'RIGHT OF WAY - COMMERCIAL' }), feature('ordinary', { land_use: 'VACANT LAND' })]
+  const candidates = new Map([['right-of-way', 'single_family'], ['ordinary', 'single_family']])
+  assert.deepEqual([...filteredEmptyCandidates({ features }, {}, {}, candidates).keys()], ['ordinary'])
+  assert.deepEqual([...filteredEmptyCandidates({ features }, {}, { excludeRestricted: false }, candidates).keys()], ['ordinary', 'right-of-way'])
 })
