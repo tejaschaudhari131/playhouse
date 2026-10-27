@@ -42,7 +42,44 @@ Demolition permission, occupancy and relocation are not assessed, and the score'
 
 **Net homes.** **Your plan** and the building inspector show `Net homes: +X (Y proposed − Z replaced)`. Replaced homes are an estimate from the County land use of each parcel whose main (non-accessory) footprint is demolished, counted once per parcel: single-family, rowhouse, townhouse and mobile home = 1, two-family = 2, three-family = 3, four-family = 4. Apartment bands count their minimum (5–19 → 5, 20–39 → 20, 40+ → 40), as do condominium (1), apartments over retail/office (1) and dwelling-apartment conversions (2); the text then reads "up to" and marks the count with "+". Senior/independent living, housing-authority, HUD project and other unclear housing uses are unknown and not subtracted; outlines without a parcel record are not counted. Nonresidential and vacant uses count 0.
 
-**Redevelopment Feasibility & Impact.** Inspecting an existing building (standing: "if demolished"; demolished: as planned), or opening Build on a parcel with demolitions, shows a labeled screening panel comparing the demolished buildings with the current draft. *Observed*: County land use, year built, living area, last valid sale (not a current value), tract renter share and displacement screen. *Assumption*: demolition $8–15 per sq ft of estimated existing floor area (outline × recorded stories, or height ÷ 3.5 m), construction per sq ft of new floor area ($225–325 single-family/duplex, $250–350 triplex, $275–375 12-unit, $300–425 40-unit), upfront embodied carbon 300–600 kg CO₂e/m². *Calculated*: total and per-home cost, rent capitalized at 6.5% after 40% operating costs versus that cost, the rent a target-income household can pay at 30% of income after utilities (and its capitalized value), estimated renter households displaced (homes × tract renter share), and what the same draft on vacant land would avoid. Land, financing, fees, subsidies and demolition-waste carbon are excluded; it is not a bid, appraisal or pro forma. Constants live in `web/lib/redevelopmentImpact.js` (`IMPACT_ASSUMPTIONS`). Studio exports use schema 7 with exact `demolitions: [{id, pin, site?, unmatched?}]` references and the existing building-source snapshot hash. Legacy scenarios without removals remain evaluable. Edits save automatically on this device. Export before switching browsers or clearing browser data.
+**Redevelopment Feasibility & Impact.** Inspecting an existing building (standing: "if demolished"; demolished: as planned) shows a labeled screening panel comparing the demolished buildings with the current draft. Build always shows it for the current draft, titled *Development Feasibility & Pro Forma* on a lot with no demolition. *Observed*: County land use, year built, living area, last valid sale, tract renter share and displacement screen. *Assumption*: demolition $8–15 per sq ft of demolished floor area, construction per sq ft of new floor area ($225–325 single-family/duplex, $250–350 triplex, $275–375 12-unit, $300–425 40-unit), soft costs 20% of hard cost, upfront embodied carbon 300–600 kg CO₂e/m². *Calculated*: estimated renter households displaced (homes × tract renter share) and what the same draft on vacant land would avoid. Constants live in `web/lib/redevelopmentImpact.js` (`IMPACT_ASSUMPTIONS`) and `web/lib/proForma.js` (`PRO_FORMA_ASSUMPTIONS`, `MILLAGE`).
+
+**Pro forma.** The panel reports these figures, each with its evidence type:
+
+- **Demolished floor area.** The County's observed living area (`living_sqft`, FINISHEDLIVINGAREA) is used for each parcel's principal buildings and labeled *Observed (County assessment)*. *Calculated (footprint × stories)* is used instead when living area is missing, when several demolished buildings on one parcel add up to more than it, and for accessory outlines.
+- **Acquisition.** The site parcel plus every other parcel whose building is demolished:
+  - URA land, or City inventory marked available, sale pending, acquisition pending or hold for study: a nominal $1,000–$5,000.
+  - A private parcel with a valid sale in the last 10 years: that sale price.
+  - Otherwise: the middle half (25th–75th percentile) of recent $/living sq ft sales in the neighborhood, or $/lot sq ft for vacant land. At least five sales are required; with fewer, every loaded neighborhood is used.
+  - Other public land counts as not offered.
+  - Owner names and tax-delinquency records are never read.
+- **Cost breakdown.** Hard Redevelopment Cost (Demolition + Construction), then soft costs, acquisition, and Total Development Cost incl. Acquisition, in total and per home.
+- **Break-even monthly rent per home.** The rent that capitalizes to the total development cost at 6.5% after 40% operating costs.
+- **Residual land value.** The capitalized rent minus hard and soft costs, at both the draft rent and the rent a target-income household can pay at 30% of income after utilities.
+- **AMI band.** The target income's FY2026 HUD band for the household size.
+
+When that value falls short, the **Pittsburgh Subsidy & Capital Stack Guide** shows the subsidy gap per home and screens three programs by AMI band:
+
+- **LIHTC 9% / 4% (PHFA QAP).** Eligible at or below 60% AMI; at 80% AMI only under income averaging. The equity estimate is basis × 9% or 4% × 10 years × $0.85, using hard + soft cost with no land. The 130% basis boost is applied only on 2026 HUD QCT parcels. Buildings under 20 homes get a small-deal caution.
+- **URA Housing Opportunity Fund.** The Rental Gap Program, plus the For-Sale Development Program for single-family and duplex types, at 30–80% AMI.
+- **HOME / PHFA PHARE.** At or below 80% AMI.
+
+**Annual Local Property Tax Ledger.** The ledger applies the 2026 millage of 27.307 mills:
+
+- City of Pittsburgh 10.42 (9.67 general + 0.50 parks + 0.25 library);
+- Pittsburgh Public Schools 10.457;
+- Allegheny County 6.43.
+
+The new building's tax uses construction cost as its assessed-value proxy. The replaced tax uses the whole value (sale or estimate) of each parcel whose principal building is demolished; public parcels are exempt. **Net New Annual Tax Revenue** is new minus replaced.
+
+The abatement note uses the City's 2020 consolidation of Act 42 / LERTA:
+
+- Chapter 267 rental credit: 3 years, up to $125,000 a year.
+- Chapter 267 Enhanced: 10 years, up to $250,000 a year, when the target band is at or below 80% AMI (it needs ≥10% of homes at 50% AMI or ≥60% at 80% AMI).
+
+It shows the net new tax during the abatement with the City share abated. **Your plan** carries a whole-plan ledger: every placed building against every parcel with a demolished principal building. Scenario exports include `proForma: { site, planTax }`.
+
+None of this is a bid, appraisal or lender pro forma. Program terms change and awards are competitive; confirm with PHFA, the URA and the City Department of Finance. Studio exports use schema 7 with exact `demolitions: [{id, pin, site?, unmatched?}]` references and the existing building-source snapshot hash. Legacy scenarios without removals remain evaluable. Edits save automatically on this device. Export before switching browsers or clearing browser data.
 
 ## Two-point road and path routing (planner-screen-1.9)
 

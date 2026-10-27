@@ -732,6 +732,29 @@
 .impact-panel dt { display: flex; align-items: center; gap: 6px; font-weight: 650; color: #34483b; }
 .impact-panel dd { margin: 3px 0 0; color: #3f4d43; }
 .impact-panel > small { display: block; color: #6d6a58; font-size: 11px; }
+.impact-panel dd small, .tax-ledger > small, .capital-stack > small { display: block; margin-top: 4px; color: #6d6a58; font-size: 11px; }
+.impact-line { display: block; }
+.impact-table { width: 100%; margin: 4px 0; border-collapse: collapse; font-size: 11.5px; }
+.impact-table th, .impact-table td { padding: 3px 4px; border-bottom: 1px solid #ebe8dc; text-align: left; font-weight: 450; vertical-align: top; }
+.impact-table td { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.impact-table thead th { color: #6d6a58; font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .02em; }
+.impact-table thead th:not(:first-child) { text-align: right; }
+.impact-table th small { display: block; color: #7a6f52; font-size: 10.5px; }
+.impact-table tr.subtotal th, .impact-table tr.subtotal td { font-weight: 650; }
+.impact-table tr.total th, .impact-table tr.total td { font-weight: 700; border-top: 1.5px solid #8f9a83; border-bottom: none; }
+.capital-stack, .tax-ledger { margin: 10px 0; padding: 9px 10px; border: 1px solid #e0dccb; border-radius: 8px; background: #fff; }
+.capital-stack h4, .tax-ledger h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12.5px; color: #26382c; }
+.capital-stack > p, .tax-ledger > p { margin: 4px 0; }
+.capital-stack ul { margin: 6px 0; padding: 0; list-style: none; }
+.capital-stack li.program { padding: 6px 0; border-top: 1px solid #ebe8dc; }
+.capital-stack li.program p { margin: 2px 0; }
+.capital-stack li.program a { color: #1f4f8a; }
+.capital-stack li.program > small { color: #6d6a58; }
+.program-status { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 99px; font-size: 10.5px; font-weight: 650; background: #e8ecef; color: #3e4b55; }
+.program.eligible .program-status { background: #dff1e3; color: #1f6b35; }
+.program.conditional .program-status { background: #fbf0d4; color: #7a5a0c; }
+.program-link { display: block; font-size: 11px; }
+.plan-summary .tax-ledger { margin-top: 8px; font-size: 12px; }
 
 /* Compare: underlying scores, zoning status and reform simulation */
 .zoning-badge { display: inline-block; margin: 4px 0 2px; padding: 2px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.4; background: #eef0ea; color: #56614f; }
