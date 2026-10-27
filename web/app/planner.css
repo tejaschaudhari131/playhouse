@@ -756,6 +756,34 @@
 .program-link { display: block; font-size: 11px; }
 .plan-summary .tax-ledger { margin-top: 8px; font-size: 12px; }
 
+/* Priority stances, close call and factor receipts */
+.stance-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 8px 0; }
+.stance-pills button { padding: 5px 10px; border: 1px solid #b9c7b4; border-radius: 99px; background: #fff; color: #315b46; font-size: 11.5px; cursor: pointer; }
+.stance-pills button[aria-pressed=true] { background: #315b46; border-color: #315b46; color: #fff; }
+.stance-custom { color: #6d6a58; font-size: 11px; }
+.close-call { margin: 8px 0; padding: 8px 10px; border: 1px solid #d6dccb; border-radius: 8px; background: #f6f8f3; font-size: 12px; }
+.close-call.is-close { border-color: #e0b85c; background: #fff8e6; }
+.close-call-badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: #dff0e3; color: #22603a; }
+.close-call.is-close .close-call-badge { background: #f6d98b; color: #5d4306; }
+.close-call p { margin: 4px 0; }
+.stance-winners { display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 4px 0; padding: 0; list-style: none; font-size: 11px; color: #4f5d52; }
+.stance-winners li.flips strong { color: #8f3b1f; }
+.close-call > small { display: block; color: #6d6a58; font-size: 10.5px; }
+.evidence-badge { display: inline-block; padding: 0 6px; border-radius: 99px; font-size: 10px; font-weight: 650; line-height: 1.6; white-space: nowrap; vertical-align: middle; }
+.evidence-badge.observed { background: #dcebf7; color: #1f4f8a; }
+.evidence-badge.judgment { background: #f3e3f5; color: #6b2a73; }
+.priority-slider > span .evidence-badge { margin: 0 auto 0 6px; align-self: center; }
+.factor-receipt { margin-top: 3px; font-size: 11px; font-weight: 400; text-align: left; }
+.factor-receipt > summary { display: inline; color: #1f4f8a; cursor: pointer; text-decoration: underline; }
+.factor-receipt dl { margin: 4px 0; padding: 6px 8px; border: 1px solid #e0dccb; border-radius: 6px; background: #fff; min-width: 220px; white-space: normal; }
+.factor-receipt dl > div { padding: 2px 0; }
+.factor-receipt dt { font-weight: 650; color: #34483b; }
+.factor-receipt dd { margin: 0; color: #3f4d43; }
+.confidence { display: inline-block; padding: 0 6px; border-radius: 99px; font-weight: 700; }
+.confidence.high { background: #dff0e3; color: #22603a; }
+.confidence.medium { background: #fbf0d4; color: #7a5a0c; }
+.confidence.low { background: #f8dcdc; color: #8a1f1f; }
+
 /* Permit & acquisition pathway */
 .pathway-step, .variance-worksheet { margin: 10px 0; padding: 9px 10px; border: 1px solid #e0dccb; border-radius: 8px; background: #fff; }
 .pathway-step h4, .variance-worksheet h4 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 4px; font-size: 12.5px; color: #26382c; }

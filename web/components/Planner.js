@@ -48,6 +48,9 @@ import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
 import PolicyReformSimulator from './PolicyReformSimulator.js'
 import PermitPathway from './PermitPathway.js'
+import { EvidenceBadge, FactorReceipt } from './FactorReceipt.js'
+import { factorReceipt } from '../lib/factorReceipts.js'
+import { closeCall } from '../lib/priorityStances.js'
 import { permitPathway } from '../lib/permitPathway.js'
 import { reformSummary } from '../lib/policyReform.js'
 import useAddressSearch from './useAddressSearch.js'
@@ -639,7 +642,7 @@ function Studio({ data }) {
     finally { if (revision === drawingRevision.current) drawingBusy.current = false }
   }
   function download() {
-    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, policyReform: options ? reformSummary(Object.values(options), reformPreset, props.zoning_code ?? null) : null, permitPathway: pathway, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
+    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, policyReform: options ? reformSummary(Object.values(options), reformPreset, props.zoning_code ?? null) : null, permitPathway: pathway, closeCall: result ? closeCall({ baseline: result.baseline, proposal: result.proposal }, scenario.weights, proposed ? 'proposal' : 'baseline') : null, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
     const link = document.createElement('a'); link.href = url; link.download = `housing-scenario-${scenario.pin}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     setNotice('Scenario exported with model version, assumptions and comparison results.', 'transient')
@@ -712,7 +715,7 @@ function Studio({ data }) {
             <ul>{(scenario.demolitions || []).map(b => <li key={demolitionKey(b)}><button onClick={() => inspectDemolition(b)}><strong>{byPin.get(demolitionSite(b))?.properties.address || demolitionSite(b)}</strong><small>Outline {b.id} · demolished{b.site || b.unmatched ? ' · crossed the parcel boundary' : ''}</small></button><button onClick={() => restoreExisting(b)} aria-label={`Restore building ${b.id}`}>Restore</button></li>)}</ul>
             {planTax && <TaxLedger tax={planTax} title="Whole-plan Annual Property Tax Ledger"/>}
           </div></details>}
-          {inspectorTab === 'rankings' && <HousingComparison comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={reformPreset} onReform={setReformPreset} zoningCode={props.zoning_code ?? null} costControl={costSwitch(true)}/>}
+          {inspectorTab === 'rankings' && <HousingComparison weights={scenario.weights} onWeights={weights => set('weights', weights)} comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={reformPreset} onReform={setReformPreset} zoningCode={props.zoning_code ?? null} costControl={costSwitch(true)}/>}
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
             <div className="drawer-heading"><h3>New building</h3><p>Preview a housing type, then add it to your plan.</p></div>
             <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
@@ -810,6 +813,7 @@ function Studio({ data }) {
 
 function Factor({ factor, option, result, scenario, onPriorities }) {
   const a = option
+  const receipt = factorReceipt(factor.id, a.area ? null : a)
   const details = {
     demand: 'Existing neighborhood sales activity and team-chosen lot-fit curve. Not a forecast of household or typology demand. Infrastructure edits leave it unchanged.',
     physical: '100 if the fixed-size footprint fits inside the parcel without touching retained buildings; otherwise 0. Explicit scenario demolitions free only the selected footprint. Missing building context excludes this factor and withholds ranking. Supported Title Nine conflicts separately remove the housing total. Rules without sufficient evidence are excluded. Street frontage, occupancy, demolition feasibility and engineering remain unreviewed.',
@@ -829,5 +833,5 @@ function Factor({ factor, option, result, scenario, onPriorities }) {
     if (factor.id === 'displacement') return `${fmt(o.raw.displacement_risk)} tract risk`
     return `${fmt(o.raw.demand)} market/lot proxy`
   }
-  return <details className="factor-item"><summary><div><strong>{FACTOR_LABELS[factor.id] || factor.label}</strong><small>{factor.kind}</small></div><span className="factor-score a">{fmt(a.scores[factor.id])}</span></summary><div className="factor-content"><div className="factor-values"><span>{metric(a)}</span></div><p>{details[factor.id]}</p><small>Source: {factor.source}</small><button className="assumptions-link" onClick={onPriorities}>Adjust relative priorities →</button>{result.excluded.includes(factor.id) && <p className="planner-warning">Excluded: missing evidence or zero weight. The same coverage is used for all selected types and both infrastructure states.</p>}</div></details>
+  return <details className="factor-item"><summary><div><strong>{FACTOR_LABELS[factor.id] || factor.label}</strong><small>{factor.kind} <EvidenceBadge receipt={receipt}/></small></div><span className="factor-score a">{fmt(a.scores[factor.id])}</span></summary><div className="factor-content"><div className="factor-values"><span>{metric(a)}</span></div><p>{details[factor.id]}</p><FactorReceipt receipt={receipt}/><button className="assumptions-link" onClick={onPriorities}>Adjust relative priorities →</button>{result.excluded.includes(factor.id) && <p className="planner-warning">Excluded: missing evidence or zero weight. The same coverage is used for all selected types and both infrastructure states.</p>}</div></details>
 }

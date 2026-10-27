@@ -19,6 +19,27 @@ by Hack the House
 
 Each preset lifts only the conflicts its rules name. Physical fit, height and floor area outside a bonus, coverage, setbacks, unsupported checks and placed-building reviews still apply. The panel lists the rules unlocked on this parcel, with section links, the checks cleared and the types affected. It also shows the draft's lifted and remaining conflicts, how many more types pass every assessed check, and the most homes by right before → after (ADUs included). Simulated scores are labelled with the preset's legal status and never rank; exports include `policyReform` for the active preset. Rules live in `web/lib/policyReform.js`. Build shows the same badge and underlying score for the draft, and the typology cards show `Review · N underlying`. **Priorities** holds relative-weight sliders; **Advanced** retains exact dimensions, position, income, rent, utilities, service assumptions and source details. Site facts/zoning and detailed checks expand on demand. The small map preview is a status display, not a second housing picker. Escape cancels placement/drawing or closes building selection. The recenter button returns to the selected site. Camera motion respects reduced-motion settings; housing remains angled and transit/street editing starts top-down.
 
+**Priority stances, close calls and receipts.** Priorities and Compare share five stance pills. Each sets all seven relative weights; the weights are team value judgments, not surveyed preferences:
+
+| Stance | Market | Fit | Costs | Displacement | Capacity | Access | Carbon |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Balanced | 20 | 15 | 20 | 10 | 10 | 15 | 10 |
+| Anti-Displacement & Affordability | 5 | 10 | 35 | 35 | 5 | 5 | 5 |
+| Transit-Oriented Density | 10 | 10 | 10 | 5 | 10 | 40 | 15 |
+| Climate & Low-Carbon | 5 | 10 | 10 | 5 | 10 | 20 | 40 |
+| Fast Market Infill | 40 | 30 | 10 | 5 | 5 | 5 | 5 |
+
+Transit-Oriented Density keeps capacity modest because more homes draw down the assumed transit reserve. Fast Market Infill does not score approval time; the permit pathway shows that separately.
+
+Compare re-scores the eligible types under every stance with the planner's own aggregation and shows **Close call (±X pts)** when the leader and runner-up are within 3.0 points, or when any stance picks a different leader. It names each such stance ("Anti-Displacement & Affordability flips it to Triplex") and lists every stance's leader. Otherwise it shows **Clear lead**. Exports include `closeCall`.
+
+Every factor row in Compare and in Advanced → Factor calculations carries an evidence badge and a clickable **Receipt**:
+
+- **Observed Data**: market fit (County sales), physical fit (parcel and roof outlines), displacement (ACS and CHAS) and access (OSM walking graph and PRT departures).
+- **Value Judgment / Assumption**: housing-cost burden (entered rent and income), transit capacity (assumed spare places) and carbon (team embodied tier).
+
+A receipt gives the source dataset, the metric formula, the inputs behind each compared score and a High / Medium / Low confidence. No factor is rated High: map outlines, team anchors and tract-level data all limit precision. Access drops to Low with a straight-line walk. Code: `web/lib/priorityStances.js`, `web/lib/factorReceipts.js`.
+
 **Permit & Acquisition Pathway.** A collapsible card in Build (below the pro forma) and Advanced (below the Title Nine checks) gives three steps for the current draft:
 
 1. **Acquisition**, chosen from public ownership fields only:

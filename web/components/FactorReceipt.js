@@ -1,0 +1,17 @@
+export const EvidenceBadge = ({ receipt }) => receipt ? <span className={`evidence-badge ${receipt.evidence}`}>{receipt.badge}</span> : null
+
+/** Clickable source receipt. `rows` lists the inputs behind each compared option's score. */
+export function FactorReceipt({ receipt, rows = null }) {
+  if (!receipt) return null
+  const lines = rows || (receipt.inputs ? [{ label: 'This option', inputs: receipt.inputs }] : [])
+  return <details className="factor-receipt">
+    <summary>Receipt</summary>
+    <dl>
+      <div><dt>Evidence</dt><dd>{receipt.badge}</dd></div>
+      <div><dt>Source</dt><dd>{receipt.source}</dd></div>
+      <div><dt>Formula</dt><dd>{receipt.formula}</dd></div>
+      {lines.map(line => <div key={line.label}><dt>{line.label}</dt><dd>{line.inputs || '—'}</dd></div>)}
+      <div><dt>Confidence</dt><dd><span className={`confidence ${receipt.confidence.toLowerCase()}`}>{receipt.confidence}</span></dd></div>
+    </dl>
+  </details>
+}
