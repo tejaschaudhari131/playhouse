@@ -3,6 +3,7 @@
 import { Children, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { matchingOption, optionIndex, selectMenuPosition } from '../lib/selectMenu.js'
+import { consumeDismissalPointer } from '../lib/dismissPointer.js'
 
 function textContent(children) {
   return Children.toArray(children).map(child => typeof child === 'object' ? textContent(child.props?.children) : child).join('')
@@ -24,6 +25,7 @@ export default function Select({ children, value, onChange, disabled = false, cl
   const [active, setActive] = useState(-1)
   const [position, setPosition] = useState(null)
   const trigger = useRef(null), menu = useRef(null), search = useRef({ text: '', time: 0 })
+  const dismissPointer = useRef(null)
   const inactive = disabled || !options.some(option => !option.disabled)
   const activeIndex = options[active] && !options[active].disabled ? active : optionIndex(options, -1, 'first')
 
@@ -43,6 +45,7 @@ export default function Select({ children, value, onChange, disabled = false, cl
 
   useEffect(() => { if (inactive) close() }, [inactive])
   useEffect(() => { if (open) setActive(selected) }, [value])
+  useEffect(() => () => dismissPointer.current?.(), [])
 
   useLayoutEffect(() => {
     if (!open) { setPosition(null); return }
@@ -55,12 +58,19 @@ export default function Select({ children, value, onChange, disabled = false, cl
       setPosition(selectMenuPosition(rect, viewport, height))
     }
     function moved(event) {
-      if (menu.current?.contains(event.target)) return
+      // Window and VisualViewport resize events do not target a DOM Node.
+      if (event.target instanceof Node && menu.current?.contains(event.target)) return
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(positionMenu)
     }
     function outside(event) {
-      if (!trigger.current?.contains(event.target) && !menu.current?.contains(event.target)) close()
+      if (trigger.current?.contains(event.target) || menu.current?.contains(event.target)) return
+      if (event.type === 'pointerdown') {
+        dismissPointer.current?.()
+        dismissPointer.current = consumeDismissalPointer(event, document)
+        trigger.current?.focus({ preventScroll: true })
+      }
+      close()
     }
     positionMenu()
     const observer = new ResizeObserver(positionMenu)
