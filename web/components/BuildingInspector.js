@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { buildingHeightDescription, buildingHeightSource } from '../lib/buildingHeights.js'
 import { housingSpec } from '../lib/titleNine.js'
 import { housingCostConfirmed } from '../lib/housingCosts.js'
@@ -10,13 +11,16 @@ function relation(building, sitePin) {
 
 /** Selection is UI state. Removal is an explicit, undoable scenario command. */
 export default function BuildingInspector({ existing, placed, sitePin, siteBuildings, demolitions = [], onSelect, onDemolish, onRestore, onEditPlaced, onClose, pending, existingHomes, planNet, children }) {
+  const heading = useRef(null)
+  const selectionKey = existing ? `${existing.properties?.pin}:${footprintRef(existing, sitePin)?.id}` : placed?.id
+  useEffect(() => { if (selectionKey) heading.current?.focus({ preventScroll: true }) }, [selectionKey])
   const ref = existing && footprintRef(existing, sitePin)
   const isRemoved = existing && isDemolished(existing, demolitions)
   const source = existing && buildingHeightSource(existing.properties)
   const retained = siteBuildings.filter(building => !isDemolished(building, demolitions)).length
   return <section className="building-inspector" aria-label="Buildings on this site">
     {(existing || placed) && <div className="building-selection">
-      <div className="section-heading"><h3>{placed ? 'Planned building' : isRemoved ? 'Demolished in this plan' : 'Existing building'}</h3><button onClick={onClose} aria-label="Close building details">×</button></div>
+      <div className="section-heading"><h3 ref={heading} tabIndex={-1}>{placed ? 'Planned building' : isRemoved ? 'Demolished in this plan' : 'Existing building'}</h3><button onClick={onClose} aria-label="Close building details">×</button></div>
       <strong>{placed ? housingSpec(placed.option).label : existing.properties.use_label || 'Recorded building'}</strong>
       <p>{placed ? `${placed.option.width} × ${placed.option.depth} m · ${placed.option.height} m high` : buildingHeightDescription(existing.properties)}</p>
       {existing && <p className="compact-help">{relation(existing, sitePin)}</p>}
@@ -35,7 +39,7 @@ export default function BuildingInspector({ existing, placed, sitePin, siteBuild
         const item = footprintRef(building, sitePin)
         if (!item) return null
         const removed = isDemolished(building, demolitions)
-        return <li key={`${item.pin}:${item.id}`}><button aria-label={`Inspect existing building ${i + 1}`} aria-pressed={existing === building} onClick={() => onSelect({ ...item, kind: 'existing' })}><strong>{building.properties.use_label || 'Recorded building'}</strong><small>{relation(building, sitePin)}{removed ? ' · demolished in plan' : ''}</small></button>
+        return <li key={`${item.pin}:${item.id}`}><button aria-label={`Inspect existing building ${i + 1}`} aria-pressed={existing === building} onClick={event => onSelect({ ...item, kind: 'existing' }, event.currentTarget)}><strong>{building.properties.use_label || 'Recorded building'}</strong><small>{relation(building, sitePin)}{removed ? ' · demolished in plan' : ''}</small></button>
           {removed ? <button aria-label={`Restore existing building ${i + 1}`} onClick={() => onRestore(item)}>Restore</button> : <button aria-label={`Demolish existing building ${i + 1}`} disabled={pending} onClick={() => onDemolish(building, false)}>Demolish</button>}</li>
       })}</ul>
     </details>}

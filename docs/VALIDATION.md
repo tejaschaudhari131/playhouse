@@ -181,3 +181,10 @@ Browser checks on the production build confirmed Hazelwood's 3,168 → 3,154 lis
 ## Dropdown pointer dismissal (2026-10-27)
 
 Closing a dropdown with an outside pointer gesture consumes that gesture's compatibility mouse/click events, so it cannot also select a map parcel. The guard releases after the click, cancellation, blur or the next pointerdown; wheel and touch scrolling remain native. `dismissPointer.test.js` and `selectMenu.test.js` pass. Browser check: opening Neighborhood then clicking an existing building kept PIN 0056F00336000000 unchanged while closing the menu; a second click at the same point selected PIN 0056F00332000000. Keyboard selection and Escape remain available. Resize events whose target is Window or VisualViewport no longer reach `Node.contains`.
+
+
+## Search, inspector and notification keyboard follow-up (2026-10-27)
+
+Citywide suggestions close on Escape from either the input or a result, and on outside interaction, without clearing the query. Arrow keys navigate suggestions; Escape returns focus to the search field without reopening results. Inspect moves focus to the building heading, and closing details returns to its Inspect button (or the address search if that button no longer exists). Closing detail actions and a focused expiring toast also recover focus. A focused toast consumes Escape before workspace tools; open map-key and modal interactions keep their own dismissal priority.
+
+Production-browser checks: search text survived input/result Escape and outside click; building Inspect → Escape returned to the same Inspect control; toast Escape dismissed the toast while leaving building details open. All four street tools and building placement still cancelled with Escape, and the tour returned focus to Tour. No browser errors were captured. Full web suite passed (55 files before the added dialog-focus test), all 53 pipeline tests passed with the existing virtual environment, and production compilation passed. No source records, housing scores or geometry were changed by these keyboard fixes.
