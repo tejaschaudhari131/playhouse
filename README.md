@@ -38,6 +38,8 @@ Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F0033
 
 Adjust income, rent, utilities and dimensions under **Advanced**. **Tour** walks through a real Hazelwood example, then restores your plan. Edits save on this device automatically; **Export scenario** keeps a portable backup. Storage failures are shown explicitly. **Print / View 1-Page Site Brief** opens a one-page letter brief of the current draft: a site and massing diagram, the zoning and reform table, the pro forma and tax ledger, the permit pathway and the seven-factor receipts. [What the brief contains](docs/PLANNER.md).
 
+Buildings on the selected parcel have matching numbers in the list and on the map. Click a row to focus and highlight that outline; footprint sizes and height labels help tell similar buildings apart. Numbers stay the same through demolition and Undo. Full evidence stays under **Building evidence**.
+
 The sidebar keeps its width between sections. Drag its divider or use **Widen / Reset**; the comparison table scrolls sideways when needed. Keyboard users can skip directly to planning controls.
 
 Dropdowns stay open after a click so you can browse before choosing. Use arrow keys and Enter, or type a neighborhood name; Escape closes without changing your choice.
