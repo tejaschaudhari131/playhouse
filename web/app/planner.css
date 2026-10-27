@@ -758,7 +758,8 @@
 
 /* 1-page site brief */
 .studio-header-actions .studio-brief { padding: 9px 11px; font-size: 12px; background: #fff; color: #284f3e; border: 1px solid #284f3e; }
-.site-brief-overlay { position: fixed; inset: 0; z-index: 2000; overflow: auto; padding: 20px; background: rgba(18, 28, 22, .6); }
+.site-brief-overlay { position: fixed; inset: 0; z-index: 2000; width: 100%; height: 100dvh; max-width: none; max-height: none; margin: 0; border: 0; box-sizing: border-box; overflow: auto; padding: 20px; background: rgba(18, 28, 22, .6); }
+.site-brief-overlay::backdrop { background: transparent; }
 .site-brief-overlay:focus { outline: none; }
 .site-brief-toolbar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; max-width: 8.5in; margin: 0 auto 10px; padding: 8px 12px; border-radius: 8px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .2); }
 .site-brief-toolbar span { display: flex; gap: 8px; }
@@ -787,12 +788,28 @@
 .brief-proforma .brief-two { align-items: start; }
 .brief-small { color: #444; font-size: 9px; }
 .site-brief footer { margin-top: 6px; padding-top: 3px; border-top: .5px solid #999; }
+@media screen and (max-width: 640px) {
+  .site-brief-overlay { padding: 12px; }
+  .site-brief-toolbar { gap: 8px; flex-wrap: wrap; padding: 8px 10px; }
+  .site-brief { min-width: 0; padding: 16px; font-size: 12px; line-height: 1.45; }
+  .site-brief .brief-top, .site-brief .brief-two { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .site-brief .brief-top > *, .site-brief .brief-two > * { min-width: 0; }
+  .site-brief .brief-diagram { width: 100%; max-width: 300px; margin: 0 auto; }
+  .site-brief .brief-table { display: block; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; font-size: 11px; }
+  .site-brief .brief-table.standards th, .site-brief .brief-table.standards td,
+  .site-brief .brief-table.receipts th, .site-brief .brief-table.receipts td { min-width: 84px; }
+  .site-brief .brief-table.standards th:first-child, .site-brief .brief-table.standards td:first-child,
+  .site-brief .brief-table.receipts th:last-child, .site-brief .brief-table.receipts td:last-child { min-width: 160px; }
+  .site-brief .brief-small, .site-brief .brief-diagram figcaption, .site-brief .brief-table.receipts td:last-child { font-size: 10.5px; }
+  .site-brief .brief-meta, .site-brief footer { overflow-wrap: anywhere; }
+}
 @media print {
   @page { size: letter; margin: .35in; }
   body.site-brief-open { background: #fff; }
   body.site-brief-open .studio { display: block; height: auto; overflow: visible; }
   body.site-brief-open .studio > :not(.site-brief-overlay) { display: none !important; }
-  body.site-brief-open .site-brief-overlay { position: static; padding: 0; overflow: visible; background: none; }
+  body.site-brief-open dialog.site-brief-overlay { display: block !important; position: static; width: auto; height: auto; max-width: none; max-height: none; padding: 0; overflow: visible; background: none; }
+  .site-brief-overlay::backdrop { display: none; }
   .site-brief-toolbar { display: none !important; }
   .site-brief { max-width: none; padding: 0; box-shadow: none; font-size: 7.3pt; line-height: 1.22; }
   .site-brief h1 { font-size: 13pt; }
