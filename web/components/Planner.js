@@ -47,6 +47,8 @@ import HudIncomeReference from './HudIncomeReference.js'
 import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
 import PolicyReformSimulator from './PolicyReformSimulator.js'
+import PermitPathway from './PermitPathway.js'
+import { permitPathway } from '../lib/permitPathway.js'
 import { reformSummary } from '../lib/policyReform.js'
 import useAddressSearch from './useAddressSearch.js'
 import { isParcelSearch } from '../lib/addressSearch.js'
@@ -434,6 +436,7 @@ function Studio({ data }) {
   }, [result?.committed, proposed, scenario.buildings])
   const options = result ? (proposed ? result.proposal : result.baseline) : null
   const option = scenario.draft, evaluated = options?.[option.typeId]
+  const pathway = !evaluation.pending && evaluated ? permitPathway({ props, checks: evaluated.titleNine?.checks ?? null, permission: evaluated.permission, option: { ...option, floors: option.floors ?? housingSpec(option).floors }, label: housingSpec(option).label, geometry: selected.geometry, options: Object.values(options) }) : null
   const draftState = draftStatus({ evaluated, proposal: result?.proposal?.[option.typeId], weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors, hasPlacedBuildings: scenario.buildings.length > 0 })
   const paused = previewPaused(justAdded, scenario) && !placing
   const costsIncluded = housingCostConfirmed(scenario, option)
@@ -636,7 +639,7 @@ function Studio({ data }) {
     finally { if (revision === drawingRevision.current) drawingBusy.current = false }
   }
   function download() {
-    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, policyReform: options ? reformSummary(Object.values(options), reformPreset, props.zoning_code ?? null) : null, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
+    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, policyReform: options ? reformSummary(Object.values(options), reformPreset, props.zoning_code ?? null) : null, permitPathway: pathway, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
     const link = document.createElement('a'); link.href = url; link.download = `housing-scenario-${scenario.pin}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     setNotice('Scenario exported with model version, assumptions and comparison results.', 'transient')
@@ -739,6 +742,7 @@ function Studio({ data }) {
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
             </>}
             <RedevelopmentImpact impact={siteImpact(siteDemolished)}/>
+            <PermitPathway pathway={pathway}/>
             <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Advanced · income, costs & evidence →</button>
           </section>}
           {inspectorTab === 'edit' && tool === 'service' && <>
@@ -786,6 +790,7 @@ function Studio({ data }) {
             </details>
             {result?.scope === 'area' && <p className="compact-help">Area rankings include all placed buildings plus the next alternative. Factor scores are averages per proposed home, not neighborhood forecasts. Each building retains the rent, income and stop recorded at placement. Transit reserve is shared by all proposed homes using that stop.</p>}
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
+            <PermitPathway pathway={pathway}/>
             {!evaluation.pending && evaluated && <details className="planner-details"><summary>Factor calculations · current draft</summary><div className="factor-list">{PLANNER_FACTORS.map(factor => <Factor key={factor.id} factor={factor} option={evaluated} result={result} scenario={scenario} onPriorities={() => setInspectorTab('priorities')}/>)}</div></details>}
             {!evaluation.pending && result && <><details className="planner-details"><summary>Why this result? Full audit</summary><p>{result.explanation}</p><RecommendationAudit result={result} proposed={proposed} options={options}/></details><details className="planner-details"><summary>Comparison assumptions & exclusions</summary><p>Selected types share the current draft’s rent, utilities and target income. The current draft keeps your exact dimensions and position; other types use standard dimensions and automatic placement. Unit counts are fixed assumptions. Triplex and 12-home apartment share the source small-apartment demand/carbon proxy.</p>{result.comparison.factors.map(f => <p key={f.id}><strong>{f.short}:</strong> {f.included ? `${(100*f.effectiveWeight).toFixed(1)}% effective weight.` : f.exclusion} {f.source}.</p>)}<p>Every selected type uses the same evidence coverage and relative priorities. Adding a type with missing evidence can change that shared coverage.</p></details></>}
           </>}

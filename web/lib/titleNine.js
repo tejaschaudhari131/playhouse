@@ -88,6 +88,7 @@ export function evaluateTitleNine({ option, feature, zoning, massing, existingBu
     const known = nonnegative(actual) && number(limit)
     add(id, label, source, !known ? 'unknown' : (mode === 'max' ? actual <= limit + 1e-7 : actual + 1e-7 >= limit) ? 'pass' : 'conflict',
       `${known ? show(actual) : 'Unknown'}; ${mode === 'max' ? 'maximum' : 'minimum'} ${show(limit)}.`, section)
+    Object.assign(checks.at(-1), { actual: nonnegative(actual) ? actual : null, limit: number(limit) ? limit : null, mode })
   }
   add('use', `Proposed use: ${spec.label}`, 'use', permission.category === 'permitted' ? 'pass' : permission.category === 'not_permitted' ? 'conflict' : permission.category === 'special' ? 'conditional' : 'unknown', `${spec.useRow}: ${permission.label}. ${permission.detail || ''}`)
   const floors = option.floors ?? spec.floors

@@ -9,6 +9,7 @@ import { PROMPT_VERSION } from "../lib/explainPrompt.js"
 import { describeFilters } from "../lib/explainSites.js"
 import { FACTORS, round1, weightShares } from "../lib/factors.js"
 import { nextActions } from "../lib/nextActions.js"
+import { VARIANCE_CRITERIA, permitPathway } from "../lib/permitPathway.js"
 import { matchPreset } from "../lib/presets.js"
 import { describeRobustness } from "../lib/robustness.js"
 import { SITE_CAVEAT } from "../lib/sites.js"
@@ -43,6 +44,10 @@ export default function DecisionBrief({ compare, weights, featureA, featureB, zo
   const ai = explanation?.source === "ai" && !explanation.streaming
   const factorSources = [cited.assessment, cited.transit, cited.acs, cited.chas, cited.flood, cited.slope, cited.undermined, cited.tenure, cited.rent2019, cited.recs, cited.embodied, cited.cityOwned, cited.taxDelinquent]
   const generated = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+  const pathways = [
+    [result.a, featureA],
+    [result.b, featureB],
+  ].map(([side, feature]) => ({ side, pathway: permitPathway({ props: feature.properties, permission: side.permission, label: side.label }) }))
 
   return (
     <article className="print-brief">
@@ -97,6 +102,37 @@ export default function DecisionBrief({ compare, weights, featureA, featureB, zo
           </tbody>
         </table>
         <p>{describeComparison(result)}</p>
+      </section>
+
+      <section>
+        <h2>Permit & acquisition pathway</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Acquisition</th>
+              <th>Zoning route</th>
+              <th>Relief needed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pathways.map(({ side, pathway }) => (
+              <tr key={side.slot}>
+                <td>{side.slot}</td>
+                <td>
+                  {pathway.acquisition.label}. {pathway.acquisition.steps[0]}
+                </td>
+                <td>
+                  {pathway.zoning.label} (§{pathway.zoning.section}). {pathway.zoning.detail}
+                </td>
+                <td>{pathway.worksheet ? pathway.worksheet.failed.map((f) => `${f.relief} (§${f.section})`).join("; ") : "None screened"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="report-small">
+          Use only; dimensional standards are checked in Studio. A ZBA variance (§922.09.E) needs all five findings: {VARIANCE_CRITERIA.map((c) => c.label.toLowerCase()).join("; ")}. Studio pre-fills the worksheet. Private parcels show no owner name or tax-delinquency record.
+        </p>
       </section>
 
       <section>
