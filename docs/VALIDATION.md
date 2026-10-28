@@ -241,3 +241,13 @@ Removed the Explorer UI, its optional AI endpoint, obsolete UI/model helpers and
 - Full `npm run build` passes; a final Next build confirms the home page remains static. `/explore` is only a server redirect, not a second interface. `/api/explain` returns 404.
 - Local production browser: old parcel bookmarks and encoded `/?s=…` links redirect to Studio with the correct PIN; legacy weights/options are not applied. Studio shows a retirement notice. The Hazelwood map, housing scores, Add to plan, Undo and comparison cards work. The header contains no Explorer link. No browser warnings/errors were captured.
 - README, setup and model documentation now describe one live interface. No deployment or production smoke test was performed for this change.
+
+## Pro forma and placement QA — October 27, 2026
+
+All 63 web test files passed (58.2 seconds). Eight focused suites passed again after the final financial/import and brief corrections. Full `npm run build`, including city data preparation, passed. No source geometry or parcel scores were regenerated with changed formulas in this work; financial assumptions have their own `pro-forma-2.0` export version.
+
+Local production-browser checks on Hazelwood PIN `0056F00338000000` covered editable cap rate, rejection of a reversed construction range, explicit budget/NOI rows, and absence of automatic credit/abatement awards. Placement checks covered R/Shift+R, arrow-key movement, retaining placement mode while selecting Triplex, adding a building, editing its width from 10 m to 9 m, saving, undoing back to 10 m, and undoing the placement itself. Cancelling a shape edit preserves the original plan. The saved-plan banner is limited to a restored plan that already contains buildings or demolitions. No console warning/error logs were captured.
+
+The brief preview shows mapped ground-level walking-network context from the already loaded graph, plus updated NOI, costs and unassessed benefits. Diagram tests check edge coordinates/deduplication and exclude elevated links. The diagram does not establish street width, legal frontage or setbacks. The existing Letter print stylesheet remains in use; the updated screen preview was inspected, but a new native PDF/page-count check was not performed. Browser headers/footers remain a user print setting, explained above the Print button.
+
+Program eligibility, actual restricted units/eligible basis, financing commitments, abatements and lender underwriting remain unassessed. Automatic legal-frontage/setback snapping is not implemented without suitable evidence. Scenario download code is only called by explicit export/recovery buttons; device autosave does not trigger downloads. These local changes have not been pushed or deployed.

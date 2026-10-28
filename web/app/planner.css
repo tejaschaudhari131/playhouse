@@ -1037,3 +1037,6 @@
 
 .restored-plan-note { display: flex; gap: 8px; align-items: start; padding: 10px 14px; font-size: 13px; line-height: 1.4; color: #334d3e; background: #edf3e9; border-bottom: 1px solid #d4dfd1; }
 .restored-plan-note button { flex: none; }
+
+.print-hint { display: block; font-size: 12px; color: #465b4b; margin-top: 3px; }
+@media print { .site-brief { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }

@@ -68,3 +68,13 @@ test('standards table shows numeric thresholds and which reform preset lifts eac
   assert.equal(table.shown.length + table.alsoPass.length + table.notAssessed.length, table.rows.length, 'every check is listed once')
   assert.ok(table.notAssessed.length > 0)
 })
+
+test('print diagram uses real ground-level network edges without duplicating directions', () => {
+  const origin = [-79.94,40.41]
+  const parcel = rectangleAt(origin,20,40)
+  const network = {nodes:[[-79.9401,40.4099],[-79.9401,40.4101],[-79.8,40.6]],ground:[1,1,0],edges:[[0,1,1],[1,0,1],[1,2,1]]}
+  const d = siteDiagram({parcel,network})
+  assert.equal(d.networkPaths.length,1)
+  assert.match(d.networkPaths[0],/^M[\d.-]+ [\d.-]+L/)
+  assert.equal(siteDiagram({parcel}).networkPaths.length,0)
+})
