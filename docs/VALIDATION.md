@@ -207,3 +207,7 @@ Rows show footprint area and a compact height label. Mapped, estimated, inferred
 Production-browser checks covered three same-use apartments at 554 Bigelow St (`0055G00282000000`), the crossing single-family outline at 5415 Glenwood Ave (`0057C00388000000`), and two unmatched outlines at 5037 Steele Ct (`0056L00279000000`). List and map selection agree; crossing-badge selection keeps the original site; demolition/Undo preserves numbers; Escape returns to the originating list button. Hiding existing buildings also hides their selection outline. At 390×844 the page width is 390 px and every building row's scroll width equals its client width (352 px). No browser warnings or errors were captured, and the production build passes.
 
 Native symbol collision handling gives the selected number priority and omits overlapping unselected badges until there is room; the complete numbered list remains available. This prevents an adjacent badge's invisible hitbox from selecting the wrong building. Roof markers use the existing display height, without turning illustrative heights into measured evidence. The address marker hides while building labels are displayed to avoid covering them.
+
+### Numeric input validation
+
+Number edits are applied on Enter or blur. Out-of-range dimensional and filter values show a correction message; fractional stories and invalid rent/income are rejected without changing the scenario. `node --test lib/numberInput.test.js` covers these cases. The income minimum is a simulator input guardrail, not a household eligibility rule.

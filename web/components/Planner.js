@@ -1,6 +1,7 @@
 "use client"
 
 import Select from './Select.js'
+import Numeric from './NumberInput.js'
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
@@ -122,20 +123,6 @@ function Icon({ name, size = 20 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] || paths.building}</svg>
 }
 
-function Numeric({ label, value, onChange, min = 0, max = 100000, step = 1, hint, nullable = false }) {
-  const [draft, setDraft] = useState(value ?? '')
-  const dirty = useRef(false)
-  useEffect(() => { setDraft(value ?? ''); dirty.current = false }, [value])
-  function commit() {
-    if (!dirty.current) return
-    dirty.current = false
-    if (draft === '' && nullable) { onChange(null); return }
-    const n = Number(draft)
-    if (draft !== '' && Number.isFinite(n)) { const next = Math.min(max, Math.max(min, n)); setDraft(next); onChange(next) }
-    else setDraft(value ?? '')
-  }
-  return <label className="planner-field"><span>{label}</span><input type="number" min={min} max={max} step={step} value={draft} onChange={e => { dirty.current = true; setDraft(e.target.value) }} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }} placeholder={nullable ? 'Unknown' : undefined} />{hint && <small>{hint}</small>}</label>
-}
 
 function useEvaluation(input, network) {
   const worker = useRef(null), latest = useRef(0), current = useRef(input)
@@ -806,7 +793,7 @@ function Studio({ data }) {
             <details className="planner-details advanced-options" open><summary>Building & household inputs</summary>
             <p className="compact-help">Editing the current draft. Enter exact values; changes recalculate on Enter or leaving the field.</p>
             <div className="field-grid three"><Numeric label="Width (m)" value={option.width} min={2} max={100} onChange={v => setOption('width', v)}/><Numeric label="Depth (m)" value={option.depth} min={2} max={100} onChange={v => setOption('depth', v)}/><Numeric label="Zoning height above grade (m)" value={option.height} min={3} max={100} onChange={v => setOption('height', v)}/></div>
-            <Numeric label="Stories" value={option.floors ?? housingSpec(option).floors} min={1} max={60} step={1} hint="Whole floors used for zoning and the gross floor-area estimate." onChange={v => setOption('floors', v)}/>
+            <Numeric label="Stories" integer value={option.floors ?? housingSpec(option).floors} min={1} max={60} step={1} hint="Whole floors used for zoning and the gross floor-area estimate." onChange={v => setOption('floors', v)}/>
             {option.typeId === 'townhouse_duplex' && <label className="planner-field"><span>Legal residential form</span><Select aria-label="Legal residential form" value={option.residentialForm || 'duplex'} onChange={e => setOption('residentialForm', e.target.value)}><option value="duplex">Duplex · two units on one lot</option><option value="attached">Attached house · one unit on its own lot</option></Select><small>Attached houses need a shared wall; this map does not establish that configuration.</small></label>}
             <ZoningInputs inputs={zoningInputs} project={scenario.projectInputs || {}} onChange={setZoningInput} onProjectChange={v => set('projectInputs', v)} numeric={Numeric} typeId={option.typeId} code={props.zoning_code}/>
             <details className="planner-details placement-controls">
@@ -819,8 +806,8 @@ function Studio({ data }) {
               </fieldset>
             </details>
             <div className="section-heading"><h3>Household costs</h3><span className="data-badge">Editable</span></div><p className="section-help">Starting income and gross rent describe the existing Census geography (observed). They are not new-construction rents. With Housing costs in score on, whatever you enter here counts as a scenario assumption; each compared type shares these costs.</p>
-            <Numeric label="Target household income / year ($)" value={scenario.targetIncome} min={1000} max={500000} step={1000} onChange={v => set('targetIncome', v)}/>
-            <div className="field-grid"><Numeric label="Rent / month ($)" value={option.rent} max={10000} step={50} onChange={v => setOption('rent', v)}/><Numeric label="Utilities / month ($)" value={option.utilities} max={2000} step={25} onChange={v => setOption('utilities', v)}/></div>
+            <Numeric label="Target household income / year ($)" value={scenario.targetIncome} rejectRange min={5000} max={500000} step={1000} onChange={v => set('targetIncome', v)}/>
+            <div className="field-grid"><Numeric label="Rent / month ($)" value={option.rent} min={1} rejectRange max={10000} step={50} onChange={v => setOption('rent', v)}/><Numeric label="Utilities / month ($)" value={option.utilities} max={2000} step={25} onChange={v => setOption('utilities', v)}/></div>
             {costSwitch(false)}
             {placedCostsExcluded > 0 && <p className="compact-help">{placedCostsExcluded} placed building(s) have housing costs excluded. Turning the switch on includes each one with the rent, utilities and income recorded when it was placed.</p>}
             <HudIncomeReference householdSize={scenario.householdSize} targetIncome={scenario.targetIncome} monthly={option.rent + option.utilities} onSize={value => set('householdSize', value)} onIncome={value => set('targetIncome', value)}/>
