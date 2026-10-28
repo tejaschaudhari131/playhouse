@@ -8,6 +8,7 @@ import { colorBuildingUses } from '../lib/buildingUses.js'
 import { collection, neighborhoodId, neighborhoodAdjacency, spatialIndex } from '../lib/studioData.js'
 import { prepareEmptySites } from '../lib/emptySites.js'
 import { partitionAddressRows } from '../lib/addressSearch.js'
+import { encodeFeatureTransport } from '../lib/featureTransport.js'
 
 // Legacy study partitioner retained for transport-parity regression tests.
 export function partitionStudioData(parcels, buildings, neighborhoods) {
@@ -33,7 +34,9 @@ export function partitionStudioData(parcels, buildings, neighborhoods) {
   return { manifest: { version: 1, neighborhoods: descriptors, catalogue }, chunks }
 }
 
-const CHUNK_BYTES = 12 * 1024 * 1024
+// Budget before dictionary encoding; published parts are normally below 1 MB.
+// A 1.5 MiB source cap also keeps the city manifest below 150 KB.
+export const CHUNK_BYTES = 1.5 * 1024 * 1024
 const fc = collection
 const json = async url => JSON.parse(await readFile(url, 'utf8'))
 const gz = async url => JSON.parse(gunzipSync(await readFile(url)))
@@ -68,7 +71,7 @@ export async function prepareStudioData() {
   const writeParts = async (prefix, features) => {
     const files = [], sizes = []; let batch = [], bytes = 50
     async function flush() {
-      const part = await write(prefix,fc(batch)); files.push(part.file); sizes.push(part.bytes); batch=[]; bytes=50
+      const part = await write(prefix,encodeFeatureTransport(fc(batch))); files.push(part.file); sizes.push(part.bytes); batch=[]; bytes=50
     }
     for (const feature of features) {
       const size=Buffer.byteLength(JSON.stringify(feature))+1
@@ -108,7 +111,7 @@ export async function prepareStudioData() {
     if (!regions.has(region)) regions.set(region,[])
     regions.get(region).push(bounds)
   }
-  const manifest={version:2, neighborhoods:descriptors, pinLookup:{}, parcelCount:uses.size, buildingCount:buildings.features.length, maximumFileBytes:0, emptySiteCount:0, emptySiteBytes:0}
+  const manifest={version:3, featureTransport:'properties-dictionary-v1', neighborhoods:descriptors, pinLookup:{}, parcelCount:uses.size, buildingCount:buildings.features.length, maximumFileBytes:0, emptySiteCount:0, emptySiteBytes:0}
   for (const n of neighborhoods.features) {
     const name=n.properties.name, id=neighborhoodId(name), area=n.properties.group
     const parcels=await gz(new URL(`parcels/${id}.geojson.gz`,source))
@@ -125,16 +128,15 @@ export async function prepareStudioData() {
       const extent=[Math.min(...groupBounds.map(b=>b[0])),Math.min(...groupBounds.map(b=>b[1])),Math.max(...groupBounds.map(b=>b[2])),Math.max(...groupBounds.map(b=>b[3]))]
       const local=regionalNetwork(network,extent)
       const graph=await write(`${region}-network`,local)
-      const segments=new Map(local.edges.map(([a,b])=>[[Math.min(a,b),Math.max(a,b)].join(':'),[local.nodes[a],local.nodes[b]]]))
-      const display=fc([{type:'Feature',properties:{},geometry:{type:'MultiLineString',coordinates:[...segments.values()]}}])
-      const lines=await write(`${region}-roads`,display)
-      networkFiles.set(region,{networkFile:graph.file,roadsFile:lines.file,networkBytes:graph.bytes,roadsBytes:lines.bytes})
+      // The map derives these exact road lines from graph edges. Publishing a
+      // second multi-megabyte copy adds deploy weight without serving a reader.
+      networkFiles.set(region,{networkFile:graph.file,networkBytes:graph.bytes})
     }
     const favorite={'Hazelwood':'0056F00338000000','Lower Lawrenceville':'0049N00010000000'}[name]
     const example=parcels.features.find(f=>f.properties.pin===favorite) || parcels.features.find(f=>f.properties.vacant_lot && f.properties.lot_sqft>=3500 && f.properties.lot_sqft<30000 && f.properties.zoning_code) || parcels.features[0]
     const descriptor={id,name,area,neighbors:adjacency[id],bounds,viewBounds:geometryBounds(n.geometry),examplePin:example?.properties.pin || null,parcels:parcels.features.length,buildings:footprints.length,parcelFiles:p.files,buildingFiles:b.files,emptySitesFile:emptySites.file,emptySitesBytes:emptySites.bytes,emptySiteCount:candidates.matches.length,bytes:[...p.sizes,...b.sizes,emptySites.bytes].reduce((a,b)=>a+b,0),...networkFiles.get(region)}
     descriptors.push(descriptor)
-    manifest.maximumFileBytes=Math.max(manifest.maximumFileBytes,...p.sizes,...b.sizes,emptySites.bytes,descriptor.networkBytes,descriptor.roadsBytes)
+    manifest.maximumFileBytes=Math.max(manifest.maximumFileBytes,...p.sizes,...b.sizes,emptySites.bytes,descriptor.networkBytes)
     console.log(`${name}: ${descriptor.parcels} parcels; ${(descriptor.bytes/1e6).toFixed(2)} MB split transport`)
   }
   for (const [prefix,rows] of Object.entries(pinLookup)) {
