@@ -37,6 +37,6 @@ The comparison prints the blocker directly under **No score**. This applies to t
 - The plan is assumed to be one project for IZ. Related phases/conversions outside this plan must be considered separately. Entered household income is never treated as legal AMI.
 - Site inputs are scenario assumptions, retained by parcel ID. They do not certify approval. New roads, parks and transit service do not automatically change zoning, grant parking reductions or remove environmental requirements.
 - Every next-building alternative rechecks the entire placed plan. A conflict in any member withholds the combined housing score; the placed-plan score remains separate.
-- The original Explorer, source datasets, source scoring model and parcel download are unchanged.
+- Source datasets, the archived source scoring model and parcel download are preserved. The legacy Explorer interface has been retired.
 
 Implementation: `web/lib/titleNineRules.js`, `web/lib/titleNine.js`, and the Studio evaluator in `web/lib/plannerModel.js`. Tests cover evidence exclusion, thresholds, aggregation and independent legal/physical score gates.

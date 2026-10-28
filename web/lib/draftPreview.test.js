@@ -39,3 +39,20 @@ test('supported zoning conflicts turn a fitting draft red; excluded rules do not
   assert.match(partial.properties.status, /not assessed/)
   assert.equal(draftPreview(option, true).properties.status, 'Checking placement…')
 })
+
+test('hovered overlap and zoning replace the stale passing placement gate', async () => {
+  const { previewAtPlacement } = await import('./draftPreview.js')
+  const { draftStatus } = await import('./plannerStatus.js')
+  const base = { physicalEligible: true, eligible: true, total: 70 }
+  const zoning = { conflict: false, excluded: [], checks: [] }
+  for (const massing of [{ fits: false, collisions: 0 }, { fits: true, collisions: 1 }, { fits: true, collisions: null }]) {
+    const preview = previewAtPlacement(base, massing, zoning)
+    assert.equal(draftStatus({ evaluated: preview, proposal: preview, weights: {} }).canPlace, false)
+    assert.equal(preview.eligible, false)
+  }
+  const blocked = previewAtPlacement(base, { fits: true, collisions: 0 }, { ...zoning, conflict: true, checks: [{ status: 'conflict', label: 'Height' }] })
+  assert.equal(draftStatus({ evaluated: blocked, proposal: blocked, weights: {} }).canPlace, false)
+  assert.match(blocked.gate, /Height/)
+  const cleared = previewAtPlacement({ ...base, eligible: false }, { fits: true, collisions: 0 }, zoning)
+  assert.equal(draftStatus({ evaluated: cleared, proposal: cleared, weights: {} }).canPlace, true)
+})

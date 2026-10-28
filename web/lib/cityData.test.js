@@ -9,6 +9,7 @@ import { PITTSBURGH_NEIGHBORHOODS } from './pittsburgh.js'
 import { visibleNeighborhoods, spatialIndex } from './studioData.js'
 import { prepareEmptySites } from './emptySites.js'
 import { partitionAddressRows } from './addressSearch.js'
+import { decodeFeatureTransport } from './featureTransport.js'
 
 test('all city chunks preserve canonical parcel evidence and hashes, with bounded files and valid routing indices',async()=>{
  const {manifest}=await prepareStudioData(), pins=new Set(),files=new Set(), addressRows=[]
@@ -35,8 +36,9 @@ test('all city chunks preserve canonical parcel evidence and hashes, with bounde
    assert.ok(n.parcels>0,n.name)
    for(const f of actual.parcels.features){assert.equal(f.properties.neighborhood,n.name);assert.ok(!pins.has(f.properties.pin));pins.add(f.properties.pin);assert.ok(f.properties.scores && f.properties.factors);assert.ok('confidence' in f.properties);addressRows.push([f.properties.pin,f.properties.address||'',n.id])}
    assert.equal((await locateNeighborhood(manifest,n.examplePin,undefined,fetcher)).id,n.id)
-   for(const file of [...n.parcelFiles,...n.buildingFiles,n.networkFile,n.roadsFile,n.emptySitesFile])files.add(file)
-   for(const file of n.buildingFiles)for(const f of JSON.parse(await readFile(new URL(`../public/data/studio/${file}`,import.meta.url))).features){
+   for(const file of [...n.parcelFiles,...n.buildingFiles,n.networkFile,n.emptySitesFile])files.add(file)
+   assert.equal(n.roadsFile, undefined, 'road display is derived from the graph without a duplicate payload')
+   for(const file of n.buildingFiles)for(const f of decodeFeatureTransport(JSON.parse(await readFile(new URL(`../public/data/studio/${file}`,import.meta.url)))).features){
      if(checkedBuildings.has(f.properties.id))continue
      checkedBuildings.add(f.properties.id)
      const original=originalBuildings.get(f.properties.id)

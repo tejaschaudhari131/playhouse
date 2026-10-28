@@ -1,12 +1,13 @@
 import { PLANNER_FACTORS } from './plannerState.js'
+import { preferenceFactor } from './scoringPolicy.js'
 const ids = PLANNER_FACTORS.map(f => f.id)
 const weight = value => Number.isFinite(value) && value > 0 ? value : 0
 
 /** Fractions of the weighted score, over shared evidence only. Raw weights are relative. */
 export function priorityShares(weights, included = ids) {
   const eligible = new Set(included)
-  const sum = ids.reduce((n, id) => n + (eligible.has(id) ? weight(weights[id]) : 0), 0)
-  return Object.fromEntries(ids.map(id => [id, sum && eligible.has(id) ? weight(weights[id]) / sum : 0]))
+  const sum = ids.reduce((n, id) => n + (eligible.has(id) && preferenceFactor(id) ? weight(weights[id]) : 0), 0)
+  return Object.fromEntries(ids.map(id => [id, sum && eligible.has(id) && preferenceFactor(id) ? weight(weights[id]) / sum : 0]))
 }
 
 /** Multiplying every priority by the same positive number preserves the preset. */

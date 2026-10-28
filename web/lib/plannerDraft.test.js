@@ -49,6 +49,7 @@ test('Studio stores and exports one draft; comparison types are unique and optio
 test('selected comparison uses the exact custom draft and shared costs, with no hidden alternative', () => {
   const input = fixture()
   Object.assign(input.scenario.draft, { width: 8.25, depth: 12.75, rent: 1423.5, utilities: 137.25, placement: { east: 10, north: 0, bearing: 0 } })
+  input.scenario.rentMode = 'custom'
   input.scenario.comparisonTypes = ['triplex']
   const r = evaluatePlanner(input)
   assert.deepEqual(Object.keys(r.proposal), ['townhouse_duplex', 'triplex'])

@@ -1,4 +1,6 @@
 import { EXAMPLES, initialStudioScenario, optionFor } from './plannerState.js'
+import { prototypeRentOption } from './rentAssumptions.js'
+import { housingCostInputs } from './housingCosts.js'
 import { PRIORITY_STANCES } from './priorityStances.js'
 
 export const TOUR_PIN = EXAMPLES[0].pin
@@ -10,11 +12,11 @@ export const TOUR_STEPS = [
   { id: 'compare', title: 'Compare three housing choices', target: 'comparison', tool: 'compare', tab: 'rankings',
     text: 'Now compare that house with a duplex and triplex on the same parcel. Read the factor differences. A “No score” result applies to the tested proposal; its blocker explains what needs to change.' },
   { id: 'priorities', title: 'Choose what matters to you', target: 'inspector', tool: 'housing', tab: 'priorities',
-    text: 'We switch to Anti-Displacement & Affordability, a team-authored stance that favors lower housing costs and lower neighborhood vulnerability. Unconfirmed costs stay excluded until reviewed in Advanced. The sliders express priorities; they do not change the evidence.' },
+    text: 'We switch to Anti-Displacement & Affordability, a team-authored stance that favors lower housing costs and lower neighborhood vulnerability. Housing costs count using labeled prototype rents and the selected HUD income band; edit or exclude them in Advanced. The sliders express priorities; they do not change the evidence.' },
   { id: 'transit', title: 'Test more bus service', target: 'inspector', tool: 'service', tab: 'edit',
     text: 'We add 60 hypothetical weekday departures at an existing nearby stop. Compare walking plus waiting before and after. Scheduled service is evidence; the additional departures and even spacing are assumptions.' },
   { id: 'finish', title: 'Take this workflow to your own parcel', target: 'comparison', tool: 'housing', tab: 'rankings',
-    text: 'Pick your parcel, compare housing, adjust dimensions and priorities, then test infrastructure. Edits save on this device; export a copy to share or keep elsewhere. Finish or skip to restore the plan you had before this example.' },
+    text: 'Pick your parcel, compare housing, adjust dimensions and priorities, then test infrastructure. These results use the Anti-Displacement preset plus 60 hypothetical departures. Edits save on this device; export and import a scenario to share it. Finish or skip to restore the plan you had before this example.' },
 ]
 
 /** Rebuild each step deterministically so Back never accumulates demo edits. */
@@ -24,7 +26,8 @@ export function tourScenario(stepId, feature, stop) {
   if (index < 0) throw new Error('Unknown tour step')
   const scenario = initialStudioScenario(TOUR_PIN, feature.properties, String(stop?.stop_id || ''))
   scenario.accessMode = 'network'
-  scenario.draft = optionFor('single_family', scenario.draft.rent)
+  scenario.draft = { ...optionFor('single_family', scenario.draft.rent), ...prototypeRentOption('single_family') }
+  scenario.affordabilityConfirmation = housingCostInputs(scenario, scenario.draft)
   if (index >= 2) scenario.comparisonTypes = ['townhouse_duplex', 'triplex']
   if (index >= 3) scenario.weights = { ...PRIORITY_STANCES.find(p => p.id === 'anti-displacement').weights }
   if (index >= 4 && stop) { scenario.additionalDepartures = 60; scenario.serviceStopId = String(stop.stop_id) }

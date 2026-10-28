@@ -5,14 +5,11 @@ const SQFT = 10.7639
 
 /** Screening constants. Program terms change yearly; every figure is shown beside its result. */
 export const PRO_FORMA_ASSUMPTIONS = {
-  softShare: 0.2,
   publicNominal: [1000, 5000],
   recentSaleYears: 10,
   minSalePrice: 10000,
   benchmarkMinSales: 5,
-  lihtc: { nine: 0.09, four: 0.04, years: 10, price: 0.85, basisBoost: 1.3, smallProjectUnits: 20 },
-  /** City of Pittsburgh Chapter 267 (rental) real estate tax credit, 2026 limits. Enhanced needs ≥10% of homes at 50% AMI or ≥60% at 80% AMI. */
-  abatement: { standard: { years: 3, cap: 125000 }, enhanced: { years: 10, cap: 250000 } },
+  lihtc: { smallProjectUnits: 20 },
 }
 
 /** Pittsburgh real-estate millage, 2026. One mill is $1 per $1,000 of assessed value. */
@@ -152,35 +149,23 @@ export function planAmiBand(buildings = [], limits) {
 }
 
 /** Monthly rent per home at which capitalized net rent equals the cost. */
-export const breakEvenRent = (cost, units, { operatingShare, capRate }) => scale(cost, capRate / (units * 12 * (1 - operatingShare)))
+export const breakEvenRent = (cost, units, { operatingShare, capRate, vacancyShare = 0 }) => scale(cost, capRate / (units * 12 * (1 - vacancyShare) * (1 - operatingShare)))
 
 /**
- * Pittsburgh gap-financing programs to check for a shortfall. Eligibility here is a band screen only;
- * awards are competitive and terms change, so every program links to its administrator.
+ * Pittsburgh gap-financing programs to check for a shortfall. No eligibility or award is inferred from a household income setting;
+ * every program links to its administrator for project-specific review.
  */
 export function capitalStack({ gapPerUnit, units, band, basis, qct = false, typeId, assumptions = PRO_FORMA_ASSUMPTIONS }) {
-  const t = assumptions.lihtc, boost = qct ? t.basisBoost : 1
-  const lihtcStatus = band === null || band === undefined ? 'not_eligible' : band <= 60 ? 'eligible' : band === 80 ? 'conditional' : 'not_eligible'
   const forSale = typeId === 'single_family' || typeId === 'townhouse_duplex'
-  const upTo80 = band !== null && band !== undefined && band <= 80
   return {
     gapPerUnit, units, gap: scale(gapPerUnit, units), band, qct,
     programs: [
-      { id: 'lihtc', name: 'Low-Income Housing Tax Credit (9% / 4%)', sponsor: 'PHFA Qualified Allocation Plan', status: lihtcStatus, url: PROGRAM_LINKS.lihtc,
-        estimate: { nine: scale(basis, t.nine * t.years * t.price * boost), four: scale(basis, t.four * t.years * t.price * boost) },
-        note: [
-          lihtcStatus === 'eligible' ? 'Rents set for households at or below 60% AMI.' : lihtcStatus === 'conditional' ? '80% AMI units qualify only under income averaging (building average at or below 60% AMI).' : 'Needs units at or below 60% AMI.',
-          '9% credits are competitive; 4% credits pair with tax-exempt bonds.',
-          qct ? 'This parcel is in a 2026 HUD Qualified Census Tract (QCT): eligible basis may be boosted to 130%.' : 'Not in a 2026 HUD QCT; Difficult Development Area status is not checked here, so no 130% basis boost is assumed.',
-          units < t.smallProjectUnits && `${units} ${units === 1 ? 'home is' : 'homes are'} small for a tax-credit deal; small buildings usually join a scattered-site portfolio.`,
-        ].filter(Boolean).join(' '),
-        assumption: `Equity ≈ eligible basis (hard + soft, no land) × ${t.nine * 100}% or ${t.four * 100}% × ${t.years} years × $${t.price.toFixed(2)} per credit${qct ? ' × 130%' : ''}; 100% of homes income-restricted.` },
-      { id: 'hof', name: forSale ? 'URA Housing Opportunity Fund: For-Sale Development Program / Rental Gap Program' : 'URA Housing Opportunity Fund: Rental Gap Program', sponsor: 'Urban Redevelopment Authority of Pittsburgh',
-        status: upTo80 ? 'eligible' : 'not_eligible', url: PROGRAM_LINKS.rentalGap, links: forSale ? [PROGRAM_LINKS.forSale, PROGRAM_LINKS.hof] : [PROGRAM_LINKS.hof], estimate: null,
-        note: upTo80 ? `Gap financing for homes serving households at 30–80% AMI${forSale ? '; the For-Sale Development Program applies if these homes are sold' : ''}. Per-home limits are set in current HOF guidelines.` : 'Serves households at or below 80% AMI.' },
-      { id: 'home', name: 'HOME Investment Partnerships / PHFA PHARE', sponsor: 'HUD via City of Pittsburgh & URA; PHFA (PHARE)',
-        status: upTo80 ? 'eligible' : 'not_eligible', url: PROGRAM_LINKS.home, links: [PROGRAM_LINKS.phare], estimate: null,
-        note: upTo80 ? 'Soft loans or grants for homes at or below 80% AMI, with rent limits and an affordability period.' : 'Serves households at or below 80% AMI.' },
+      { id: 'lihtc', name: 'Low-Income Housing Tax Credit (9% / 4%)', sponsor: 'PHFA', status: 'not_assessed', url: PROGRAM_LINKS.lihtc, estimate: null,
+        note: `Credit equity is not counted. Needs a rental project, verified eligible basis, restricted-unit and floor-area fractions, rent compliance, and an allocation or bond qualification. The target household income is not a restriction commitment.${qct ? ' Mapped QCT status alone does not establish a basis boost.' : ''}${units < assumptions.lihtc.smallProjectUnits ? ' Small buildings may need a scattered-site portfolio; this is not a stand-alone award assumption.' : ''}` },
+      { id: 'hof', name: forSale ? 'URA Housing Opportunity Fund: For-Sale / Rental Gap' : 'URA Housing Opportunity Fund: Rental Gap', sponsor: 'URA', status: 'not_assessed', url: PROGRAM_LINKS.rentalGap, links: forSale ? [PROGRAM_LINKS.forSale, PROGRAM_LINKS.hof] : [PROGRAM_LINKS.hof], estimate: null,
+        note: 'Program lead only. Income restrictions, project tenure, funding availability and agency approval are not established by this model.' },
+      { id: 'home', name: 'HOME / PHFA PHARE', sponsor: 'HUD / City / URA / PHFA', status: 'not_assessed', url: PROGRAM_LINKS.home, links: [PROGRAM_LINKS.phare], estimate: null,
+        note: 'No award is counted. Program-specific rents, unit mix, affordability periods, costs and agency review are required.' },
     ],
   }
 }
@@ -191,9 +176,9 @@ export const annualTax = (value, mills = TOTAL_MILLS) => scale(value, mills / 10
 const netOf = (newTax, replacedTax) => [newTax[0] - replacedTax[1], newTax[1] - replacedTax[0]]
 
 /**
- * New-building tax minus the tax of buildings it replaces. New assessed value uses construction cost as a proxy;
+ * Illustrative tax on caller-supplied project-value ranges, minus the existing-value proxy;
  * replaced value uses each parcel's acquisition value (sale or estimate), and public parcels are exempt.
- * The abatement screen applies the City's Chapter 267 rental credit to the City share only; Enhanced needs the target band at or below 80% AMI.
+ * Income settings never establish an abatement; no credit is counted without project evidence.
  */
 export function taxLedger({ newValues = [], replaced = [], band = null, assumptions = PRO_FORMA_ASSUMPTIONS }) {
   const newValue = newValues.reduce(add, [0, 0])
@@ -204,14 +189,11 @@ export function taxLedger({ newValues = [], replaced = [], band = null, assumpti
     const bodyNew = annualTax(newValue, m.mills), bodyReplaced = annualTax(replacedValue, m.mills)
     return { ...m, newTax: bodyNew, replacedTax: bodyReplaced, net: netOf(bodyNew, bodyReplaced) }
   })
-  const enhanced = band !== null && band !== undefined && band <= 80
-  const tier = enhanced ? assumptions.abatement.enhanced : assumptions.abatement.standard
-  const cityNet = bodies[0].net, abated = cityNet.map(v => Math.min(tier.cap, Math.max(0, v)))
+
   return {
     mills: TOTAL_MILLS, newValue, replacedValue, bodies, newTax, replacedTax, net,
     exempt: replaced.filter(p => p.taxable === false).length,
     unknown: replaced.length - known.length,
-    abatement: { applies: cityNet[1] > 0, program: 'City Chapter 267', enhanced, years: tier.years, cap: tier.cap, cityAbated: abated,
-      netDuring: [net[0] - abated[0], net[1] - abated[1]], url: PROGRAM_LINKS.abatement },
+    abatement: { applies: false, status: 'not_assessed', program: 'City Chapters 265 / 267', cityAbated: [0, 0], netDuring: net, url: PROGRAM_LINKS.abatement },
   }
 }

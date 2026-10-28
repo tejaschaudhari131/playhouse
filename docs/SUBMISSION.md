@@ -1,3 +1,5 @@
+> Historical hackathon submission. The legacy Explorer, A/B workflow and AI endpoint described below were retired on October 27, 2026. The current Studio and model are documented in [README](../README.md) and [the model card](MODEL_CARD.md).
+
 # Playhouse
 
 Pittsburgh Planning Studio

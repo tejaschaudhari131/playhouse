@@ -11,6 +11,7 @@ function fixture() {
  const stop={stop_id:'bus',coordinates:[-79.94,40.41],distance:0,weekday_trips:80}
  const scenario=initialScenario('one',feature.properties,'bus')
  scenario.options={A:optionFor('single_family',1000),B:optionFor('small_apartment',1000)}
+ scenario.boardingsPerHome=2; scenario.availablePlacesPerDeparture=20
  scenario.spareBoardings=8; scenario.weights={capacity:100}; scenario.capacityStopId='bus'
  const site={id:'placed',feature,stop,existingBuildings:[],targetIncome:40000,option:{...optionFor('triplex',1000),placement:{east:-40,north:0,bearing:0}}}
  return {feature,zoning,scenario,stop,existingBuildings:[],areaSites:[site]}
@@ -70,7 +71,8 @@ test('placed-plan totals exclude the draft and use the shared pool only once',()
  const input=fixture(), r=evaluatePlanner(input)
  assert.equal(r.placedPlan.proposal.units,3)
  assert.equal(r.placedPlan.proposal.buildings,1)
- assert.equal(r.placedPlan.proposal.total,100)
+ assert.equal(r.placedPlan.proposal.total,null)
+ assert.deepEqual(r.placedPlan.included,[],'capacity is a check, not a weighted preference')
  input.scenario.options.A=optionFor('large_apartment',9000)
  const changed=evaluatePlanner(input)
  assert.deepEqual(changed.placedPlan,r.placedPlan)

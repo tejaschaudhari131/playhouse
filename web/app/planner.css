@@ -533,18 +533,26 @@
 .typology-cards { margin: 12px 0; }
 .typology-heading { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 12px; color: #5b6e5e; }
 .studio .typology-heading .assumptions-link { width: auto; margin: 0; padding: 0; border: 0; font-size: 12px; text-decoration: underline; }
-.typology-cards [role=radiogroup] { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; }
-.typology-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: 84px; padding: 9px 10px 9px 13px; text-align: left; border: 1px solid #d4dfd2; border-left: 4px solid var(--type-color, #cbd5e1); border-radius: 8px; background: #fff; font-size: 12px; line-height: 1.35; cursor: pointer; }
+.typology-cards [role=radiogroup] { display: grid; grid-auto-rows: 1fr; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; }
+.typology-card { display: flex; flex-direction: column; align-items: stretch; gap: 5px; min-width: 0; padding: 10px; text-align: left; border: 1px solid #d4dfd2; border-left: 4px solid var(--type-color, #cbd5e1); border-radius: 8px; background: #fff; font-size: 12px; line-height: 1.35; cursor: pointer; }
 .typology-card:hover { border-color: #9fbea9; border-left-color: var(--type-color, #cbd5e1); }
 .typology-card.active { border-color: #315b46; border-left-color: var(--type-color, #cbd5e1); background: #eef5ee; box-shadow: 0 0 0 1px #315b46 inset; }
 .typology-card:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
-.typology-card strong { font-size: 13px; font-weight: 650; }
+.typology-card strong { display: block; font-size: 13px; font-weight: 650; }
 .typology-meta { color: #5f7465; font-size: 11px; }
-.typology-status { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: auto; flex-wrap: wrap; }
+.typology-card .typology-score { display: block; margin-top: 3px; }
 .typology-score { font-variant-numeric: tabular-nums; font-weight: 650; color: #2e4d3c; }
 .typology-score.unscored, .typology-score.noscore { font-weight: 500; color: #7a877c; }
 .typology-score.review { color: #9a4b2f; }
-.typology-cards > small { display: block; margin-top: 6px; color: #64745f; font-size: 11px; line-height: 1.45; }
+.typology-heading-actions { display: inline-flex; align-items: center; gap: 10px; }
+.studio .typology-info-toggle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 14px; font-weight: 650; }
+.typology-info, .typology-details { font-size: 12px; line-height: 1.5; color: #465b4b; }
+.typology-info { margin: 0 0 8px; }
+.typology-details { margin-top: 8px; }
+.typology-details summary { cursor: pointer; color: #315b46; }
+.typology-details p { margin: 6px 0; }
+.typology-details ul { margin: 8px 0; padding-left: 18px; }
+.typology-details li + li { margin-top: 6px; }
 .permission-chip { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; background: #eef0ea; color: #56614f; }
 .permission-chip.permitted { background: #dff0e3; color: #22603a; }
 .permission-chip.partial, .permission-chip.special { background: #fbf0d9; color: #7d5715; }
@@ -646,7 +654,7 @@
   .studio .neighborhood-picker > span { display: none; }
   .studio .neighborhood-picker .select-control { padding: 7px; font-size: 13px; }
   .planner-brandmark { width: 30px; height: 30px; }
-  .studio-header-actions { flex: 1 0 100%; justify-content: space-between; flex-wrap: nowrap; gap: 5px; }
+  .studio-header-actions { flex: 1 1 100%; min-width: 0; max-width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 5px; }
   .studio-header-actions button { min-height: 36px; }
   .studio .sidebar-toggle, .studio .studio-tour-trigger, .studio .find-sites-button, .studio-header-actions .studio-export { padding: 8px; font-size: 12px; }
   .studio-workspace, .studio-workspace.is-comparing { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(200px, 1fr) minmax(0, 48%); overflow: hidden; }
@@ -695,7 +703,6 @@
 @media (max-width: 760px) and (max-height: 600px) {
   .studio-workspace, .studio-workspace.is-comparing { grid-template-rows: minmax(145px, 1fr) minmax(0, 50%); }
   .studio-workspace.sidebar-collapsed { grid-template-rows: minmax(0, 1fr); }
-  .studio-header-actions { flex-basis: auto; }
   .map-overlays { bottom: 27px; max-height: 75px; }
   .studio-tools { flex-direction: row; }
   .studio-tools button { width: 44px; height: 40px; }
@@ -946,3 +953,99 @@
 .flood-evidence { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 .flood-evidence .section-heading { flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .flood-evidence .section-heading > strong { font-size: 12px; }
+
+/* Complete comparisons reflow by available inspector width, never by a fixed table width. */
+.housing-comparison-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr)); gap: 14px; align-items: start; }
+.housing-score-card { min-width: 0; overflow-wrap: anywhere; border: 1px solid var(--line); border-top: 4px solid var(--type-color); border-radius: 9px; padding: 12px; background: #fffefa; }
+.housing-score-card h4 { margin: 0 0 4px; font-size: 16px; }
+.housing-score-card header small, .housing-card-dimensions { font-size: 12px; color: #475c4d; line-height: 1.5; }
+.housing-score-head { display: grid; gap: 5px; margin: 12px 0; }
+.housing-score-head > strong { font-size: 25px; line-height: 1.2; }
+.housing-score-head > span, .housing-score-head > small { font-size: 12px; line-height: 1.45; }
+.housing-score-head .zoning-badge { justify-self: start; }
+.zoning-review-status { color: #695117; font-weight: 600; }
+.housing-card-factors { margin: 12px 0; }
+.housing-card-factors > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); }
+.housing-card-factors dt { font-size: 13px; }
+.housing-card-factors dt small { display: block; margin-top: 3px; font-size: 12px; color: #475c4d; }
+.housing-card-factors dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.housing-card-factors .excluded { color: #59615b; }
+.proposal-checks { list-style: none; margin: 10px 0; padding: 0; }
+.proposal-checks li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.proposal-checks small { grid-column: 1/-1; line-height: 1.45; color: #475c4d; }
+.proposal-checks li.fail > span { color: #963c25; }
+.proposal-checks li.unknown > span { color: #695117; }
+.housing-card-evidence { margin: 12px 0; font-size: 13px; }
+.housing-card-evidence summary, .planner-glossary summary { cursor: pointer; }
+.housing-card-evidence > div { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.housing-card-use { width: 100%; }
+.planner-glossary { margin: 12px 0; font-size: 13px; line-height: 1.5; }
+.planner-glossary dt { font-weight: 650; margin-top: 8px; }
+.planner-glossary dd { margin: 2px 0 0; color: #475c4d; }
+.typology-review { display: block; margin-top: auto; font-size: 12px; font-weight: 500; color: #695117; }
+.typology-review.assessed { color: #465b4b; }
+/* Readable caveats are part of the decision, not decorative fine print. */
+.studio .compact-help, .studio .section-help, .studio .planner-field, .studio .planner-field small,
+.studio .planner-details, .studio .planner-details p, .studio .planner-warning, .studio .coverage-note,
+.studio .factor-receipt, .studio .factor-values, .studio .evidence-badge, .studio .priority-raw,
+.studio .typology-meta, .studio .typology-cards > small, .studio .quick-controls > small,
+.studio .cost-switch small, .studio .close-call > small, .studio .stance-winners,
+.studio .site-records small, .studio .card-tradeoffs p, .studio .card-tradeoffs small,
+.studio .draft-preview-status small, .studio .service-baseline small, .studio .site-buildings small,
+.studio .plan-impact-note, .studio .impact-panel > small, .studio .impact-panel dd small,
+.studio .tax-ledger > small, .studio .capital-stack > small { font-size: 12px; line-height: 1.5; color: #465b4b; }
+.studio .site-search input, .studio .search-results button { font-size: 13px; }
+.studio .permission-chip, .studio .zoning-badge { font-size: 12px; }
+@media screen { .site-brief .brief-small, .site-brief .brief-meta, .site-brief .brief-diagram figcaption { font-size: 12px; line-height: 1.45; color: #37463c; } }
+.studio .input-feedback { display: block; font-size: 12px; line-height: 1.45; color: #724218; font-weight: 550; }
+.evidence-badge.mixed { background: #f3ead7; color: #654f21; }
+.evidence-badge.fallback { background: #fff1dc; color: #6e4419; }
+.studio .planner-field input[aria-invalid=true] { border-color: #9d3b27; outline-color: #9d3b27; }
+.comparison-picker, .housing-card-evidence .factor-receipt dl { min-width: 0; }
+.housing-score-card .evidence-badge { white-space: normal; }
+.studio .priority-slider > span { flex-wrap: wrap; }
+
+/* Sidebar comes first for keyboard navigation; explicit cells keep the map first visually. */
+.studio-canvas { grid-column: 1; grid-row: 1; }
+.sidebar-divider { grid-column: 2; grid-row: 1; }
+.studio-inspector { grid-column: 3; grid-row: 1; }
+@media (max-width: 760px) {
+  .studio-canvas { grid-column: 1; grid-row: 1; }
+  .studio-inspector { grid-column: 1; grid-row: 2; }
+}
+/* Browser zoom reduces CSS viewport height. Never collapse the map into a hidden grid track. */
+@media (max-width: 760px) and (max-height: 600px) {
+  .studio { height: auto; min-height: 100dvh; overflow: visible; }
+  .studio-workspace, .studio-workspace.is-comparing { flex: none; grid-template-rows: 320px 520px; overflow: visible; }
+  .studio-workspace.sidebar-collapsed { grid-template-rows: 320px; }
+  .studio-canvas { height: 320px; min-height: 320px; }
+  .studio-inspector { height: 520px; min-height: 0; }
+  .studio-header-actions { flex-wrap: wrap; }
+  .canvas-mode { top: 58px; right: 10px; max-width: calc(100% - 68px); }
+  .studio-canvas .maplibregl-ctrl-top-right { top: 58px; right: auto; left: 10px; }
+  .studio-canvas .maplibregl-ctrl-top-right .maplibregl-ctrl { float: none; margin: 0; }
+  .map-detail-status { top: 10px; left: auto; right: 10px; max-width: calc(100% - 170px); }
+  .canvas-legend, .map-view-toggle, .map-overlays { bottom: 64px; }
+}
+.plan-confirm { width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 24px; border: 1px solid #9db6a4; border-radius: 12px; color: #263e30; background: #fffefa; box-shadow: 0 12px 48px #172d2a55; font-size: 15px; line-height: 1.5; }
+.plan-confirm::backdrop { background: #10261ccc; }
+.plan-confirm h2 { margin: 0 0 12px; font-size: 22px; line-height: 1.25; }
+.plan-confirm button { min-height: 42px; padding: 9px 14px; margin: 6px 6px 0 0; }
+
+.map-detail-status:empty { display: none; }
+@media (max-width: 760px) {
+  .studio-brand small { display: block; max-width: 200px; font-size: 12px; line-height: 1.35; color: #465b4b; }
+}
+
+/* Keep controls above a one-line attribution, or its wrapped narrow-map form. */
+.canvas-legend, .map-view-toggle { bottom: 40px; }
+@container (max-width: 640px) {
+  .canvas-legend, .map-view-toggle { bottom: 64px; }
+  .map-overlays { bottom: 116px; }
+}
+
+.restored-plan-note { display: flex; gap: 8px; align-items: start; padding: 10px 14px; font-size: 13px; line-height: 1.4; color: #334d3e; background: #edf3e9; border-bottom: 1px solid #d4dfd1; }
+.restored-plan-note button { flex: none; }
+
+.print-hint { display: block; font-size: 12px; color: #465b4b; margin-top: 3px; }
+@media print { .site-brief { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }

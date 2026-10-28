@@ -6,7 +6,7 @@ by Hack the House
 
 # Public data sources
 
-This catalog describes the original parcel/Explorer dataset. Studio also uses county building outlines, assessment stories, OSM building tags, and an OSM walking graph and parks. See [the Studio guide](PLANNER.md) and the manifests in [web/public/data](../web/public/data) for those additions and their limitations.
+This catalog describes the original parcel dataset; the Explorer interface has since been removed. Studio also uses county building outlines, assessment stories, OSM building tags, and an OSM walking graph and parks. See [the Studio guide](PLANNER.md) and the manifests in [web/public/data](../web/public/data) for those additions and their limitations.
 
 Most layers were pulled 2026-09-26. The CHAS tract file, the site-inventory layers, LIHTC, QCTs, B25003, and the 2015–2019 rent file were pulled 2026-09-27. The separate HUD FY2026 HOME income reference was verified 2026-10-26; its effective date is 2026-06-01. Names, URLs, and caveats follow the organizers' data resource list. Machine-readable copies, including the caveats: `pipeline/data/processed/sources.json` and `web/public/data/sources.json`.
 
@@ -34,7 +34,8 @@ Most layers were pulled 2026-09-26. The CHAS tract file, the site-inventory laye
 | FEMA National Flood Hazard Layer | [NFHL](https://www.fema.gov/flood-maps/national-flood-hazard-layer) | Not a substitute for a survey or a flood determination | MapServer layer 28: Special Flood Hazard Area and 0.2% annual-chance zones. |
 | Pittsburgh Steep Slopes (25% or greater) | [25-or-greater-slope](https://data.wprdc.org/dataset/25-or-greater-slope) | Derived threshold; site work needs a survey | Parcel overlap. Labeled as a landslide-risk proxy, not a landslide inventory. The list has no landslide-prone layer. |
 | Pittsburgh Undermined Areas | [undermined-areas](https://data.wprdc.org/dataset/undermined-areas) | Historic mine maps can be incomplete; never use alone for a safety decision | Parcel overlap, as a preliminary screen only. |
-| OpenStreetMap | [openstreetmap.org](https://www.openstreetmap.org/) | Completeness varies; ODbL attribution | Explorer: basemap tiles. Studio also uses OSM walking routes, parks and building tags; see the Studio source manifests. |
+| OpenStreetMap | [openstreetmap.org](https://www.openstreetmap.org/) | Completeness varies; ODbL attribution | Basemap source data, served through OpenFreeMap. Studio also uses OSM walking routes, parks and building tags; see the Studio source manifests. |
+| OpenFreeMap hosted basemap | [Provider](https://openfreemap.org/) · [integration guide](https://openfreemap.org/quick_start/) | Free public service, including commercial use; no API key or service-level guarantee | Studio uses hosted vector tiles. The local Positron style omits provider building layers so County footprints remain the building evidence. Attribution stays visible. [Style licenses](licenses/OPENFREEMAP.md): Positron derives from CartoDB/Stamen/Paul Norman; code BSD-3-Clause, design CC BY 4.0. Checked 2026-10-27. |
 
 The HUD reference uses the Pittsburgh area `METRO38300M38300`, including Allegheny County, as listed in [HUD's FY2026 area definitions, page 58](https://www.huduser.gov/portal/datasets/il/il26/area-definitions-FY26.pdf). The separately sourced median **family** income is $110,400 ([Section 8 table, page 186](https://www.huduser.gov/portal/datasets/il/il26/Section8-IncomeLimits-FY26.pdf), effective 2026-05-01); it is not the local ACS median **household** income. The published bands are not recreated by multiplying that median. HOME's 30% row differs from the Section 8 extremely-low-income row for larger households because the latter includes poverty-guideline adjustments.
 
@@ -45,3 +46,25 @@ Stretch rows on the list that this build does not join: [EPA EJScreen](https://w
 The Census API (`api.census.gov`) redirected unauthenticated calls to a missing-key page on 2026-09-26. The ACS numbers above are the Bureau's own 2024 ACS 5-year summary files, not a substitute dataset. Nothing in the parcel file is invented to fill a failed source.
 
 About 5% of clipped parcels (411 of 8,645) did not match an assessment row in ZIP 15201 or 15207. Those parcels stay on the map with lower confidence and without land use or sale fields. They are not given fake attributes.
+
+## Prototype rent assumptions (Studio v3)
+
+Checked October 27, 2026. Owner-published examples anchor the scale of recent apartment asking rents, not representative rents by housing type:
+
+- [Glasshouse one-bedroom floor plans](https://www.glasshouseapts.com/floor-plans/apartments?bed=one_bed&order=ASC&param=avail): advertised base-rent examples approximately $2,180–$2,455/month.
+- [Albion Lawrenceville floor plans](https://albionlawrenceville.com/floorplans/): J2.2 base $2,002 / fixed monthly price $2,028; A7.4 base $2,370 / fixed monthly price $2,396. Variable utilities are separate.
+- [Albion developer project record](https://albionresidential.com/projects/albion-lawrenceville/): construction began in 2024; listed delivery Q4 2025.
+
+There is no verified comparable new-construction sample for every prototype. `web/lib/rentAssumptions.js` therefore declares editable hypothetical rents and sensitivity ranges; small-building discounts and type differences are assumptions. Availability, concessions, unit size and fixed fees can change. No scraped listings, market-average claim or paid API is introduced. The existing HUD FY2026 HOME table supplies target-income bands, not rents or construction economics.
+
+## Pro forma review — October 27, 2026
+
+| Source | Used for | Limits |
+| --- | --- | --- |
+| [IRR Pittsburgh mid-year 2026](https://www.irr.com/research/32403/2026-mid-year-viewpoint-pittsburgh-pa-multifamily-report) | Public summary: 6–8% cap rates, 5–6% vacancy | Metro context; 7.25%/5.5% are editable model choices, not site observations. |
+| [Terrapin 2026 wood-frame cost guide](https://terrapincg.com/news/multi-family-wood-frame-construction-cost-per-unit-2026) | $185–230/SF two-story; $215–285 three-story; higher bands for taller formats | National contractor examples, not Pittsburgh bids. Story-based prototype mapping, gross-area application and single-family $225–325/SF are assumptions. Land, site-work allowance and other costs are separate. |
+| [IRS Form 8609 instructions](https://www.irs.gov/instructions/i8609) and [PHFA LIHTC/QAP](https://www.phfa.org/mhp/developers/lihtc.aspx) | Explain why qualified basis, applicable fractions, rental restrictions and allocation/bond requirements must be established | An income slider does not establish eligibility; no automatic credit-equity estimate. |
+| [Novogradac LIHTC pricing](https://www.novoco.com/resource-centers/affordable-housing-tax-credits) | September 2026 national pricing context ($0.81 nine-percent / $0.82 four-percent) | Public search-index excerpt checked; direct page retrieval returned a payment/access error. Not a project quote or committed equity. |
+| [City real estate abatement forms](https://www.pittsburghpa.gov/City-Government/Finance-Budget/Taxes/Real-Estate-Taxes/Real-Estate-Forms) and [Chapter 267](https://ecode360.com/45440444) | Program references and application requirements | No automatic relief based on household income; awards and assessment increases are not established. |
+
+Other budget shares and loan assumptions are editable team scenarios, listed in the Studio guide. Neither project-level eligible basis nor official post-development assessed values are in the parcel data. The printed diagram reuses local OSM ground-level walking edges for context; it does not infer road widths, rights-of-way or setbacks and downloads no extra basemap image.

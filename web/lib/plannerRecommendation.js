@@ -1,11 +1,12 @@
 import { PLANNER_FACTORS } from './plannerState.js'
+import { CLOSE_CALL_POINTS, CHECK_FACTOR_IDS } from './scoringPolicy.js'
 
 const finite = Number.isFinite
 export function rankedWinner(options, score = o => o.total) {
   const eligible = Object.keys(options).filter(id => options[id].eligible && finite(score(options[id])))
     .sort((a, b) => score(options[b]) - score(options[a]))
   if (!eligible.length) return null
-  if (eligible.length > 1 && score(options[eligible[0]]) - score(options[eligible[1]]) < .1) return 'tie'
+  if (eligible.length > 1 && score(options[eligible[0]]) - score(options[eligible[1]]) <= CLOSE_CALL_POINTS + 1e-9) return 'tie'
   return eligible[0]
 }
 
@@ -32,7 +33,7 @@ export function recommendationAudit(result, scenario, props = {}) {
     }))
     const gaps = Object.fromEntries(['baseline', 'proposal'].map(state => [state, included ? (result[state][ids[0]].scores[id] - (result[state][ids[1]]?.scores[id] ?? result[state][ids[0]].scores[id])) * effectiveWeight : null]))
     const missing = ['baseline', 'proposal'].flatMap(state => ids.filter(slot => !finite(result[state][slot].scores[id])).map(slot => `${state} ${slot}`))
-    return { ...factor, included, effectiveWeight, values, gaps, effect: EFFECTS[id], exclusion: included ? null : missing.length ? `Unknown for ${missing.join(', ')}; excluded from all totals.` : 'Priority weight is zero; excluded from all totals.' }
+    return { ...factor, included, effectiveWeight, values, gaps, effect: EFFECTS[id], exclusion: CHECK_FACTOR_IDS.includes(id) ? 'Separate check; never included in the weighted score.' : included ? null : missing.length ? `Unknown for ${missing.join(', ')}; excluded from all totals.` : 'Priority weight is zero; excluded from all totals.' }
   })
   const sensitivity = Object.fromEntries(['baseline', 'proposal'].map(state => {
     const options = result[state], base = rankedWinner(options), cases = []

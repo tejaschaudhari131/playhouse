@@ -21,7 +21,7 @@ export default function StudioWorkspace({ sidebarOpen, expanded, map, children }
     if (next !== undefined) { event.preventDefault(); resize(next) }
   }
   return <div ref={workspace} className={`studio-workspace ${expanded ? 'is-comparing' : ''} ${sidebarOpen ? '' : 'sidebar-collapsed'}`} style={{ '--sidebar-width': `${width}px` }}>
-    {map}
+    {children}
     <div className="sidebar-divider">
     <div className="sidebar-resizer" role="separator" tabIndex={0} aria-label="Resize sidebar" aria-orientation="vertical" aria-controls="planner-inspector" aria-valuemin={MIN_WIDTH} aria-valuemax={maxWidth} aria-valuenow={width} aria-valuetext={`${Math.round(width)} pixels wide`} title="Drag to resize. Arrow keys adjust width; Enter resets."
       onKeyDown={keyResize} onDoubleClick={() => resize(DEFAULT_WIDTH)}
@@ -35,6 +35,6 @@ export default function StudioWorkspace({ sidebarOpen, expanded, map, children }
       <button aria-label="Reset sidebar width" title="Restore the default sidebar width" disabled={width === Math.min(DEFAULT_WIDTH, maxWidth)} onClick={() => resize(DEFAULT_WIDTH)}>Reset</button>
     </div>
     </div>
-    {children}
+    {map}
   </div>
 }

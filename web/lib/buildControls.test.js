@@ -25,7 +25,7 @@ test('typology cards list every type with units, dimensions, zoning badge and on
   const active = cards.find(c => c.active)
   assert.equal(active.typeId, 'triplex')
   assert.deepEqual([active.units, active.width, active.depth, active.floors], [3, 11, 15, 3])
-  assert.equal(active.permission.label, 'Permitted')
+  assert.match(active.permission.label, /^Use permitted/)
   assert.equal(active.status, result.proposal.triplex.eligible ? 'scored' : 'review')
   if (active.status === 'scored') assert.equal(active.statusText, `${Math.round(result.proposal.triplex.total)} / 100`)
   const other = cards.find(c => c.typeId === 'single_family')
@@ -36,7 +36,7 @@ test('typology cards list every type with units, dimensions, zoning badge and on
   const scored = typologyCards({ draft: input.scenario.draft, options: all.proposal, code: 'TEST', zoning: input.zoning })
   assert.ok(scored.every(c => c.status !== 'unscored'))
   assert.equal(scored.find(c => c.typeId === 'small_apartment').status, 'review', 'a use-table conflict is never shown as a score')
-  assert.equal(scored.find(c => c.typeId === 'small_apartment').statusText, `Review · ${Math.round(all.proposal.small_apartment.suitability)} underlying`)
+  assert.equal(scored.find(c => c.typeId === 'small_apartment').statusText, 'Not ranked · needs review')
   assert.equal(scored.find(c => c.typeId === 'small_apartment').score, null)
   assert.equal(typologyCards({ draft: input.scenario.draft, options: null, code: 'NONE', zoning: input.zoning })[0].permission.label, 'Zoning unknown')
 })
@@ -77,4 +77,45 @@ test('adding a building resets the draft to automatic placement in one step and 
   assert.equal(previewPaused(added, scenarioReducer(history, { type: 'undo' }).present), false)
   const next = evaluatePlanner({ ...input, scenario: history.present, areaSites: [{ ...building, feature: input.feature, stop: null, existingBuildings: [] }] })
   assert.equal(next.proposal[input.scenario.draft.typeId].massing.collisions, 0, 'the next automatic draft avoids the building just added')
+})
+
+test('keyboard nudges are exact cardinal metres and stay bounded', async () => {
+  const { nudgePlacement } = await import('./buildControls.js')
+  const p = { east: 0, north: 0, bearing: 37 }
+  assert.deepEqual(nudgePlacement(p, 'ArrowUp'), { east: 0, north: 1, bearing: 37 })
+  assert.deepEqual(nudgePlacement(p, 'ArrowLeft', 5), { east: -5, north: 0, bearing: 37 })
+  assert.equal(nudgePlacement({ ...p, east: 2000 }, 'ArrowRight').east, 2000)
+  assert.equal(nudgePlacement(p, 'Tab'), null)
+})
+
+test('compact cards keep blocked and unassessed states distinct without exposing an underlying score', () => {
+  const input = fixture(), draft = optionFor('single_family', 1500)
+  const permitted = evaluatePlanner({ ...input, scenario: { ...input.scenario, draft } }).proposal.single_family
+  const card = option => typologyCards({ draft, options: { single_family: option }, code: 'TEST', zoning: input.zoning })[0]
+  const conflict = { id: 'height', label: 'Height', status: 'conflict', detail: '60 ft exceeds 45 ft', section: '904.02', url: 'https://ecode360.com/45474054' }
+  const blocked = card({ ...permitted, eligible: false, total: 95, titleNine: { ...permitted.titleNine, conflict: true, checks: [conflict] }, zoningReview: { notAssessed: 7, label: '7 checks not assessed' } })
+  assert.equal(blocked.score, null)
+  assert.equal(blocked.compactStatus, 'Zoning conflict')
+  assert.equal(blocked.reviewText, '7 checks unassessed')
+  assert.ok(blocked.details.some(d => d.text.includes('60 ft exceeds 45 ft') && d.section === '904.02'))
+  const unknown = card({ ...permitted, eligible: false, checks: { physical: { status: 'unknown', detail: 'Building evidence unavailable' } }, titleNine: null, zoningReview: null })
+  assert.equal(unknown.compactStatus, 'Fit unassessed')
+  assert.equal(unknown.notAssessed, null)
+  assert.equal(unknown.reviewText, 'Checks unassessed')
+  assert.ok(unknown.details.some(d => d.text.includes('Building evidence unavailable')))
+  const fits = card({ ...permitted, zoningReview: null, titleNine: { checks: [{ status: 'conditional' }, { status: 'unknown' }, { status: 'pass' }] } })
+  assert.equal(fits.reviewText, '2 checks unassessed', 'conditional approval must not be counted as assessed')
+})
+
+test('compact plan cards retain aggregate scope and invalid placed-building reasons', () => {
+  const input = fixture(), draft = optionFor('triplex', 1500)
+  const option = evaluatePlanner({ ...input, scenario: { ...input.scenario, draft } }).proposal.triplex
+  const plan = { ...option, eligible: false, area: { buildings: 2, invalid: [{ pin: 'other', gate: 'Zoning conflict: Height' }] }, zoningReview: { notAssessed: 17, label: '17 checks not assessed across 2 buildings' } }
+  const card = typologyCards({ draft, options: { triplex: plan }, code: 'TEST', zoning: input.zoning }).find(c => c.active)
+  assert.equal(card.shortLabel, 'Triplex')
+  assert.equal(card.compactStatus, 'Plan needs review')
+  assert.equal(card.reviewText, '17 checks unassessed')
+  assert.equal(card.planScope, true)
+  assert.ok(card.details.some(d => d.text.includes('other: Zoning conflict: Height')))
+  assert.equal(card.score, null)
 })

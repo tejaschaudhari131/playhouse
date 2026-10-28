@@ -1,4 +1,5 @@
 import { WALK_RADIUS_M } from "./buildings.js"
+import { uniqueTransitTrips } from './transitStops.js'
 
 const M_PER_DEG_LAT = 111_320
 
@@ -71,12 +72,12 @@ export function stopsWithin(collection, lon, lat, radiusMeters = WALK_RADIUS_M) 
     }
   }
   hits.sort((a, b) => a.distanceM - b.distanceM)
-  const trips = hits.reduce((sum, stop) => sum + Number(stop.weekday_trips || 0), 0)
+  const service = uniqueTransitTrips(hits, collection?.service_groups)
   const routes = []
   for (const stop of hits) {
     for (const route of stop.routes || []) {
       if (!routes.includes(route)) routes.push(route)
     }
   }
-  return { count: hits.length, trips, routes: routes.slice(0, 8), stops: hits }
+  return { count: hits.length, trips: service.trips, tripCountMethod: service.method, routeTrips: service.routeTrips, routes: routes.slice(0, 8), stops: hits }
 }

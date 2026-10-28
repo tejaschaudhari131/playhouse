@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks'
 import { cpus } from 'node:os'
 import { spatialIndex } from '../lib/studioData.js'
 import { geometryBounds } from '../lib/plannerGeometry.js'
+import { decodeFeatureTransport } from '../lib/featureTransport.js'
 
 const root=new URL('../public/data/',import.meta.url)
 const read=name=>readFileSync(new URL(name,root))
@@ -15,8 +16,8 @@ const files=readdirSync(new URL('studio/',root)).map(file=>({file,bytes:statSync
 const result={runtime:process.version,cpu:cpus()[0].model,scope:'Local file/CPU measurements, not browser frame rate. Initial Studio data includes its buffered regional graph; excludes JS/CSS, basemap tiles, and adjacent neighborhoods requested by the camera. Gzip assumes compressed delivery.',parcels:manifest.parcelCount,neighborhoods:manifest.neighborhoods.length,manifest:bytes([manifestRaw]),largestFile:files.sort((a,b)=>b.bytes-a.bytes)[0],totalTransportBytes:files.reduce((n,f)=>n+f.bytes,0),examples:{}}
 for(const name of ['Hazelwood','Lower Lawrenceville','Squirrel Hill North','East Liberty','Carrick','Middle Hill','Brookline']) {
  const n=manifest.neighborhoods.find(n=>n.name===name),raws=[...n.parcelFiles,...n.buildingFiles].map(file=>read(`studio/${file}`))
- const parcels=n.parcelFiles.flatMap(file=>JSON.parse(read(`studio/${file}`)).features),buildings=n.buildingFiles.flatMap(file=>JSON.parse(read(`studio/${file}`)).features)
+ const parcels=n.parcelFiles.flatMap(file=>decodeFeatureTransport(JSON.parse(read(`studio/${file}`))).features),buildings=n.buildingFiles.flatMap(file=>decodeFeatureTransport(JSON.parse(read(`studio/${file}`))).features)
  const index=spatialIndex(buildings),selected=parcels.find(f=>f.properties.pin===n.examplePin)
- result.examples[name]={pin:n.examplePin,parcels:n.parcels,emptySiteBytes:n.emptySitesBytes,initialStudioData:bytes([manifestRaw,...shared,...raws,...(n.emptySitesFile?[read(`studio/${n.emptySitesFile}`)]:[]),read(`studio/${n.networkFile}`)]),parcelAndBuildingParse:measure(()=>raws.forEach(b=>JSON.parse(b))),nearbyBuildingQuery:measure(()=>index.query(geometryBounds(selected.geometry)))}
+ result.examples[name]={pin:n.examplePin,parcels:n.parcels,emptySiteBytes:n.emptySitesBytes,initialStudioData:bytes([manifestRaw,...shared,...raws,...(n.emptySitesFile?[read(`studio/${n.emptySitesFile}`)]:[]),read(`studio/${n.networkFile}`)]),parcelAndBuildingParse:measure(()=>raws.forEach(b=>decodeFeatureTransport(JSON.parse(b)))),nearbyBuildingQuery:measure(()=>index.query(geometryBounds(selected.geometry)))}
 }
 console.log(JSON.stringify(result,null,2))

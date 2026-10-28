@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { siteDiagram, standardsTable } from '../lib/siteBrief.js'
 import { factorReceipt } from '../lib/factorReceipts.js'
 import { PLANNER_FACTORS } from '../lib/plannerState.js'
-import { FACTOR_LABELS, zoningBadge, comparisonScore } from '../lib/studioPresentation.js'
+import { PREFERENCE_FACTOR_IDS } from '../lib/scoringPolicy.js'
+import { FACTOR_LABELS, zoningBadge, comparisonScore, zoningReviewLabel, proposalStatus, proposalChecks } from '../lib/studioPresentation.js'
 import { stanceFor } from '../lib/priorityStances.js'
 import { money, dollars, span } from './RedevelopmentImpact.js'
 import { trapDialogTab } from '../lib/dialogFocus.js'
@@ -22,6 +23,7 @@ function Diagram({ d, label }) {
   return <figure className="brief-diagram">
     <svg viewBox={d.viewBox} role="img" aria-label={`Site plan of ${label}: parcel boundary, proposed footprint, north arrow and scale`}>
       <rect width={d.size} height={d.size} fill="#fff"/>
+      <g stroke="#b8bec0" strokeWidth="3" fill="none">{d.networkPaths.map((path,i) => <path key={i} d={path}/>)}</g>
       <path d={d.parcel} fill="#eef3e8" stroke="#2f5d45" strokeWidth="1.6" fillRule="evenodd"/>
       {d.retained.map(p => <path key={p} d={p} fill="#d9d4c7" stroke="#8a826e" strokeWidth=".8"/>)}
       {d.demolished.map(p => <path key={p} d={p} fill="none" stroke="#b4462f" strokeWidth="1" strokeDasharray="3 2"/>)}
@@ -33,13 +35,13 @@ function Diagram({ d, label }) {
     <figcaption>
       {lot ? `Lot ≈ ${lot.width} × ${lot.depth} m (${Math.round(lot.width * FT)} × ${Math.round(lot.depth * FT)} ft). ` : ''}
       {foot ? `Footprint ${foot.width} × ${foot.depth} m${foot.bearing !== null ? `, depth axis ${Math.round(foot.bearing)}° from N` : ''}. ` : 'No footprint placed. '}
-      Grey retained, dashed red demolished. Map outlines, not a survey.
+      Grey retained, dashed red demolished. Grey lines: mapped walking network (OSM), not street widths or legal frontage. Map outlines, not a survey.
     </figcaption>
   </figure>
 }
 
 /** One-page printable site brief for the current draft. */
-export default function SiteBrief({ props, geometry, option, evaluated, label, retained = [], demolished = [], impact, pathway, comparison, weights, call, reformPreset, snapshot, onClose }) {
+export default function SiteBrief({ props, geometry, option, evaluated, label, retained = [], demolished = [], network = null, impact, pathway, comparison, weights, call, reformPreset, snapshot, onClose }) {
   const dialog = useRef(null), closeButton = useRef(null), backdropPress = useRef(false)
   useEffect(() => {
     const node = dialog.current
@@ -55,13 +57,13 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
       target?.focus({ preventScroll: true })
     }
   }, [])
-  const diagram = siteDiagram({ parcel: geometry, footprint: evaluated?.massing?.geometry, bearing: evaluated?.massing?.placement?.bearing, retained, demolished })
+  const diagram = siteDiagram({ parcel: geometry, footprint: evaluated?.massing?.geometry, bearing: evaluated?.massing?.placement?.bearing, retained, demolished, network })
   const table = evaluated ? standardsTable(evaluated, props.zoning_code ?? null) : null
   const score = evaluated ? comparisonScore(evaluated) : null, badge = evaluated ? zoningBadge(evaluated) : null
   const stance = stanceFor(weights)
   const relief = pathway?.worksheet ? Object.fromEntries(pathway.worksheet.failed.map(f => [f.id, f.relief])) : null
   const share = id => comparison?.factors.find(f => f.id === id)
-  const { cost, value, affordability, capitalStack, tax, replacement } = impact
+  const { cost, value, affordability, capitalStack, tax, replacement, operations, finance } = impact
   const generated = new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })
   return <dialog className="site-brief-overlay" aria-label="1-page site brief" tabIndex={-1} ref={dialog}
     onKeyDown={event => { event.stopPropagation(); trapDialogTab(event, dialog.current) }}
@@ -69,7 +71,7 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
     onPointerDown={event => { backdropPress.current = event.target === event.currentTarget; event.stopPropagation() }}
     onPointerCancel={() => { backdropPress.current = false }}
     onClick={event => { event.stopPropagation(); if (backdropPress.current && event.target === event.currentTarget) onClose(); backdropPress.current = false }}>
-    <div className="site-brief-toolbar"><strong>1-page site brief</strong><span><button type="button" className="primary-build" onClick={() => window.print()}>Print</button><button type="button" ref={closeButton} onClick={onClose}>Close</button></span></div>
+    <div className="site-brief-toolbar"><div><strong>1-page site brief</strong><small className="print-hint">Print: US Letter · turn off browser headers/footers. Colour is optional.</small></div><span><button type="button" className="primary-build" onClick={() => window.print()}>Print</button><button type="button" ref={closeButton} onClick={onClose}>Close</button></span></div>
     <article className="site-brief">
       <header className="brief-head">
         <h1>{label} at {props.address || props.pin}</h1>
@@ -81,13 +83,14 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
         <section className="brief-summary">
           <h2>Proposal</h2>
           <p><strong>{label}</strong>: {replacement.units} {replacement.units === 1 ? 'home' : 'homes'}, {option.width} × {option.depth} m, {evaluated?.floors ?? option.floors} stories, {Math.round(option.height * FT)} ft ({option.height} m), {Math.round(replacement.sqft).toLocaleString()} sq ft. Net homes: {replacement.netUnits === null ? 'unknown' : `${replacement.netUnits >= 0 ? '+' : '−'}${Math.abs(replacement.netUnits)}`}.</p>
-          {score && <p><strong>{score.value === null ? 'No score' : `${fmt(score.value)} / 100`}</strong> {score.kind === 'score' ? 'eligible score' : `underlying score, not eligible: ${evaluated.gate}`} · {badge.text}</p>}
-          <p>Priorities: {stance ? stance.label : 'Custom weights'} (team value judgment).{call ? ` ${call.close ? `${call.badge}: ` : ''}${call.text}` : ''}</p>
+          {score && <><p><strong>{score.kind === 'underlying' || score.value === null ? 'Not ranked' : `${fmt(score.value)} / 100`}</strong> · {proposalStatus(evaluated)}</p><p>{badge.text} · {zoningReviewLabel(evaluated)}</p><p>{proposalChecks(evaluated).map(check => `${check.label}: ${check.status === 'pass' ? 'pass' : check.status === 'fail' ? 'does not pass' : 'not assessed'} — ${check.detail}`).join('; ')}</p></>}
+          {evaluated?.area && <p>Score scope: existing plan + this next building ({evaluated.area.units} proposed homes in {evaluated.area.buildings} buildings), averaged per home. Dimensions and cost inputs below describe the next building.</p>}
+          <p>Priorities: {stance ? stance.label : 'Custom weights'} (team value judgment).{call ? ` ${call.text}` : ''}</p>
           <p>Rent {dollars(option.rent)} + utilities {dollars(option.utilities)} per month{affordability ? `; target income ${dollars(affordability.targetIncome)}${affordability.band ? ` (about ${Math.round(affordability.band.percent)}% AMI)` : ''}` : ''}.</p>
           {pathway && <div className="brief-pathway">
             <h2>Permit and acquisition pathway</h2>
             <p><strong>Acquisition:</strong> {pathway.acquisition.label}. {pathway.acquisition.steps[0]}{pathway.acquisition.privacy ? ' Owner name withheld.' : ''}</p>
-            <p><strong>Zoning:</strong> {pathway.zoning.label} (§ {pathway.zoning.section}). {pathway.zoning.detail}</p>
+            <p><strong>Zoning only:</strong> {pathway.zoning.label} (§ {pathway.zoning.section}). {pathway.zoning.detail}</p>
             {pathway.worksheet && <p className="brief-small">§ {pathway.worksheet.section} worksheet: {pathway.worksheet.failed.length} {pathway.worksheet.failed.length === 1 ? 'standard needs' : 'standards need'} relief (see the table below). Five findings: {pathway.worksheet.criteria.map(c => `${c.label} (${c.status === 'evidence' ? 'pre-filled' : 'applicant'})`).join('; ')}.</p>}
           </div>}
         </section>
@@ -101,7 +104,7 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
             <td>{r.label}</td><td>{r.section}</td><td>{r.required || '—'}</td><td>{r.proposed || '—'}</td><td>{STATUS[r.status] || r.status}</td>{relief && <td>{relief[r.id] || ''}</td>}
             <td>{reformText(r, table.presets)}</td>
           </tr>)}</tbody>
-          <tfoot><tr><td colSpan={relief ? 7 : 6}>Passes every assessed check: current code {evaluated.titleNine.conflict ? 'no' : 'yes'}; {table.presets.map(p => `${REFORM_SHORT[p.id]} ${p.eligible ? 'yes' : 'no'}`).join('; ')}.</td></tr></tfoot>
+          <tfoot><tr><td colSpan={relief ? 7 : 6}>Passes assessed zoning checks only (physical fit is separate): current code {evaluated.titleNine.conflict ? 'no' : 'yes'}; {table.presets.map(p => `${REFORM_SHORT[p.id]} ${p.eligible ? 'yes' : 'no'}`).join('; ')}.</td></tr></tfoot>
         </table>
         <p className="brief-small">{table.alsoPass.length ? `Also passes: ${table.alsoPass.join('; ')}. ` : ''}{table.notAssessed.length ? `Not assessed: ${table.notAssessed.join('; ')}. ` : ''}Current code includes Bill 2025-1579. Reform presets lift only the conflicts their rules name; {reformPreset !== 'current' ? `the Studio is set to ${REFORM_SHORT[reformPreset]}. ` : ''}Unassessed checks are excluded, not passed.</p>
       </section>}
@@ -111,28 +114,30 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
         <div className="brief-two">
           <table className="brief-table numeric">
             <tbody>
-              <tr><td>Hard Redevelopment Cost</td><td>{span(cost.hard)}</td></tr>
+              <tr><td>Hard costs incl. site work</td><td>{span(cost.hard)}</td></tr>
+              <tr><td>Fees, soft costs, contingency, interest & reserves</td><td>{span([cost.development[0] - cost.hard[0] - cost.acquisition.range[0], cost.development[1] - cost.hard[1] - cost.acquisition.range[1]])}</td></tr>
               <tr><td>Acquisition{cost.acquisition.complete ? '' : ' (partial)'}</td><td>{span(cost.acquisition.range)}</td></tr>
               <tr className="total"><td>Total Development Cost incl. Acquisition</td><td>{span(cost.development)}</td></tr>
               <tr><td>Per home</td><td>{span(cost.perHome)}</td></tr>
+              <tr><td>Annual net operating income (NOI)</td><td>{dollars(operations.noi)}</td></tr>
               <tr><td>Break-even rent per home / month</td><td>{span(value.breakEvenRent, dollars)}</td></tr>
               <tr><td>Residual land value at draft rent</td><td>{span(value.residualLand)}</td></tr>
-              {capitalStack && <tr><td>Subsidy gap per home{affordability?.band?.band ? ` at ${affordability.band.band}% AMI` : ''}</td><td>{span(capitalStack.gapPerUnit)}</td></tr>}
-              <tr className="total"><td>Net New Annual Tax Revenue ({tax.mills.toFixed(3)} mills)</td><td>{span(tax.net, dollars)}</td></tr>
+              {capitalStack && <tr><td>Unfunded cost/value gap per home{affordability?.band?.band ? ` at ${affordability.band.band}% AMI` : ''}</td><td>{span(capitalStack.gapPerUnit)}</td></tr>}
+              <tr className="total"><td>Indicative annual tax change ({tax.mills.toFixed(3)} mills)</td><td>{span(tax.net, dollars)}</td></tr>
             </tbody>
           </table>
           <div>
-            {capitalStack && <p className="brief-small">Capital stack screen: {capitalStack.programs.map(p => `${p.name} ${p.status === 'eligible' ? 'screens in' : p.status === 'conditional' ? 'conditional' : 'does not screen in'}`).join('; ')}.</p>}
-            <p className="brief-small">Tax: City {tax.bodies.find(b => b.id === 'city')?.mills}, schools {tax.bodies.find(b => b.id === 'schools')?.mills} and County {tax.bodies.find(b => b.id === 'county')?.mills} mills on construction cost as the assessment proxy, minus the replaced parcel tax. {tax.abatement.applies ? `City Chapter 267${tax.abatement.enhanced ? ' Enhanced' : ''} abatement may apply: ${tax.abatement.years} years, up to ${money(tax.abatement.cap)} a year. ` : ''}Costs are scenario assumptions.</p>
+            {capitalStack && <p className="brief-small">Capital stack screen: {capitalStack.programs.map(p => `${p.name} ${p.status === 'eligible' ? 'screens in' : p.status === 'conditional' ? 'conditional' : 'not assessed'}`).join('; ')}.</p>}
+            <p className="brief-small">Tax: City {tax.bodies.find(b => b.id === 'city')?.mills}, schools {tax.bodies.find(b => b.id === 'schools')?.mills} and County {tax.bodies.find(b => b.id === 'county')?.mills} mills on total cost including known acquisition as an assessment proxy, minus the baseline parcel tax proxy. Abatements are not assessed or deducted. Costs are scenario assumptions. Vacancy {(finance.vacancyShare * 100).toFixed(1)}%; operating expenses {(finance.operatingShare * 100).toFixed(0)}% of collected rent incl. taxes; cap rate {(finance.capRate * 100).toFixed(2)}%. NOI precedes debt service; tax is not subtracted twice.</p>
           </div>
         </div>
       </section>
 
       <section>
-        <h2>Seven-factor receipts</h2>
-        <table className="brief-table receipts" tabIndex={0} aria-label="Seven-factor receipts">
+        <h2>Five preference-factor receipts</h2>
+        <table className="brief-table receipts" tabIndex={0} aria-label="Five preference-factor receipts">
           <thead><tr><th>Factor</th><th>Score</th><th>Share</th><th>Evidence · confidence</th><th>Dataset</th><th>Formula · this draft</th></tr></thead>
-          <tbody>{PLANNER_FACTORS.map(f => {
+          <tbody>{PLANNER_FACTORS.filter(f => PREFERENCE_FACTOR_IDS.includes(f.id)).map(f => {
             const r = factorReceipt(f.id, evaluated), s = share(f.id)
             return <tr key={f.id}><td>{FACTOR_LABELS[f.id]}</td><td>{fmt(r.score)}</td><td>{s?.included ? `${Math.round(s.effectiveWeight * 100)}%` : 'Excluded'}</td><td>{r.badge} · {r.confidence}</td><td>{r.dataset}</td><td>{r.formula}{r.inputs ? ` · ${r.inputs}` : ''}</td></tr>
           })}</tbody>

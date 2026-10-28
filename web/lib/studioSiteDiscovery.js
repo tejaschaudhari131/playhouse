@@ -37,6 +37,8 @@ function emptyPins(matches) {
 
 /** Public-record discovery, never a housing recommendation or an availability claim. */
 export function studioSites(parcels, zoning, area, filters = {}, emptyMatches = null) {
+  // Invalid negative thresholds mean no restriction, rather than an empty list.
+  filters = { ...filters, minLotSqft: populated(filters.minLotSqft) ? Math.max(0, Number(filters.minLotSqft)) : null, maxWalkMin: populated(filters.maxWalkMin) ? Math.max(0, Number(filters.maxWalkMin)) : null }
   const query = (filters.query || '').trim().toLowerCase()
   const candidates = filters.emptyOnly ? emptyPins(emptyMatches) : null
   const rows = (parcels?.features || []).filter(feature => {
@@ -44,7 +46,7 @@ export function studioSites(parcels, zoning, area, filters = {}, emptyMatches = 
     if (!passesRecordFilters(p, { ...DEFAULT_SITE_FILTERS, ...filters, area })) return false
     if (query && !`${p.address || ''} ${p.pin}`.toLowerCase().includes(query)) return false
     // A numeric filter requires measured evidence; unknown must not become zero.
-    if (populated(filters.minLotSqft) && (!numeric(p.lot_sqft) || !numeric(Number(filters.minLotSqft)) || p.lot_sqft < Number(filters.minLotSqft))) return false
+    if (Number(filters.minLotSqft) > 0 && (!numeric(p.lot_sqft) || !numeric(Number(filters.minLotSqft)) || p.lot_sqft < Number(filters.minLotSqft))) return false
     if (populated(filters.maxWalkMin) && (!numeric(p.walk_min_frequent) || !numeric(Number(filters.maxWalkMin)) || p.walk_min_frequent > Number(filters.maxWalkMin))) return false
     if (candidates && !candidates.has(p.pin)) return false
     if (filters.typeId && !['by_right', 'partial'].includes(typePermission(filters.typeId, resolveZoning(p.zoning_code, zoning)))) return false

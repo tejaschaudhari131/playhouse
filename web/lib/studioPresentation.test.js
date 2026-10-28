@@ -32,7 +32,7 @@ test('compare always shows an underlying score with a zoning badge, and reform s
   const scenario = { ...base, draft: { ...base.draft, typeId: 'single_family', width: 8, depth: 12, height: 8, floors: 2 }, comparisonTypes: ['townhouse_duplex', 'triplex', 'large_apartment'] }
   const result = evaluatePlanner({ feature, zoning, scenario, stop: null, existingBuildings: [] })
   const { single_family: allowed, townhouse_duplex: special, triplex: blocked, large_apartment: tall } = result.proposal
-  assert.deepEqual(zoningBadge(allowed), { tone: 'permitted', text: 'Permitted' })
+  assert.deepEqual(zoningBadge(allowed), { tone: 'permitted', text: 'Use permitted · other checks separate' })
   assert.equal(zoningBadge(special).tone, 'special')
   assert.deepEqual(zoningBadge(blocked), { tone: 'reform', text: 'Requires zoning variance / reform: Proposed use' })
   assert.equal(blocked.total, null)
@@ -66,4 +66,25 @@ test('plan impact bar reports homes, net homes and the plan score without invent
   assert.match(blocked.score.detail, /needs zoning or physical review/)
   assert.equal(planImpact({ buildings: 1, net, pending: true }).score.text, 'Updating…')
   assert.equal(planImpact({ demolitions: 1, net: { proposed: 0, replaced: 2, net: -2, uncertain: true } }).net, 'up to −2')
+})
+
+test('proposal status separates physical eligibility from permitted use and names incomplete review', async () => {
+  const { proposalStatus, zoningReviewLabel, proposalChecks, zoningBadge } = await import('./studioPresentation.js')
+  const overlap = { eligible: false, gate: 'overlap', permission: { category: 'permitted' }, titleNine: { checks: [], excluded: [{ id: 'setback' }] }, checks: { physical: { status: 'fail', label: 'Physical fit', detail: 'Overlaps a retained building.' }, capacity: { status: 'unknown', label: 'Transit capacity', detail: 'No verified reserve.' } } }
+  assert.match(proposalStatus(overlap), /Physical conflict: Overlaps/)
+  assert.equal(zoningBadge(overlap).text, 'Use permitted · other checks separate')
+  assert.equal(zoningReviewLabel(overlap), 'Zoning review incomplete · 1 checks not assessed')
+  assert.equal(proposalChecks(overlap)[1].status, 'unknown')
+  assert.match(zoningReviewLabel({}), /incomplete/)
+  const tall = { ...overlap, titleNine: { checks: [{ id: 'height', status: 'conflict', label: 'Height' }], excluded: [] } }
+  assert.equal(zoningBadge(tall).text, 'Zoning conflict: Height')
+})
+
+test('portfolio checks never describe a passing next-building footprint as proof every building fits', async () => {
+  const { proposalChecks, proposalStatus } = await import('./studioPresentation.js')
+  const option = { eligible: false, massing: { fits: true, reason: 'This next footprint fits.' }, checks: { physical: { status: 'fail', detail: 'First footprint fits.', members: [{ status: 'pass' }, { status: 'fail' }, { status: 'unknown' }] } } }
+  const [physical] = proposalChecks(option)
+  assert.match(physical.detail, /3 building checks: 1 do not pass, 1 not assessed/)
+  assert.doesNotMatch(physical.detail, /footprint fits/)
+  assert.match(proposalStatus(option), /Physical conflict: 3 building checks/)
 })

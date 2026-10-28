@@ -8,6 +8,7 @@ import {
   filtersFor,
   findSites,
   passesRecordFilters,
+  placeDisplacement,
   permissionPasses,
   sitesCsv,
   typePermission,
@@ -195,4 +196,12 @@ test("with no type chosen, the restriction filter ranks the best type zoning doe
   const [open] = findSites([{ properties: props }], DEFAULT_SITE_FILTERS, DEFAULT_WEIGHTS, RULES)
   assert.notEqual(open.permission, "not_allowed")
   assert.ok(!open.cautions.some((caution) => caution.id === "zoning"))
+})
+
+
+test("site displacement filtering uses the current vulnerability floor instead of the archived flat-rent cap", () => {
+  const props = { renter_share: .75, chas_rent_burden_share: .8, rent_change_vs_county: 0, scores: { small_apartment: { displacement_risk: 50 } } }
+  assert.equal(placeDisplacement(props), 100)
+  assert.equal(passesRecordFilters(props, { displacement: 'high' }), true)
+  assert.equal(passesRecordFilters(props, { displacement: 'not_high' }), false)
 })

@@ -9,7 +9,7 @@ const find = (features, filters, candidates) => studioSites({ features }, {}, 'H
 test('size and transit filters require known values and preserve exact numeric boundaries', () => {
   const rows = [feature('a', { lot_sqft: 3000.5, walk_min_frequent: 5.25 }), feature('b', { lot_sqft: 3000.49, walk_min_frequent: 5.26 }), feature('c', { lot_sqft: null, walk_min_frequent: null }), feature('d', { lot_sqft: NaN, walk_min_frequent: NaN })]
   assert.deepEqual(pins(find(rows, { minLotSqft: 3000.5, maxWalkMin: 5.25 })), ['a'])
-  assert.deepEqual(pins(find(rows, { minLotSqft: 0 })), ['a', 'b'])
+  assert.deepEqual(pins(find(rows, { minLotSqft: 0 })), ['a', 'b', 'c', 'd'])
   assert.deepEqual(pins(find(rows, { minLotSqft: '' })), ['a', 'b', 'c', 'd'])
   assert.deepEqual(find(rows, { maxWalkMin: 'invalid' }), [])
 })
@@ -113,4 +113,16 @@ test('empty highlights preserve current restricted-record exclusions and their e
   const candidates = new Map([['right-of-way', 'single_family'], ['ordinary', 'single_family']])
   assert.deepEqual([...filteredEmptyCandidates({ features }, {}, {}, candidates).keys()], ['ordinary'])
   assert.deepEqual([...filteredEmptyCandidates({ features }, {}, { excludeRestricted: false }, candidates).keys()], ['ordinary', 'right-of-way'])
+})
+
+test('negative minimum lot area is no restriction and unit-only condos do not become development lots', () => {
+  const rows = [feature('house', { land_use: 'SINGLE FAMILY', lot_sqft: 2000 }), feature('unknown', { lot_sqft: null }), feature('unit', { land_use: 'RESIDENTIAL CONDOMINIUM', lot_sqft: 0 })]
+  assert.deepEqual(pins(find(rows, { minLotSqft: -10 })), ['house', 'unknown'])
+  assert.deepEqual(pins(find(rows, { excludeRestricted: false })), ['house', 'unknown'])
+})
+
+test('cemetery records are excluded from ordinary discovery, without excluding a large real building lot by size', () => {
+  const rows = [feature('cemetery', { land_use: 'CEMETERY', lot_sqft: 1000000 }), feature('development', { land_use: 'VACANT LAND', lot_sqft: 200000 }), feature('small', { lot_sqft: 2000 })]
+  assert.deepEqual(pins(find(rows, { sort: 'lot' })), ['development', 'small'])
+  assert.deepEqual(pins(find(rows, { sort: 'lot', excludeRestricted: false })), ['cemetery', 'development', 'small'])
 })

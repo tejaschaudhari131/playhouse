@@ -1,5 +1,4 @@
-import { haversineMeters } from './geo.js'
-import { geometryCenter, fitMassing, geometriesOverlap } from './plannerGeometry.js'
+import { fitMassing, geometriesOverlap } from './plannerGeometry.js'
 import { resolveZoning, unitPermission } from './zoning.js'
 import { PLANNER_FACTORS } from './plannerState.js'
 import { networkAccess, infrastructureReservations, validateConnection, validatePark } from './networkModel.js'
@@ -7,30 +6,26 @@ import { rankedWinner, recommendationAudit } from './plannerRecommendation.js'
 import { shortlistTemplates, comparisonTemplates, summarizeShortlist } from './plannerShortlist.js'
 import { evaluateTitleNine, housingSpec } from './titleNine.js'
 import { retainedBuildings } from './redevelopment.js'
-import { housingCostBurden } from './housingCosts.js'
+import { housingCostBurden, housingCostValidation, housingCostEvidence } from './housingCosts.js'
+import { preferenceFactor, LIVE_MODEL_ID, ARCHIVED_MODEL_ID } from './scoringPolicy.js'
+import { displacementScreen } from './displacementModel.js'
+import { transitCapacityCheck, combineChecks } from './capacityCheck.js'
+import { marketFitEvidence } from './marketFitEvidence.js'
+import { carbonEvidence } from './carbonEvidence.js'
 
 const clamp = value => Math.max(0, Math.min(100, value))
 const numeric = value => typeof value === 'number' && Number.isFinite(value)
 export const round = value => numeric(value) ? Math.round(value * 10) / 10 : null
 
-export function nearbyStops(feature, stops) {
-  const point = geometryCenter(feature.geometry)
-  if (!point) return []
-  return (stops?.features || []).filter(f => f.geometry?.type === 'Point' && f.properties.weekday_trips > 0).map(f => ({
-    ...f.properties, coordinates: f.geometry.coordinates,
-    distance: haversineMeters(...point, ...f.geometry.coordinates),
-  })).filter(stop => stop.distance <= 1200).sort((a, b) => a.distance - b.distance)
-}
-
-export function preferredStop(stops) { return stops.find(s => s.weekday_trips >= 60) || stops[0] || null }
+export { nearbyTransitStops as nearbyStops, choosePreferredStop as preferredStop } from './transitStops.js'
 
 /** GTFS is service evidence, not occupancy. Manual totals override the explicit scenario assumption. */
 export function transitReserve(stop, state) {
   if (!stop || !numeric(stop.weekday_trips) || stop.weekday_trips <= 0) return { boardings: null, method: 'unavailable' }
   if (numeric(state.spareBoardings) && (!state.capacityStopId || String(stop.stop_id) === state.capacityStopId)) {
-    return { boardings: Math.max(0, state.spareBoardings), method: 'manual' }
+    return { boardings: state.spareBoardings > 0 ? state.spareBoardings : null, method: state.spareBoardings > 0 ? 'manual' : 'unavailable', reason: state.spareBoardings > 0 ? null : 'Zero reserve is unassessed, not observed zero capacity.' }
   }
-  if (state.capacityMode === 'schedule' && numeric(state.baselinePlacesPerDeparture) && state.baselinePlacesPerDeparture >= 0) {
+  if (state.capacityMode === 'schedule' && numeric(state.baselinePlacesPerDeparture) && state.baselinePlacesPerDeparture > 0) {
     return { boardings: stop.weekday_trips * state.baselinePlacesPerDeparture, method: 'schedule_assumption' }
   }
   return { boardings: null, method: 'unavailable' }
@@ -58,6 +53,9 @@ function evaluateOption(option, feature, zoning, state, stop, proposed, massing,
   const transitScore = service?.score ?? null, parkScore = access?.parkScore ?? null
   const accessScore = (parkShare < 1 && transitScore === null) || (parkShare > 0 && parkScore === null) ? null : (1 - parkShare) * (transitScore || 0) + parkShare * (parkScore || 0)
   const costs = housingCostBurden(state, option)
+  const displacement = displacementScreen(props, raw.displacement_risk)
+  const carbon = carbonEvidence(props, spec.scoreType, raw.carbon_index)
+  const marketEvidence = marketFitEvidence(props, spec.scoreType)
   const { monthly, burden } = costs
   const demandBoardings = spec.units * state.boardingsPerHome
   const reserve = transitReserve(stop, state), spare = reserve.boardings
@@ -69,13 +67,17 @@ function evaluateOption(option, feature, zoning, state, stop, proposed, massing,
     demand: numeric(raw.demand) ? raw.demand : null,
     physical: !massing.fits || massing.collisions > 0 ? 0 : massing.collisions === null ? null : 100,
     affordability: costs.score,
-    displacement: numeric(raw.displacement_risk) ? 100 - raw.displacement_risk : null,
+    displacement: numeric(displacement.risk) ? 100 - displacement.risk : null,
     capacity: supply === null || !service ? null : groupBoardings > 0 ? clamp(100 * supply / groupBoardings) : 100,
     access: accessScore,
-    carbon: numeric(raw.carbon_index) ? 100 - raw.carbon_index : null,
+    carbon: numeric(carbon.index) ? 100 - carbon.index : null,
   }
   const physicalEligible = massing.fits && massing.collisions === 0
-  return { ...option, pin: props.pin, label: spec.label, units: spec.units, floors: option.floors ?? spec.floors, permission, massing, scores, eligible: physicalEligible, physicalEligible, service, access, monthly, burden, costAssumptionsConfirmed: costs.confirmed, demandBoardings, groupBoardings, addedPlaces, supply, reserve, raw,
+  const checks = {
+    physical: { status: !massing.fits || massing.collisions > 0 ? 'fail' : massing.collisions === null ? 'unknown' : 'pass', label: physicalEligible ? 'Footprint fits; no overlap' : !massing.fits ? 'Footprint does not fit' : massing.collisions === null ? 'Building overlap unassessed' : 'Building or infrastructure overlap', detail: physicalEligible ? 'The proposed rectangle fits within the mapped parcel and clears retained buildings and infrastructure; legal setbacks and dimensional rules are screened separately.' : !massing.fits ? 'The proposed rectangle crosses the parcel boundary.' : massing.collisions === null ? 'Retained-building evidence is unavailable.' : 'The proposed rectangle overlaps a retained building or reserved infrastructure.', blocking: true },
+    capacity: transitCapacityCheck({ supply, groupBoardings, service, reserve, addedPlaces, boardingsPerHome: state.boardingsPerHome }),
+  }
+  return { ...option, checks, displacement, marketEvidence, carbonEvidence: carbon, modelId: LIVE_MODEL_ID, sourceModelId: ARCHIVED_MODEL_ID, costEvidence: housingCostEvidence(state, option), costValidation: housingCostValidation(state, option), pin: props.pin, label: spec.label, units: spec.units, floors: option.floors ?? spec.floors, permission, massing, scores, eligible: physicalEligible, physicalEligible, service, access, monthly, burden, costAssumptionsConfirmed: costs.confirmed, demandBoardings, groupBoardings, addedPlaces, supply, reserve, raw,
     gate: !massing.fits ? 'Footprint does not fit' : massing.collisions > 0 ? 'Building or infrastructure overlap' : massing.collisions === null ? 'Building overlap check unavailable' : 'No supported conflict found',
   }
 }
@@ -90,9 +92,15 @@ function screenZoningPortfolio(members, context) {
     const conflict = titleNine.checks.find(c => c.status === 'conflict')
     // By-right reform simulation lifts only the §911.02 use-row conflict; every other gate stays.
     const useOnly = titleNine.checks.every(c => c.status !== 'conflict' || c.id === 'use')
-    return { ...member, titleNine, permission: titleNine.permission, eligible: member.physicalEligible && !titleNine.conflict, reformEligible: member.physicalEligible && useOnly,
+    return { ...member, titleNine, zoningReview: { incomplete: titleNine.excluded.length > 0, notAssessed: titleNine.excluded.length, assessed: titleNine.assessed.length, label: titleNine.excluded.length ? `Zoning review incomplete: ${titleNine.excluded.length} checks not assessed` : 'All supported zoning checks assessed' }, permission: titleNine.permission, eligible: member.physicalEligible && !titleNine.conflict, reformEligible: member.physicalEligible && useOnly,
       gate: !member.physicalEligible ? member.gate : conflict ? `Zoning conflict: ${conflict.label}` : `${titleNine.assessed.length} checks assessed · ${titleNine.excluded.length} not assessed` }
   })
+}
+
+function portfolioZoningReview(members) {
+  const notAssessed = members.reduce((sum, member) => sum + (member.zoningReview?.notAssessed || 0), 0)
+  const assessed = members.reduce((sum, member) => sum + (member.zoningReview?.assessed || 0), 0)
+  return { incomplete: notAssessed > 0, notAssessed, assessed, label: notAssessed ? `Zoning review incomplete: ${notAssessed} checks not assessed${members.length > 1 ? ` across ${members.length} buildings` : ''}` : 'All supported zoning checks assessed' }
 }
 
 function weighted(option, weights, included) {
@@ -103,7 +111,7 @@ function weighted(option, weights, included) {
 /** Priorities only change aggregation; retain source, geometry and legal evidence. */
 function weightScreen({ baseline, proposal }, weights) {
   const values = [...Object.values(baseline), ...Object.values(proposal)]
-  const included = PLANNER_FACTORS.map(f => f.id).filter(id => numeric(weights[id]) && weights[id] > 0 && values.every(o => numeric(o.scores[id])))
+  const included = PLANNER_FACTORS.map(f => f.id).filter(id => preferenceFactor(id) && numeric(weights[id]) && weights[id] > 0 && values.every(o => numeric(o.scores[id])))
   const excluded = PLANNER_FACTORS.map(f => f.id).filter(id => !included.includes(id))
   // suitability is the weighted factor score before eligibility gates; it is never a ranking.
   const reweight = options => Object.fromEntries(Object.entries(options).map(([id, option]) => {
@@ -127,6 +135,7 @@ function screenOptions(options, context) {
       proposal[slot].eligible = false
       proposal[slot].physicalEligible = false
       proposal[slot].scores.physical = null
+      proposal[slot].checks.physical = { status: 'unknown', label: 'Infrastructure geometry needs review', blocking: true }
       proposal[slot].gate = 'Infrastructure validation unavailable or failed — review required'
     }
   }
@@ -141,10 +150,12 @@ function screenOptions(options, context) {
         const groupUnits = (scenario.committedUnitsByStop?.[member.stopId] || 0) + (sameStop ? candidate.units : 0)
         const demand = groupUnits * scenario.boardingsPerHome
         const capacity = member.supply === null || !member.service ? null : demand > 0 ? clamp(100 * member.supply / demand) : 100
-        return { ...member, scores: { ...member.scores, capacity } }
+        return { ...member, scores: { ...member.scores, capacity }, checks: { ...member.checks, capacity: transitCapacityCheck({ supply: member.supply, groupBoardings: demand, service: member.service, reserve: member.reserve, addedPlaces: member.addedPlaces, boardingsPerHome: scenario.boardingsPerHome }) } }
       })
       const portfolio = [...members, candidate], units = portfolio.reduce((n, member) => n + member.units, 0)
       candidate.siteScores = candidate.scores
+      candidate.checks = Object.fromEntries(['physical', 'capacity'].map(id => [id, combineChecks(portfolio.map(member => member.checks[id]))]))
+      candidate.zoningReview = portfolioZoningReview(portfolio)
       candidate.siteEligible = candidate.eligible
       candidate.area = { units, buildings: portfolio.length, parcels: new Set([...members.map(m => m.pin), feature.properties.pin]).size,
         invalid: members.filter(m => !m.eligible).map(m => ({ id: m.id, pin: m.pin, gate: m.gate })) }
@@ -162,12 +173,12 @@ function screenOptions(options, context) {
 export function summarizePlacedPlan(committed, weights) {
   if (!committed.baseline.length) return null
   const members = [...committed.baseline, ...committed.proposal]
-  const included = PLANNER_FACTORS.map(f => f.id).filter(id => weights[id] > 0 && members.every(m => numeric(m.scores[id])))
+  const included = PLANNER_FACTORS.map(f => f.id).filter(id => preferenceFactor(id) && weights[id] > 0 && members.every(m => numeric(m.scores[id])))
   const summaries = Object.fromEntries(['baseline', 'proposal'].map(state => {
     const options = committed[state], units = options.reduce((n, o) => n + o.units, 0)
     const scores = Object.fromEntries(PLANNER_FACTORS.map(f => [f.id, options.every(o => numeric(o.scores[f.id])) ? options.reduce((n, o) => n + o.scores[f.id] * o.units, 0) / units : null]))
     const eligible = options.every(o => o.eligible)
-    return [state, { scores, units, buildings: options.length, parcels: new Set(options.map(o => o.pin)).size, eligible, total: eligible ? weighted({ scores }, weights, included) : null }]
+    return [state, { scores, units, checks: Object.fromEntries(['physical', 'capacity'].map(id => [id, combineChecks(options.map(option => option.checks[id]))])), zoningReview: portfolioZoningReview(options), buildings: options.length, parcels: new Set(options.map(o => o.pin)).size, eligible, total: eligible ? weighted({ scores }, weights, included) : null }]
   }))
   return { ...summaries, included }
 }
@@ -208,7 +219,7 @@ export function evaluatePlanner({ feature, zoning, scenario, stop, existingBuild
     const otherBuildings = site.existingBuildings === null ? null : [...site.existingBuildings, ...geometries.filter(f => f.properties.id !== site.id)]
     const stopId = String(site.stop?.stop_id)
     const ownUnits = housingSpec(site.option).units
-    const siteScenario = { ...areaScenario, targetIncome: site.targetIncome, affordabilityConfirmation: site.affordabilityConfirmation, committedUnitsByStop: { ...committedUnitsByStop, [stopId]: committedUnitsByStop[stopId] - ownUnits } }
+    const siteScenario = { ...areaScenario, targetIncome: site.targetIncome, incomeSource: site.incomeSource || 'legacy', incomeBand: site.incomeBand ?? null, householdSize: site.householdSize || 1, affordabilityAuto: false, affordabilityConfirmation: site.affordabilityConfirmation, committedUnitsByStop: { ...committedUnitsByStop, [stopId]: committedUnitsByStop[stopId] - ownUnits } }
     for (const state of ['baseline', 'proposal']) {
       const isProposal = state === 'proposal'
       const key = `${site.feature.properties.pin}:${stopId}:${state}`

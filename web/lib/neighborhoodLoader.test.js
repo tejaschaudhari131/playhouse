@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loadNeighborhood, locateNeighborhood, loadNeighborhoodBatch } from './neighborhoodLoader.js'
+import { loadNeighborhood, locateNeighborhood, loadNeighborhoodBatch, loadDataParts } from './neighborhoodLoader.js'
 import { regionalNetwork } from '../scripts/prepare-studio-data.mjs'
+import { encodeFeatureTransport } from './featureTransport.js'
 const descriptor={id:'brookline',name:'Brookline',examplePin:'000ABC123',parcelFiles:['brookline-parcels.abc.json','brookline-parcels.def.json'],buildingFiles:['brookline-buildings.abc.json']}
 
 test('Explorer loads only parcel chunks; Studio also loads recorded collision evidence',async()=>{
@@ -71,4 +72,30 @@ test('a failed neighborhood does not prevent other bounded loads from finishing'
   const errors=await loadNeighborhoodBatch(['a','b','c'],async id=>{if(id==='b')throw Error('missing b');return id},new AbortController().signal,id=>published.push(id))
   assert.deepEqual(published.sort(),['a','c'])
   assert.equal(errors[0].message,'missing b')
+})
+
+test('small transport parts decode with bounded requests and preserve exact feature order', async () => {
+  let active = 0, maximum = 0
+  const files = ['a.json', 'b.json', 'c.json', 'd.json']
+  const fetcher = async url => {
+    active++; maximum = Math.max(maximum, active)
+    await new Promise(resolve => setTimeout(resolve, url.includes('a.') ? 5 : 1))
+    active--
+    return { ok: true, json: async () => encodeFeatureTransport({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: null, properties: { pin: url, exact: 0.123456789 } }] }) }
+  }
+  const result = await loadDataParts(files, undefined, fetcher)
+  assert.equal(maximum, 2)
+  assert.deepEqual(result.map(c => c.features[0].properties.pin), files.map(file => `/data/studio/${file}`))
+  assert.equal(result[0].features[0].properties.exact, 0.123456789)
+})
+
+test('cancelled part loading starts no queued work and never returns a partial neighborhood', async () => {
+  const controller = new AbortController(), requests = [], releases = []
+  const promise = loadDataParts(['a.json', 'b.json', 'c.json'], controller.signal, url => new Promise(resolve => {
+    requests.push(url)
+    releases.push(() => resolve({ ok: true, json: async () => ({ features: [] }) }))
+  }))
+  controller.abort(); releases.forEach(release => release())
+  await assert.rejects(promise, { name: 'AbortError' })
+  assert.equal(requests.length, 2)
 })

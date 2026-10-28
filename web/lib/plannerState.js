@@ -1,8 +1,10 @@
+import { FINANCE_VERSION } from './financeInputs.js'
 import { BUILDINGS, BUILDING_IDS } from './buildings.js'
 import { normalizeDemolition, buildingRefKey } from './redevelopment.js'
 import { housingCostInputs } from './housingCosts.js'
+import { prototypeRentOption } from './rentAssumptions.js'
 
-export const MODEL_VERSION = 'planner-screen-2.1'
+export const MODEL_VERSION = 'planner-screen-3.0'
 export const EXAMPLES = [
   { id: 'hazelwood', label: 'Hazelwood', pin: '0056F00338000000', caption: 'City inventory · Hazelwood Ave' },
   { id: 'lawrenceville', label: 'Lawrenceville', pin: '0049N00010000000', caption: 'City inventory · 3480 Butler St' },
@@ -19,11 +21,11 @@ export const PLANNER_FACTORS = [
   { id: 'physical', label: 'Physical feasibility', short: 'Fit', source: 'County parcel outline + proposed dimensions', kind: 'Schematic' },
   { id: 'affordability', label: 'Affordability', short: 'Affordability', source: 'Proposed rent/utilities + target household income', kind: 'Assumption' },
   { id: 'displacement', label: 'Displacement risk', short: 'Displacement', source: 'ACS 2020–2024 + HUD CHAS 2018–2022', kind: 'Screen' },
-  { id: 'capacity', label: 'Infrastructure capacity', short: 'Capacity', source: 'PRT stop departures × assumed spare places + added service', kind: 'Conditional' },
+  { id: 'capacity', label: 'Infrastructure capacity', short: 'Capacity', source: 'One selected PRT stop × assumed spare places + added service', kind: 'Conditional' },
   { id: 'access', label: 'Access to opportunity', short: 'Access', source: 'OSM walking graph / mapped parks + PRT stop departures', kind: 'Proxy' },
   { id: 'carbon', label: 'Marginal carbon emissions', short: 'Carbon', source: 'Existing RECS / embodied-tier / transit proxy', kind: 'Proxy' },
 ]
-export const INITIAL_WEIGHTS = { demand: 20, physical: 15, affordability: 20, displacement: 10, capacity: 10, access: 15, carbon: 10 }
+export const INITIAL_WEIGHTS = { demand: 25, physical: 0, affordability: 25, displacement: 15, capacity: 0, access: 20, carbon: 15 }
 
 export function optionFor(typeId, rent) {
   return { typeId, ...MASSING_DEFAULTS[typeId], height: BUILDINGS[typeId].heightM, floors: BUILDINGS[typeId].floors, residentialForm: 'duplex', rent, utilities: 150, placement: null }
@@ -35,8 +37,8 @@ export function initialScenario(pin, props = {}, stopId = '') {
     pin, stopId, options: { A: optionFor('townhouse_duplex', rent), B: optionFor('triplex', rent) },
     // Scenario inputs, not statements about actual capacity or proposed rents.
     targetIncome: Math.round(props.median_income || 40000), householdSize: 1, affordabilityConfirmation: null,
-    additionalDepartures: 0, serviceHours: 15, availablePlacesPerDeparture: 20,
-    spareBoardings: null, boardingsPerHome: 2,
+    additionalDepartures: 0, serviceHours: 18, availablePlacesPerDeparture: 10,
+    spareBoardings: null, boardingsPerHome: 4,
     connections: [], routes: [], parks: [], parkAccessShare: 0, buildings: [], demolitions: [],
     zoningInputsByPin: {}, projectInputs: {},
     weights: { ...INITIAL_WEIGHTS },
@@ -50,7 +52,7 @@ export const defaultComparisonTypes = typeId => BUILDING_IDS.filter(id => id !==
 export function initialStudioScenario(pin, props = {}, stopId = '') {
   const { options, ...scenario } = initialScenario(pin, props, stopId)
   // Live mode: housing costs count as scenario assumptions and follow every rent, utility or income edit.
-  const studio = { ...scenario, capacityMode: 'schedule', baselinePlacesPerDeparture: 1, draft: options.A, comparisonTypes: defaultComparisonTypes(options.A.typeId), affordabilityAuto: true }
+  const studio = { ...scenario, targetIncome: 46380, incomeSource: 'hud', incomeBand: 60, rentMode: 'prototype', capacityMode: 'schedule', baselinePlacesPerDeparture: 1, draft: { ...options.A, ...prototypeRentOption(options.A.typeId) }, comparisonTypes: defaultComparisonTypes(options.A.typeId), affordabilityAuto: true }
   return { ...studio, affordabilityConfirmation: housingCostInputs(studio, studio.draft) }
 }
 
@@ -100,12 +102,14 @@ export function scenarioReducer(state, action) {
     const comparisonTypes = changedType && next.comparisonTypes.includes(action.value.typeId)
       ? [...next.comparisonTypes.filter(id => id !== action.value.typeId), next.draft.typeId]
       : next.comparisonTypes
-    next = { ...next, draft: { ...next.draft, ...action.value }, comparisonTypes }
+    const manualRent = !changedType && Object.hasOwn(action.value, 'rent')
+    const rentUpdate = changedType && next.rentMode === 'prototype' ? prototypeRentOption(action.value.typeId) : manualRent ? { rentSource: 'custom', rentSourceDetail: 'User-entered rent, shared across compared housing types.', rentRange: null } : {}
+    next = { ...next, ...(manualRent ? { rentMode: 'custom' } : {}), draft: { ...next.draft, ...action.value, ...rentUpdate }, comparisonTypes }
   }
   if (action.type === 'removeBuilding') next = { ...next, buildings: (next.buildings || []).filter(b => b.id !== action.id) }
   if (action.type === 'reset') next = action.scenario
   if (action.type === 'patch') next = { ...next, ...action.value }
-  if (action.type === 'set') next = { ...next, [action.key]: action.value }
+  if (action.type === 'set') next = { ...next, ...(action.key === 'targetIncome' ? { incomeSource: 'custom', incomeBand: null } : {}), [action.key]: action.value }
   if (action.type === 'option') next = { ...next, options: { ...next.options, [action.slot]: { ...next.options[action.slot], ...action.value } } }
   if (action.type === 'weight') next = { ...next, weights: { ...next.weights, [action.key]: action.value } }
   if (action.type === 'housingCosts' && next.draft) {
@@ -125,5 +129,5 @@ export function scenarioReducer(state, action) {
 }
 
 export function scenarioExport(scenario, summary) {
-  return { schemaVersion: scenario.draft || scenario.demolitions?.length ? 7 : 3, modelVersion: MODEL_VERSION, dataVersion: summary?.pulled_at || null, exportedAt: new Date().toISOString(), scenario, limitations: ['Dimensions, access connectors and infrastructure buildability are user/model assumptions.', 'Demolitions are hypothetical removals from this plan, applied in both infrastructure states. Source records are unchanged; removal permission, cost, occupancy, relocation and demolition carbon are not assessed.', 'Title Nine checks without sufficient evidence are excluded, not passed. A score is not zoning approval.', 'This model does not evaluate utilities, engineering, route schedules, travel to jobs or marginal tonnes of CO2.'] }
+  return { schemaVersion: scenario.draft || scenario.demolitions?.length ? 7 : 3, modelVersion: MODEL_VERSION, financeVersion: FINANCE_VERSION, dataVersion: summary?.pulled_at || null, exportedAt: new Date().toISOString(), scenario, limitations: ['Dimensions, access connectors and infrastructure buildability are user/model assumptions.', 'Demolitions are hypothetical removals from this plan, applied in both infrastructure states. Source records are unchanged; removal permission, cost, occupancy, relocation and demolition carbon are not assessed.', 'Title Nine checks without sufficient evidence are excluded, not passed. A score is not zoning approval.', 'This model does not evaluate utilities, engineering, route schedules, travel to jobs or marginal tonnes of CO2.'] }
 }

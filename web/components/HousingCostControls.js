@@ -26,7 +26,7 @@ export function AmiChips({ householdSize = 1, targetIncome, onIncome, onSize }) 
     </span>
     <div>{Object.entries(limits.incomeLimits).map(([band, values]) => {
       const income = values[size - 1]
-      return <button key={band} aria-pressed={targetIncome === income} onClick={() => onIncome(income)} aria-label={`Use ${band}% AMI income: ${dollars(income)} a year`}><strong>{band}%</strong><small>{dollars(income)}</small></button>
+      return <button key={band} aria-pressed={targetIncome === income} onClick={() => onIncome(income, Number(band))} aria-label={`Use ${band}% AMI income: ${dollars(income)} a year`}><strong>{band}%</strong><small>{dollars(income)}</small></button>
     })}</div>
   </div>
 }

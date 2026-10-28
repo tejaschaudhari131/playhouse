@@ -12,7 +12,7 @@ const NICE = [2, 5, 10, 20, 25, 50, 100, 200]
  * Plan-view SVG geometry in local metres (east right, north up): parcel boundary, the draft footprint with its
  * width and depth edges labelled, retained and demolished outlines, a north arrow and a scale bar. Map outlines, not a survey.
  */
-export function siteDiagram({ parcel, footprint = null, retained = [], demolished = [], bearing = null, size = 300, pad = 30 } = {}) {
+export function siteDiagram({ parcel, footprint = null, retained = [], demolished = [], bearing = null, network = null, size = 300, pad = 30 } = {}) {
   const origin = geometryCenter(parcel)
   if (!origin) return null
   const scaleX = METRES * Math.cos(origin[1] * Math.PI / 180)
@@ -46,8 +46,21 @@ export function siteDiagram({ parcel, footprint = null, retained = [], demolishe
     labels.push({ ...w, kind: 'width' }, { ...d, kind: 'depth' })
     foot = { width: w.metres, depth: d.metres, bearing: Number.isFinite(bearing) ? round(bearing) : null }
   }
+  // Reuse the loaded OSM walking geometry for context; it is not a road-width or frontage survey.
+  const networkPaths = [], seenEdges = new Set()
+  for (const [a, b] of network?.edges || []) {
+    if (!network.ground?.[a] || !network.ground?.[b]) continue
+    const key = a < b ? `${a}:${b}` : `${b}:${a}`
+    if (seenEdges.has(key)) continue
+    const p = network.nodes[a], q = network.nodes[b]
+    if (!p || !q) continue
+    const [x1,y1] = svg(local(p)), [x2,y2] = svg(local(q))
+    if (Math.max(x1,x2) < 0 || Math.min(x1,x2) > size || Math.max(y1,y2) < 0 || Math.min(y1,y2) > size) continue
+    seenEdges.add(key); networkPaths.push(`M${x1} ${y1}L${x2} ${y2}`)
+  }
   const metres = NICE.find(n => n * k >= size * .18) || NICE.at(-1)
   return {
+    networkPaths,
     size, viewBox: `0 0 ${size} ${size}`,
     parcel: path(parcelRings), footprint: footRings.length ? path(footRings) : null,
     retained: retained.map(near).filter(r => r.length).map(path), demolished: demolished.map(near).filter(r => r.length).map(path),

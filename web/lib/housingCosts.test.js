@@ -8,6 +8,8 @@ import { evaluatePlanner } from './plannerModel.js'
 test('in explicit mode (plans saved before live mode), Census costs remain context until the exact assumptions are confirmed', () => {
   const { affordabilityAuto, ...state } = initialStudioScenario('site', { median_gross_rent: 643, median_income: 40000 })
   state.affordabilityConfirmation = null
+  state.targetIncome = 40000
+  state.draft = { ...state.draft, rent: 493 }
   assert.equal(affordabilityAuto, true)
   assert.equal(housingCostBurden(state, state.draft).score, null)
   assert.equal(housingCostBurden(state, state.draft).burden, 643 * 12 / 40000)
@@ -41,6 +43,7 @@ test('each placed building retains its own confirmation; the current draft canno
   assert.ok(Number.isFinite(run().committed.proposal[0].scores.affordability))
   assert.ok(run().included.includes('affordability'))
   scenario.affordabilityConfirmation = null
+  scenario.affordabilityAuto = false
   assert.ok(Number.isFinite(run().committed.proposal[0].scores.affordability), 'placed assumption does not depend on the current draft')
   assert.ok(!run().included.includes('affordability'))
 })
@@ -48,8 +51,8 @@ test('each placed building retains its own confirmation; the current draft canno
 test('live mode keeps housing costs in the score through rent, utility, income and AMI edits, and one switch covers the plan', () => {
   const start = initialStudioScenario('site', { median_gross_rent: 643, median_income: 40000 })
   assert.equal(start.affordabilityAuto, true)
-  assert.deepEqual(start.affordabilityConfirmation, { targetIncome: 40000, rent: 493, utilities: 150 })
-  assert.equal(housingCostBurden(start, start.draft).score, 100)
+  assert.deepEqual(start.affordabilityConfirmation, { targetIncome: 46380, rent: 1800, utilities: 150 })
+  assert.equal(housingCostBurden(start, start.draft).score, 0, 'prototype new construction does not meet this income target')
   let history = historyFor(start)
   const step = action => { history = scenarioReducer(history, action); return history.present }
   for (const action of [{ type: 'draft', value: { rent: 1100 } }, { type: 'draft', value: { utilities: 175 } }, { type: 'set', key: 'targetIncome', value: 58650 }, { type: 'patch', value: { targetIncome: 41950 } }]) {
@@ -87,4 +90,19 @@ test('legacy plans without the live-mode flag keep their exact confirmation beha
   assert.equal(edited.affordabilityAuto, undefined)
   const confirmed = scenarioReducer(history, { type: 'set', key: 'affordabilityConfirmation', value: housingCostInputs(legacy, legacy.draft) }).present
   assert.equal(scenarioReducer(historyFor(confirmed), { type: 'draft', value: { rent: 700 } }).present.affordabilityConfirmation, confirmed.affordabilityConfirmation)
+})
+
+
+test('placed-building income provenance never inherits the current draft income band', () => {
+  const feature = { type: 'Feature', geometry: rectangleAt([-79.94, 40.41], 150, 150), properties: { pin: 'site', lot_sqft: 240000, zoning_code: 'RM-VH', scores: { townhouse_duplex: { demand: 70 } } } }
+  const scenario = initialStudioScenario('site')
+  const site = { id: 'placed', feature, existingBuildings: [], stop: null, targetIncome: 30000, incomeSource: 'custom', incomeBand: null,
+    option: { ...optionFor('townhouse_duplex', 700), placement: { east: -50, north: 0, bearing: 0 } } }
+  site.affordabilityConfirmation = housingCostInputs(site, site.option)
+  const result = evaluatePlanner({ feature, zoning: { districts: {} }, scenario, stop: null, existingBuildings: [], areaSites: [site] })
+  assert.equal(result.committed.proposal[0].costEvidence.targetIncome.label, 'Target household income')
+  assert.equal(result.proposal.townhouse_duplex.costEvidence.targetIncome.label, '60% AMI target')
+  delete site.incomeSource
+  const legacy = evaluatePlanner({ feature, zoning: { districts: {} }, scenario, stop: null, existingBuildings: [], areaSites: [site] })
+  assert.equal(legacy.committed.proposal[0].costEvidence.targetIncome.kind, 'fallback')
 })

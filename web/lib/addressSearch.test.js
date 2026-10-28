@@ -100,3 +100,17 @@ test('network failure is distinct from empty results and exposes no stale matche
   assert.equal(states.at(-1).error, 'Test download failed')
   assert.deepEqual(states.at(-1).matches, [])
 })
+
+test('current neighborhood is prioritized before downtown and duplicate addresses retain their PINs', async () => {
+  const places = [{ id: 'downtown', name: 'Central Business District' }, { id: 'east-liberty', name: 'East Liberty' }]
+  const records = [['downtown-b', '524 PENN AVE', 'downtown'], ['east', '6100 PENN AVE', 'east-liberty'], ['downtown-a', '524 PENN AVE', 'downtown']]
+  const result = searchAddressRows(records, ['penn', 'ave'], places, 6, 'East Liberty')
+  assert.deepEqual(result.matches.map(row => row.properties.pin), ['east', 'downtown-a', 'downtown-b'])
+  assert.equal(result.total, 3)
+  assert.equal(result.matches[1].properties.address, result.matches[2].properties.address)
+  assert.notEqual(result.matches[1].properties.pin, result.matches[2].properties.pin)
+  assert.equal(searchAddressRows(records, ['penn'], places, 1, 'east-liberty').matches[0].properties.pin, 'east')
+  const manifest = { neighborhoods: places, addressSearch: { version: 1, shards: { pen: [hash, records.length] } } }
+  const client = createAddressSearchClient(manifest, async () => ({ ok: true, json: async () => records }), 'East Liberty')
+  assert.equal((await client.search('Penn Ave')).matches[0].properties.pin, 'east')
+})

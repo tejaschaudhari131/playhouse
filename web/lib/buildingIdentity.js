@@ -1,5 +1,5 @@
 import { buildingHeightDescription, buildingHeightSource } from './buildingHeights.js'
-import { geometryArea, geometryCenter } from './plannerGeometry.js'
+import { geometryArea, geometryCenter, geometriesOverlap } from './plannerGeometry.js'
 import { footprintKey } from './redevelopment.js'
 
 const compareText = (a, b) => a < b ? -1 : a > b ? 1 : 0
@@ -94,4 +94,15 @@ export function buildingIdentityRows(buildings, sitePin) {
       ...heightEvidence(properties),
     }
   })
+}
+
+/** Inspect an off-site blocker without adding it to the numbered on-site inventory. */
+export function buildingInspectionRow(building, parcel, rows = []) {
+  if (!building) return null
+  const key = footprintKey(building), existing = rows.find(row => row.key === key)
+  if (existing) return existing
+  const row = buildingIdentityRows([building], parcel?.properties?.pin)[0]
+  if (!row) return null
+  const overlaps = parcel?.geometry && building.geometry && geometriesOverlap(parcel.geometry, building.geometry)
+  return { ...row, number: null, label: null, relation: overlaps ? row.relation : 'outside' }
 }

@@ -44,8 +44,8 @@ test('missing factors and zero priorities stay excluded rather than earning zero
   const result = { baseline: { A, B }, proposal: { A, B }, included: ['demand'] }
   const audit = recommendationAudit(result, { weights: { demand: 20, physical: 0, capacity: 10 } })
   const physical = audit.factors.find(f => f.id === 'physical'), capacity = audit.factors.find(f => f.id === 'capacity')
-  assert.match(physical.exclusion, /weight is zero/)
-  assert.match(capacity.exclusion, /Unknown/)
+  assert.match(physical.exclusion, /Separate check/)
+  assert.match(capacity.exclusion, /Separate check/)
   assert.equal(capacity.values.A.weightedDelta, null)
   assert.equal(physical.gaps.proposal, null)
   assert.equal(rankedWinner({ A: { ...A, total: null }, B: { ...B, total: null } }), null)

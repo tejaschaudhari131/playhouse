@@ -66,10 +66,10 @@ test('feasibility screen reports observed context, assumed cost ranges, capitali
   assert.equal(impact.existing.area.basis, 'calculated')
   assert.deepEqual(impact.cost.demolition.map(Math.round), IMPACT_ASSUMPTIONS.demolitionPerSqft.map(rate => Math.round(rate * impact.existing.demolishedSqft)))
   const newSqft = 10 * 16 * 3 * 10.7639
-  assert.deepEqual(impact.cost.construction.map(Math.round), [250, 350].map(rate => Math.round(rate * newSqft)))
+  assert.deepEqual(impact.cost.construction.map(Math.round), [215, 285].map(rate => Math.round(rate * newSqft)))
   assert.deepEqual(impact.cost.acquisition.parcels.map(p => [p.basis, p.range]), [['old_sale', [85000, 85000]]])
   assert.equal(impact.replacement.netUnits, 1)
-  const value = 1200 * 3 * 12 * 0.6 / 0.065
+  const value = 1200 * 3 * 12 * 0.945 * 0.6 / 0.0725
   assert.ok(Math.abs(impact.value.capitalized - value) < 1e-6)
   assert.ok(Math.abs(impact.value.gap[0] - (value - impact.cost.development[1])) < 1e-6)
   assert.equal(impact.affordability.affordableRent, 1350)
@@ -89,27 +89,28 @@ test('pro forma: observed living area, acquisition, hard vs total cost, break-ev
   const impact = redevelopmentImpact({ parcel, demolished: [house], draft, targetIncome: 60000, householdSize: 2, limits, benchmarks, asOfYear: 2026 })
   assert.equal(impact.existing.demolishedSqft, 1860)
   assert.equal(impact.existing.area.basis, 'observed')
-  const demolition = [8 * 1860, 15 * 1860], construction = [250, 350].map(r => r * 10 * 16 * 3 * 10.7639)
-  const hard = [demolition[0] + construction[0], demolition[1] + construction[1]]
-  closeRange(impact.cost.hard, hard, 'hard cost = demolition + construction')
-  closeRange(impact.cost.soft, [hard[0] * 0.2, hard[1] * 0.2], 'soft cost 20% of hard')
+  const demolition = [8 * 1860, 15 * 1860], construction = [215, 285].map(r => r * 10 * 16 * 3 * 10.7639)
+  const hard = [demolition[0] + construction[0] * 1.1, demolition[1] + construction[1] * 1.1]
+  closeRange(impact.cost.hard, hard, 'hard cost = demolition + construction + 10% site work')
+  closeRange(impact.cost.soft, [hard[0] * 0.12, hard[1] * 0.12], 'design/permits/legal 12% of hard')
   assert.deepEqual(impact.cost.acquisition.range, [150 * 1860, 250 * 1860])
-  const development = [hard[0] * 1.2 + 150 * 1860, hard[1] * 1.2 + 250 * 1860]
+  const base = [hard[0] * 1.17 * 1.10 + 9000 + 150 * 1860, hard[1] * 1.17 * 1.10 + 9000 + 250 * 1860]
+  const development = base.map(v => v * (1 + .65 * .5 * .075 * 1.5))
   closeRange(impact.cost.development, development, 'total development cost incl. acquisition')
   closeRange(impact.cost.perHome, development.map(v => v / 3), 'per home')
-  closeRange(impact.value.breakEvenRent, development.map(v => v * 0.065 / (3 * 12 * 0.6)), 'break-even rent')
-  const capitalized = 1200 * 3 * 12 * 0.6 / 0.065
-  closeRange(impact.value.residualLand, [capitalized - hard[1] * 1.2, capitalized - hard[0] * 1.2], 'residual land value at draft rent')
-  const affordable = 1350 * 3 * 12 * 0.6 / 0.065
-  closeRange(impact.affordability.residualLand, [affordable - hard[1] * 1.2, affordable - hard[0] * 1.2], 'residual land value at the affordable rent')
+  closeRange(impact.value.breakEvenRent, development.map(v => v * 0.0725 / (3 * 12 * .945 * 0.6)), 'break-even rent')
+  const capitalized = 1200 * 3 * 12 * 0.945 * 0.6 / 0.0725
+  closeRange(impact.value.residualLand, [capitalized - impact.cost.beforeLand[1], capitalized - impact.cost.beforeLand[0]], 'residual land value at draft rent')
+  const affordable = 1350 * 3 * 12 * 0.945 * 0.6 / 0.0725
+  closeRange(impact.affordability.residualLand, [affordable - impact.cost.beforeLand[1], affordable - impact.cost.beforeLand[0]], 'residual land value at the affordable rent')
   closeRange(impact.affordability.subsidyPerUnit, development.map(v => Math.max(0, v - affordable) / 3), 'subsidy gap per home')
   assert.equal(impact.affordability.band.band, 80)
   assert.equal(impact.capitalStack.band, 80)
   assert.equal(impact.capitalStack.qct, true)
-  closeRange(impact.capitalStack.programs[0].estimate.nine, [hard[0] * 1.2 * 0.765 * 1.3, hard[1] * 1.2 * 0.765 * 1.3], 'LIHTC basis excludes land')
-  closeRange(impact.tax.newValue, construction, 'new assessed value proxy = construction cost')
+  assert.equal(impact.capitalStack.programs[0].estimate, null)
+  closeRange(impact.tax.newValue, development, 'new assessed value scenario includes acquisition and soft costs')
   closeRange(impact.tax.replacedValue, [150 * 1860, 250 * 1860], 'replaced value = acquisition estimate')
-  closeRange(impact.tax.net, [construction[0] * 0.027307 - 250 * 1860 * 0.027307, construction[1] * 0.027307 - 150 * 1860 * 0.027307], 'net new tax')
+  closeRange(impact.tax.net, [development[0] * 0.027307 - 250 * 1860 * 0.027307, development[1] * 0.027307 - 150 * 1860 * 0.027307], 'net new tax')
 
   const rich = redevelopmentImpact({ parcel: { ...parcel, land_use: 'VACANT LAND', living_sqft: null }, demolished: [], draft: { ...draft, rent: 9000 }, targetIncome: null, asOfYear: 2026 })
   assert.equal(rich.capitalStack, null, 'no shortfall, no capital stack guide')
@@ -133,7 +134,8 @@ test('plan tax ledger sums placed buildings against parcels with demolished prin
   const f = (pin, role) => ({ properties: { pin, footprint_role: role } })
   const buildings = [{ option: optionFor('triplex', 1200) }, { option: optionFor('single_family', 900) }]
   const ledger = planTaxLedger({ buildings, demolished: [f('a', 'sole'), f('a', 'sole'), f('b', 'auxiliary')], parcelFor: pin => parcels[pin], asOfYear: 2026 })
-  closeRange(ledger.newValue, buildings.map(b => constructionCost(b.option).cost).reduce((s, c) => [s[0] + c[0], s[1] + c[1]], [0, 0]), 'plan new value')
+  const hard = buildings.map(b => constructionCost(b.option).cost).reduce((s,c) => [s[0]+c[0]*1.1,s[1]+c[1]*1.1],[0,0])
+  closeRange(ledger.newValue, hard.map(v => (v*1.17*1.1+4*3000+100000)*(1+.65*.5*.075*1.5)), 'plan cost proxy includes allowances and acquisition once')
   assert.deepEqual(ledger.replacedValue, [100000, 100000], 'parcel a counted once; garage-only parcel b keeps its tax')
   assert.deepEqual(planTaxLedger({}).net, [0, 0])
 })

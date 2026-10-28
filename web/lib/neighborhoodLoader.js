@@ -1,19 +1,42 @@
 import { collection } from './studioData.js'
+import { decodeFeatureTransport } from './featureTransport.js'
 
 export async function fetchDataFile(file, signal, fetcher = fetch) {
   // Only build-generated relative files, never a URL or arbitrary filesystem path.
   if (!/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.json$/.test(file)) throw new Error('Invalid neighborhood data filename')
   const response = await fetcher(`/data/studio/${file}`, { signal })
   if (!response.ok) throw new Error(`${file}: ${response.status}`)
-  return response.json()
+  const payload = await response.json()
+  if (signal?.aborted) throw new DOMException('Neighborhood request cancelled', 'AbortError')
+  return decodeFeatureTransport(payload)
+}
+
+/** Small parts avoid a single large parse; two in flight prevent decode bursts.
+ * Yield between parts so map gestures and loading feedback remain responsive.
+ */
+export async function loadDataParts(files, signal, fetcher = fetch, concurrency = 2) {
+  const result = new Array(files.length)
+  let next = 0, failure = null
+  await Promise.all(Array.from({ length: Math.min(concurrency, files.length) }, async () => {
+    while (next < files.length && !failure && !signal?.aborted) {
+      const index = next++
+      try {
+        result[index] = await fetchDataFile(files[index], signal, fetcher)
+        if (next < files.length) await new Promise(resolve => setTimeout(resolve, 0))
+      } catch (error) { failure ||= error }
+    }
+  }))
+  if (signal?.aborted) throw new DOMException('Neighborhood request cancelled', 'AbortError')
+  if (failure) throw failure
+  return result
 }
 
 export async function loadNeighborhood(descriptor, signal, fetcher = fetch, withBuildings = true) {
   if (!descriptor) throw new Error('Neighborhood is not in this release')
   if (descriptor.file) return fetchDataFile(descriptor.file, signal, fetcher)
-  const parcels = await Promise.all(descriptor.parcelFiles.map(file => fetchDataFile(file, signal, fetcher)))
+  const parcels = await loadDataParts(descriptor.parcelFiles, signal, fetcher)
   const [buildings, emptySites] = await Promise.all([
-    withBuildings ? Promise.all(descriptor.buildingFiles.map(file => fetchDataFile(file, signal, fetcher))) : [],
+    withBuildings ? loadDataParts(descriptor.buildingFiles, signal, fetcher) : [],
     withBuildings && descriptor.emptySitesFile ? fetchDataFile(descriptor.emptySitesFile, signal, fetcher) : null,
   ])
   return { parcels: collection(parcels.flatMap(c => c.features)), buildings: collection(buildings.flatMap(c => c.features)), emptySites }

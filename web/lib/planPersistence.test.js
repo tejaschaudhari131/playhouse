@@ -136,25 +136,39 @@ test('missing parcel or changed graph refuses unsafe restoration before fetching
   assert.equal(loads, 0)
 })
 
-test('saved plans from earlier releases restore with live housing costs and every type scored', () => {
+test('legacy plans preserve assumptions and choices but exclude unreviewed housing costs', () => {
   const legacy = fullPlan()
   delete legacy.affordabilityAuto
   legacy.affordabilityConfirmation = null
   legacy.comparisonTypes = []
   legacy.buildings[0].affordabilityConfirmation = null
-  const target = storage()
-  assert.equal(savePlan(target, legacy, sources).ok, true)
-  const restored = readSavedPlan(target)
+  const before = structuredClone(legacy)
+  const restored = parseSavedPlan(JSON.stringify({ version: 1, modelVersion: 'planner-screen-2.1', scenario: legacy, sources }))
   assert.equal(restored.migrated, true)
   const scenario = restored.saved.scenario
-  assert.equal(scenario.affordabilityAuto, true)
-  assert.deepEqual(scenario.affordabilityConfirmation, { targetIncome: legacy.targetIncome, rent: legacy.draft.rent, utilities: legacy.draft.utilities })
-  assert.deepEqual(scenario.buildings[0].affordabilityConfirmation, { targetIncome: 30123, rent: 987, utilities: 150 })
-  assert.deepEqual(scenario.comparisonTypes.sort(), ['large_apartment', 'single_family', 'small_apartment', 'townhouse_duplex'])
+  assert.equal(scenario.affordabilityAuto, false)
+  assert.equal(scenario.affordabilityConfirmation, null)
+  assert.equal(scenario.buildings[0].affordabilityConfirmation, null)
+  assert.deepEqual(scenario.comparisonTypes, [], 'migration must preserve the selected comparison set')
+  assert.equal(scenario.draft.rent, legacy.draft.rent)
+  assert.equal(scenario.targetIncome, legacy.targetIncome)
+  assert.equal(scenario.draft.rentSource, 'legacy')
+  assert.equal(scenario.incomeSource, 'legacy')
   assert.equal(validatePlan(scenario), null)
+  assert.deepEqual(legacy, before)
   const off = { ...fullPlan(), affordabilityAuto: false, affordabilityConfirmation: null }
-  assert.equal(migrateSavedScenario(off).affordabilityAuto, false)
+  assert.equal(migrateSavedScenario(off, 'planner-screen-2.1').affordabilityAuto, false)
   const current = fullPlan()
   assert.equal(migrateSavedScenario(current), current)
   assert.equal(readSavedPlan((() => { const t = storage(); savePlan(t, current, sources); return t })()).migrated, false)
+})
+
+test('manual cost guardrails and integer stories apply to saves as well as UI input', () => {
+  for (const change of [p => { p.draft.rent = 0 }, p => { p.targetIncome = 1000 }, p => { p.draft.floors = 2.5 }, p => { p.draft.floors = 99 }, p => { p.additionalDepartures = 2.5 }, p => { p.boardingsPerHome = 0 }]) {
+    const plan = fullPlan(); change(plan)
+    assert.ok(validatePlan(plan))
+  }
+  const plan = fullPlan()
+  delete plan.weights.physical; delete plan.weights.capacity
+  assert.equal(validatePlan(plan), null, 'five-slider priorities need no diagnostic weights')
 })

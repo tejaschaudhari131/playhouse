@@ -13,6 +13,8 @@ python -m unittest discover -s pipeline -p 'test_*.py'
 cd web && npm ci && npm test && npm run build
 ```
 
+The release records below are historical. Explorer and its explanation endpoint were retired on October 27, 2026; prior checks do not describe current routes.
+
 ## Citywide release — September 27, 2026
 
 - **Coverage:** all 90 Pittsburgh neighborhoods; 142,865 mapped records (142,571 identified parcels plus 294 anonymous/shared-ground polygons with internal map IDs). No neighborhood omitted. 140,983 records match assessment evidence. Unknown parcel-ID-based property flags stay unknown.
@@ -207,3 +209,49 @@ Rows show footprint area and a compact height label. Mapped, estimated, inferred
 Production-browser checks covered three same-use apartments at 554 Bigelow St (`0055G00282000000`), the crossing single-family outline at 5415 Glenwood Ave (`0057C00388000000`), and two unmatched outlines at 5037 Steele Ct (`0056L00279000000`). List and map selection agree; crossing-badge selection keeps the original site; demolition/Undo preserves numbers; Escape returns to the originating list button. Hiding existing buildings also hides their selection outline. At 390×844 the page width is 390 px and every building row's scroll width equals its client width (352 px). No browser warnings or errors were captured, and the production build passes.
 
 Native symbol collision handling gives the selected number priority and omits overlapping unselected badges until there is room; the complete numbered list remains available. This prevents an adjacent badge's invisible hitbox from selecting the wrong building. Roof markers use the existing display height, without turning illustrative heights into measured evidence. The address marker hides while building labels are displayed to avoid covering them.
+
+### Numeric input validation
+
+Number edits are applied on Enter or blur. Out-of-range dimensional and filter values show a correction message; fractional stories and invalid rent/income are rejected without changing the scenario. `node --test lib/numberInput.test.js` covers these cases. The income minimum is a simulator input guardrail, not a household eligibility rule.
+
+## Studio v3 policy and usability review (2026-10-27)
+
+The 66-file web suite passed (51.0 seconds), including whole-city equality checks; all 58 pipeline tests passed. Follow-up targeted regressions also pass for missing optional import metadata, retaining manual capacity/direct access, preserving excluded costs during parcel changes, and inspecting off-site draft blockers without altering the numbered site inventory. Tests cover five-factor normalization, separate physical/capacity checks, zero reserve, unique GTFS trips, frozen-feed provenance, displacement without the flat-rent cap, prototype affordability, close results, scenario imports and malformed exports.
+
+Data preparation retains all 142,865 parcel records across 90 neighborhoods and all recorded building coordinates/heights. The manifest is 148,917 bytes (54,688 gzip); the largest parcel/building part is 862,256 bytes. Hazelwood uses eight parcel and four building parts, totaling 9,111,474 uncompressed bytes. Its complete initial evidence, including the regional walking graph and shared sources, is 26,453,601 bytes (4,841,863 gzip). Gzip is a local compression measurement, not a guaranteed Vercel transfer size. The largest file is still a 15,460,400-byte regional graph: preserving reachability requires more context than the visible neighborhood. The old unused road files are excluded from the browser output. Geometry is not simplified.
+
+Measured warm parcel/building parse plus reconstruction p50/p95 was 67.6/88.5 ms; small parts yield between parses. This is not a claim of lower total CPU time or a mobile FPS guarantee. OpenFreeMap supplies the contextual basemap; the local evidence layers remain unchanged.
+
+The production build passed before and after patching Next.js to 15.5.28. The full `npm run build`, including data preparation, took 46.9 seconds; a subsequent compile of the final scenario-state guards took 13.1 seconds. The later inspection/layout build also passed. `npm audit` reports zero known vulnerabilities after compatible dependency patches.
+
+Production-build browser checks covered Studio and Explorer with OpenFreeMap; prototype rent and HUD-band controls; blocked types and comparison cards; preset and Add-button focus; Ctrl+Z/Ctrl+Shift+Z; confirmation before New plan; JSON export/import and reload; stop-specific +60 departures, switching stops and resetting additions; explicit invalid income/rent/story messages; site-brief keyboard containment, outside-click dismissal and focus restoration; numbered building inspection and Escape; and East Liberty-first Penn Avenue results with distinct PINs. Negative minimum lot size visibly corrects to zero without removing valid results. No browser warning/error logs were captured in those checks.
+
+The 640×360 and 426×240 CSS-viewport checks represent the available space at roughly 200% and 300% zoom on a 1280×720 window. They are layout-equivalent tests, not a claim that browser zoom itself was instrumented. Header actions wrap without horizontal page overflow; short views scroll vertically and keep a nonzero map area. Native screen-reader, mobile-GPU and real 30-user load testing remain unverified.
+
+An additional East Liberty regression check on `0083F00297000000` confirmed that **Inspect first** opens nearby outline `415479` while retaining the selected parcel. It shows its 187 m² footprint, inferred 7.5 m height and unmatched/outside-site provenance; Escape returns to Inspect first. The final compact map track is 320 px, with controls above the attribution area. These changes do not assign neighboring buildings to the selected parcel.
+
+The desktop widened-sidebar check also keeps bottom map controls above wrapped attribution when the map pane becomes narrower than 640 px. This uses the map container width, independent of the browser viewport breakpoint.
+
+
+## Legacy Explorer retirement — October 27, 2026
+
+Removed the Explorer UI, its optional AI endpoint, obsolete UI/model helpers and their feature-specific tests, plus Leaflet and AI SDK dependencies. Shared source-score, zoning and parcel helpers remain covered; no source records, geometry, Studio formulas or plan schema changed. Historical Explorer validation above is retained as a release record.
+
+- All **61 remaining web test files pass**, including new compatibility-link regressions (valid parcels, old encoded A/B links, malformed input, oversized input and unsupported versions).
+- Full `npm run build` passes; a final Next build confirms the home page remains static. `/explore` is only a server redirect, not a second interface. `/api/explain` returns 404.
+- Local production browser: old parcel bookmarks and encoded `/?s=…` links redirect to Studio with the correct PIN; legacy weights/options are not applied. Studio shows a retirement notice. The Hazelwood map, housing scores, Add to plan, Undo and comparison cards work. The header contains no Explorer link. No browser warnings/errors were captured.
+- README, setup and model documentation now describe one live interface. No deployment or production smoke test was performed for this change.
+
+## Pro forma and placement QA — October 27, 2026
+
+All 63 web test files passed (58.2 seconds). Eight focused suites passed again after the final financial/import and brief corrections. Full `npm run build`, including city data preparation, passed. No source geometry or parcel scores were regenerated with changed formulas in this work; financial assumptions have their own `pro-forma-2.0` export version.
+
+Local production-browser checks on Hazelwood PIN `0056F00338000000` covered editable cap rate, rejection of a reversed construction range, explicit budget/NOI rows, and absence of automatic credit/abatement awards. Placement checks covered R/Shift+R, arrow-key movement, retaining placement mode while selecting Triplex, adding a building, editing its width from 10 m to 9 m, saving, undoing back to 10 m, and undoing the placement itself. Cancelling a shape edit preserves the original plan. The saved-plan banner is limited to a restored plan that already contains buildings or demolitions. No console warning/error logs were captured.
+
+The brief preview shows mapped ground-level walking-network context from the already loaded graph, plus updated NOI, costs and unassessed benefits. Diagram tests check edge coordinates/deduplication and exclude elevated links. The diagram does not establish street width, legal frontage or setbacks. The existing Letter print stylesheet remains in use; the updated screen preview was inspected, but a new native PDF/page-count check was not performed. Browser headers/footers remain a user print setting, explained above the Print button.
+
+Program eligibility, actual restricted units/eligible basis, financing commitments, abatements and lender underwriting remain unassessed. Automatic legal-frontage/setback snapping is not implemented without suitable evidence. Scenario download code is only called by explicit export/recovery buttons; device autosave does not trigger downloads. These local changes have not been pushed or deployed.
+
+## Compact housing cards — October 27, 2026
+
+Four targeted test files pass: build controls, Studio presentation, draft status and Title Nine. New cases preserve blocked scores, distinguish unknown fit from failure, count conditional checks as unassessed and retain aggregate plan scope. The Next.js production build passes. Browser checks on Hazelwood confirmed equal 129 px card heights without horizontal overflow at 420 px and 600 px sidebar widths, arrow-key selection/focus, the information disclosure and Escape dismissal, and selected-type conflict details with code links. No browser warnings/errors were captured. This is presentation only: scoring, source data and eligibility rules are unchanged.
