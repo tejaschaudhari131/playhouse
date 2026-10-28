@@ -50,19 +50,19 @@ export function addressSearchPlan(manifest, query) {
   return { status: 'ready', key, tokens, file: `addresses-${prefix}.${descriptor[0]}.json` }
 }
 
-export function searchAddressRows(rows, tokens, neighborhoods, limit = ADDRESS_RESULT_LIMIT) {
+export function searchAddressRows(rows, tokens, neighborhoods, limit = ADDRESS_RESULT_LIMIT, currentNeighborhood = null) {
   const names = new Map(neighborhoods.map(n => [n.id, n.name]))
   const matches = rows.flatMap(row => {
     if (!Array.isArray(row) || row.length !== 3 || !row.every(value => typeof value === 'string') || !names.has(row[2])) throw new Error('The address search index could not be read.')
     const words = addressTokens(row[1])
     if (!tokens.every(token => words.some(word => word.startsWith(token)))) return []
-    return [{ row, exact: tokens.filter(token => words.includes(token)).length }]
-  }).sort((a, b) => b.exact - a.exact || a.row[1].localeCompare(b.row[1], undefined, { numeric: true }) || a.row[0].localeCompare(b.row[0]))
+    return [{ row, local: row[2] === currentNeighborhood || names.get(row[2]) === currentNeighborhood, exact: tokens.filter(token => words.includes(token)).length }]
+  }).sort((a, b) => Number(b.local) - Number(a.local) || b.exact - a.exact || a.row[1].localeCompare(b.row[1], undefined, { numeric: true }) || a.row[0].localeCompare(b.row[0]))
   return { total: matches.length, matches: matches.slice(0, limit).map(({ row: [pin, address, id] }) => ({ id, properties: { pin, address, neighborhood: names.get(id) } })) }
 }
 
 /** Fetch a single prefix shard only after a useful query; cache a small recent set. */
-export function createAddressSearchClient(manifest, fetcher = fetch) {
+export function createAddressSearchClient(manifest, fetcher = fetch, currentNeighborhood = null) {
   const cache = new Map()
   return {
     plan: query => addressSearchPlan(manifest, query),
@@ -77,7 +77,7 @@ export function createAddressSearchClient(manifest, fetcher = fetch) {
         if (!Array.isArray(rows)) throw new Error('The address search index could not be read.')
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
       }
-      const result = searchAddressRows(rows, plan.tokens, manifest.neighborhoods)
+      const result = searchAddressRows(rows, plan.tokens, manifest.neighborhoods, ADDRESS_RESULT_LIMIT, currentNeighborhood)
       cache.delete(plan.file); cache.set(plan.file, rows)
       if (cache.size > 8) cache.delete(cache.keys().next().value)
       return { ...empty(result.total ? 'ready' : 'empty', plan.key), ...result }

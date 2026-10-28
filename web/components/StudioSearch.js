@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 
 /** Closing suggestions never changes the search text or acts on a result. */
-export default function StudioSearch({ query, onQuery, matches = [], pending = false, error, onSelect, onSubmit, closeKey, total = matches.length, status, onRetry }) {
+export default function StudioSearch({ query, onQuery, matches = [], pending = false, error, onSelect, onSubmit, closeKey, total = matches.length, status, onRetry, neighborhood = null }) {
   const root = useRef(null), input = useRef(null), buttons = useRef([])
   const restoringFocus = useRef(false), pendingFocus = useRef(null)
   const [open, setOpen] = useState(false)
@@ -87,7 +87,7 @@ export default function StudioSearch({ query, onQuery, matches = [], pending = f
     </label>
     {visible && <div id={resultsId} className="search-results" role="region" aria-label="Citywide address results" aria-busy={pending}>
       {matches.length ? <>
-        <p>{total} citywide matches{total > matches.length ? ' · showing six; refine the address' : ''}</p>
+        <p>{total} citywide matches{neighborhood ? ` · ${neighborhood} first` : ''}{total > matches.length ? ' · showing six' : ''}</p>
         {matches.map((feature, index) => <button type="button" key={feature.properties.pin} ref={node => { buttons.current[index] = node }} onClick={() => choose(feature.properties.pin)}>{feature.properties.address || feature.properties.pin}<small>{feature.properties.neighborhood} · PIN {feature.properties.pin}</small></button>)}
       </> : <p role="status">{pending ? 'Searching Pittsburgh addresses…' : error || (status === 'pin' ? 'Press Enter to open this parcel ID.' : status === 'short' ? 'Enter at least three letters of a street name, or an exact parcel ID.' : 'No matching address in the city index. Parcels without searchable addresses can still be opened by parcel ID.')}</p>}
       {error && onRetry && <button type="button" onClick={onRetry}>Retry address search</button>}
