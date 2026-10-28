@@ -2,6 +2,8 @@
 
 import Select from './Select.js'
 import Numeric from './NumberInput.js'
+import ConfirmDialog from './ConfirmDialog.js'
+import { parseScenarioImport } from '../lib/scenarioImport.js'
 
 import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
@@ -330,6 +332,8 @@ function Studio({ data }) {
   const [justAdded, setJustAdded] = useState(null)
   const [reformPreset, setReformPreset] = useState('current')
   const [briefOpen, setBriefOpen] = useState(false)
+  const [confirmation, setConfirmation] = useState(null), [importBusy, setImportBusy] = useState(false)
+  const importInput = useRef(null), importRevision = useRef(0)
   const closeBrief = useCallback(() => setBriefOpen(false), [])
   useEffect(() => { if (!placing) setHoverPoint(null) }, [placing])
   const [drawing, setDrawing] = useState(null), [draftNode, setDraftNode] = useState(null)
@@ -674,7 +678,7 @@ function Studio({ data }) {
     finally { if (revision === drawingRevision.current) drawingBusy.current = false }
   }
   function download() {
-    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, policyReform: options ? reformSummary(Object.values(options), reformPreset, props.zoning_code ?? null) : null, permitPathway: pathway, closeCall: result ? closeCall({ baseline: result.baseline, proposal: result.proposal }, scenario.weights, proposed ? 'proposal' : 'baseline') : null, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
+    const payload = { ...scenarioExport(scenario, summary), results: result, proForma: { site: siteImpact(siteDemolished), planTax }, policyReform: options ? reformSummary(Object.values(options), reformPreset, props.zoning_code ?? null) : null, permitPathway: pathway, closeCall: result ? closeCall({ baseline: result.baseline, proposal: result.proposal }, scenario.weights, proposed ? 'proposal' : 'baseline') : null, networkContext: networkData?.manifest.sha256 || null, buildingContext: context ? { sha256: context.manifest.sha256, retrievedAt: context.manifest.retrieved_at } : null, sources: { networkFile, parcels: networkDescriptor.parcelFiles, dataManifest: '/data/studio/manifest.json', zoning: '/data/zoning.json', stops: '/data/stops.geojson', buildings: '/data/existing-buildings.sources.json', network: '/data/walking-network.sources.json' } }
     const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
     const link = document.createElement('a'); link.href = url; link.download = `housing-scenario-${scenario.pin}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
     setNotice('Scenario exported with model version, assumptions and comparison results.', 'transient')
@@ -684,7 +688,35 @@ function Studio({ data }) {
     const link = document.createElement('a'); link.href = url; link.download = filename; link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
+  async function readImport(event) {
+    const file = event.target.files?.[0]; event.target.value = ''
+    if (!file) return
+    if (file.size > 10_000_000) { setNotice('Scenario file exceeds the 10 MB import limit.'); return }
+    const revision = ++importRevision.current
+    try {
+      const parsed = parseScenarioImport(await file.text())
+      if (revision !== importRevision.current) return
+      if (parsed.issue) { setNotice(parsed.issue); return }
+      setConfirmation({ kind: 'import', ...parsed })
+    } catch (error) { setNotice(`Could not read scenario: ${error.message}`) }
+  }
+  async function applyImport() {
+    setImportBusy(true)
+    try {
+      const saved = confirmation.saved
+      const currentNetworkSha = networkData?.manifest.sha256 || (await fetch('/data/walking-network.sources.json').then(r => { if (!r.ok) throw new Error('Network source is unavailable'); return r.json() })).sha256
+      const restored = await restorePlanContext(saved, manifest, { locate: locateNeighborhood, load: fetchNeighborhood, networkSha256: currentNetworkSha })
+      for (const [id, chunk] of restored.chunks) for (const f of chunk.parcels.features) catalogue.set(f.properties.pin, { id, properties: { pin: f.properties.pin, address: f.properties.address, neighborhood: f.properties.neighborhood, area: f.properties.area } })
+      loaded.ingestChunks(restored.chunks)
+      selectionRevision.current++; setPendingPin(null); setPendingHistory(null); cancelDrawing(); setSelectedBuilding(null); setJustAdded(null)
+      dispatch({ type: 'reset', scenario: saved.scenario })
+      setTool('housing'); setInspectorTab('edit'); setProposed(true); setConfirmation(null)
+      setNotice(`Scenario imported; scores recalculated with this release. Undo restores your previous plan.${confirmation.notices?.length ? ' ' + confirmation.notices.join(' ') : ''}`, 'info')
+    } catch (error) { setNotice(`Import was not applied: ${error.message}`) }
+    finally { setImportBusy(false) }
+  }
   function newPlan() {
+    setConfirmation(null)
     selectionRevision.current++; setPendingPin(null); setPendingHistory(null)
     cancelDrawing(); setSelectedBuilding(null); setConstructionEffect(null); setDemolitionEffect(null)
     dispatch({ type: 'reset', scenario: makeScenario(scenario.pin) })
@@ -699,7 +731,7 @@ function Studio({ data }) {
       <div className="studio-brand"><span className="planner-brandmark"><Icon name="building"/></span><div><strong>Playhouse</strong><small>Compare housing possibilities for a Pittsburgh parcel</small></div></div>
       <NeighborhoodPicker neighborhoods={manifest.neighborhoods} value={catalogue.get(scenario.pin).id} onChange={id => select(manifest.neighborhoods.find(n => n.id === id).examplePin)}/>
 
-      <div className="studio-header-actions"><a href={parcelHref('/explore', scenario.pin)} title="Open this parcel in the Explorer">Explore this lot →</a><button ref={tourButton} className="studio-tour-trigger" onClick={() => setTourRequest(n => n + 1)}>Tour</button><button className="sidebar-toggle" aria-expanded={sidebarOpen} aria-controls="planner-inspector" onClick={() => { setSidebarOpen(!sidebarOpen) }}>{sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}</button><button className="find-sites-button" onClick={() => { setTool('sites'); setInspectorTab('edit') }}>Find sites</button><button className="studio-brief" onClick={() => setBriefOpen(true)} disabled={!result || evaluation.pending || !evaluated}>Print / View 1-Page Site Brief</button><button data-tour="export" className="studio-export" onClick={download} disabled={!result || evaluation.pending}>Export scenario <span aria-hidden="true">↓</span></button></div>
+      <div className="studio-header-actions"><a href={parcelHref('/explore', scenario.pin)} title="Open this parcel in the Explorer">Explore this lot →</a><button ref={tourButton} className="studio-tour-trigger" onClick={() => setTourRequest(n => n + 1)}>Tour</button><button className="sidebar-toggle" aria-expanded={sidebarOpen} aria-controls="planner-inspector" onClick={() => { setSidebarOpen(!sidebarOpen) }}>{sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}</button><button className="find-sites-button" onClick={() => { setTool('sites'); setInspectorTab('edit') }}>Find sites</button><button className="studio-brief" onClick={() => setBriefOpen(true)} disabled={!result || evaluation.pending || !evaluated}>Print / View 1-Page Site Brief</button><input ref={importInput} type="file" accept="application/json,.json" hidden onChange={readImport}/><button onClick={() => importInput.current?.click()} disabled={!!tourStep || importBusy}>Import scenario</button><button data-tour="export" className="studio-export" onClick={download} disabled={!result || evaluation.pending}>Export scenario <span aria-hidden="true">↓</span></button></div>
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
@@ -832,9 +864,10 @@ function Studio({ data }) {
           </>}
           {inspectorTab === 'assumptions' && <details className="evidence-panel"><summary>Public sources & limits</summary><p><strong>Infrastructure:</strong> Paths reserve 3 m, streets 12 m, parks 20 × 20 m. Only endpoints form junctions. River crossings, grades, safe access, land rights and engineering are unreviewed. Park access uses mapped paths and an assumed connector; wheelchair suitability is unknown. Transit preference uses a 30-minute anchor and parks a 15-minute anchor. Park priority is a value judgment, not an estimate of cooling or price change.</p><p><strong>Observed:</strong> OSM walking graph and mapped parks; County parcels/assessments, ACS 2020–2024, CHAS 2018–2022, PRT stop aggregates, mapped hazards. Snapshot {summary.pulled_at}.</p><p><strong>Existing buildings:</strong> County roof outlines in their recorded positions. {context ? buildingHeightCoverage(context.manifest.height_methods) : 'Building evidence is loading or unavailable.'} Click a building to inspect its height method. Colours show matched parcel assessment use, not recommended housing or verified occupancy. Neutral footprints have unknown use. Heights retain their separate evidence methods. These display estimates do not affect recommendations. No independently verified heights or terrain model; source dates and coverage vary. Nonresidential buildings are included.</p><p><strong>Proposed:</strong> dimensions, rents, utilities, target income, additional departures, service span and optional capacity. No LiDAR-derived heights have been added.</p><p><strong>Calculated:</strong> sampled outline fit, cost burden, aggregate walk/wait, conditional boarding capacity and weighted comparison.</p><p><strong>Not evaluated:</strong> zoning rules marked not assessed, contextual exceptions, utility capacity, negotiated acquisition prices (the pro forma uses sales or neighborhood ranges), engineering, travel destinations, displacement caused by development, or marginal tonnes of CO₂.</p><p>Hazard context: {floodStatus(props).label}; steep slope {fmt(typeof props.steep_slope_overlap === 'number' ? props.steep_slope_overlap * 100 : null, '%')}; mine overlap {fmt(typeof props.undermined_overlap === 'number' ? props.undermined_overlap * 100 : null, '%')}. Missing data is not a clean site finding.</p><a href="/data/walking-network.sources.json" target="_blank" rel="noreferrer">Walking network & park assumptions ↗</a><a href="/data/existing-buildings.sources.json" target="_blank" rel="noreferrer">Building evidence & height assumptions ↗</a><a href="/data/sources.json" target="_blank" rel="noreferrer">Source manifest ↗</a><a href="/data/score_model.json" target="_blank" rel="noreferrer">Baseline model assumptions ↗</a><a href="https://ecode360.com/45476524#45476524" target="_blank" rel="noreferrer">Zoning use table ↗</a></details>}
         </div>
-        <footer className="inspector-footer"><div role="status">{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving on this device…' : autosave.kind === 'error' ? autosave.message : 'Your edits will save on this device.'}</div><div className="plan-storage-actions">{autosave.kind === 'error' && <><button onClick={autosave.retry}>{autosave.blocked ? 'Save this plan instead' : 'Retry saving'}</button>{autosave.raw && <button onClick={() => downloadRaw(autosave.raw, 'playhouse-saved-recovery.json')}>Download saved copy</button>}</>}<button onClick={newPlan}>New plan</button></div></footer>
+        <footer className="inspector-footer"><div role="status">{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving on this device…' : autosave.kind === 'error' ? autosave.message : 'Your edits will save on this device.'}</div><a href="/accessibility">Accessibility & contact</a><div className="plan-storage-actions">{autosave.kind === 'error' && <><button onClick={autosave.retry}>{autosave.blocked ? 'Save this plan instead' : 'Retry saving'}</button>{autosave.raw && <button onClick={() => downloadRaw(autosave.raw, 'playhouse-saved-recovery.json')}>Download saved copy</button>}</>}<button onClick={() => setConfirmation({ kind: 'new' })}>New plan</button></div></footer>
       </aside>
     </StudioWorkspace>
+    {confirmation && <ConfirmDialog title={confirmation.kind === 'new' ? 'Start a new plan?' : 'Import this scenario?'} actionLabel={confirmation.kind === 'new' ? 'Start new plan' : 'Import & recalculate'} busy={importBusy} onClose={() => setConfirmation(null)} onConfirm={confirmation.kind === 'new' ? newPlan : applyImport}><p>{confirmation.kind === 'new' ? 'This resets buildings, demolitions, infrastructure and priorities on this parcel. Undo can restore the current plan.' : `Parcel ${confirmation.saved.scenario.pin} · ${confirmation.saved.scenario.buildings.length} planned buildings · ${confirmation.saved.scenario.demolitions.length} demolitions. The current plan will be replaced after its data has loaded; Undo can restore it.`}</p>{confirmation.notices?.map(note => <p key={note}>{note}</p>)}</ConfirmDialog>}
     <StudioTour startRequest={tourRequest} autoStart={data.autoTour} onStep={showTourStep} onFinish={finishTour} triggerRef={tourButton}
       ready={!!tourStep && tourApplied === tourStep.id && scenario.pin === TOUR_PIN && !evaluation.pending && !!network}
       error={tourStep ? loaded.error || networkError || evaluation.error : null}

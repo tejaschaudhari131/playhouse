@@ -33,6 +33,10 @@ export default function useNeighborhoodData(manifest, initialChunk, requiredIds,
   }, [wantedKey, attempt, manifest])
   const parcels = useMemo(() => mergeNeighborhoods([...chunks.values()], 'parcels'), [chunks])
   const mapIndexes = useMemo(() => display.current.get(chunks, visibleKey.split('|').filter(Boolean)), [chunks, visibleKey])
+  const ingestChunks = useCallback(incoming => {
+    for (const [id, chunk] of incoming) cache.current.set(id, chunk)
+    setChunks(new Map(cache.current))
+  }, [])
   const retry = useCallback(() => setAttempt(n => n + 1), [])
-  return { chunks, parcels, ...mapIndexes, visibleIds: visibleKey.split('|').filter(Boolean), pending, error, retry }
+  return { chunks, parcels, ingestChunks, ...mapIndexes, visibleIds: visibleKey.split('|').filter(Boolean), pending, error, retry }
 }
