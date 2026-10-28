@@ -646,7 +646,7 @@
   .studio .neighborhood-picker > span { display: none; }
   .studio .neighborhood-picker .select-control { padding: 7px; font-size: 13px; }
   .planner-brandmark { width: 30px; height: 30px; }
-  .studio-header-actions { flex: 1 0 100%; justify-content: space-between; flex-wrap: nowrap; gap: 5px; }
+  .studio-header-actions { flex: 1 1 100%; min-width: 0; max-width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 5px; }
   .studio-header-actions button { min-height: 36px; }
   .studio .sidebar-toggle, .studio .studio-tour-trigger, .studio .find-sites-button, .studio-header-actions .studio-export { padding: 8px; font-size: 12px; }
   .studio-workspace, .studio-workspace.is-comparing { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(200px, 1fr) minmax(0, 48%); overflow: hidden; }
@@ -695,7 +695,6 @@
 @media (max-width: 760px) and (max-height: 600px) {
   .studio-workspace, .studio-workspace.is-comparing { grid-template-rows: minmax(145px, 1fr) minmax(0, 50%); }
   .studio-workspace.sidebar-collapsed { grid-template-rows: minmax(0, 1fr); }
-  .studio-header-actions { flex-basis: auto; }
   .map-overlays { bottom: 27px; max-height: 75px; }
   .studio-tools { flex-direction: row; }
   .studio-tools button { width: 44px; height: 40px; }
