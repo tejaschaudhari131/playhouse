@@ -345,9 +345,9 @@ function Studio({ data }) {
     if (hadFocus) document.getElementById('studio-address-search')?.focus({ preventScroll: true })
   }
   useEffect(() => {
-    if (notice?.tone !== 'transient') return
-    const timer = setTimeout(dismissNotice, 5500)
-    return () => clearTimeout(timer)
+    if (!notice) return
+    const timer = setInterval(() => { if (!document.querySelector('.network-notice:focus-within, .network-notice:hover')) dismissNotice() }, notice.tone === 'error' ? 10000 : 6000)
+    return () => clearInterval(timer)
   }, [notice])
   const inspectorScroll = useRef(null), scrollPositions = useRef(new Map())
   const scrollKey = `${scenario.pin}:${tool}:${inspectorTab}:${selectedBuilding?.id || ''}`
@@ -456,7 +456,7 @@ function Studio({ data }) {
   const cards = useMemo(() => typologyCards({ draft: option, options, code: props.zoning_code, zoning }), [option, options, props.zoning_code, zoning])
   const zoningInputs = scenario.zoningInputsByPin?.[scenario.pin] || {}
   function setZoningInput(key, value) { set('zoningInputsByPin', { ...scenario.zoningInputsByPin, [scenario.pin]: { ...zoningInputs, [key]: value } }) }
-  const addressSearch = useAddressSearch(manifest, query)
+  const addressSearch = useAddressSearch(manifest, query, props.neighborhood)
   const matches = addressSearch.matches
   const selectionRevision = useRef(0)
 
@@ -496,7 +496,12 @@ function Studio({ data }) {
     requestAnimationFrame(() => {
       const trigger = buildingTrigger.current
       if (trigger?.isConnected && trigger.getClientRects().length) trigger.focus({ preventScroll: true })
-      else document.getElementById('studio-address-search')?.focus({ preventScroll: true })
+      else {
+        // Inspect controls inside the draft editor remount when details close.
+        const label = trigger?.getAttribute('aria-label'), text = trigger?.textContent?.trim()
+        const replacement = [...document.querySelectorAll('#planner-inspector button')].find(button => button.getClientRects().length && (label ? button.getAttribute('aria-label') === label : text && button.textContent.trim() === text))
+        ;(replacement || document.getElementById('studio-address-search'))?.focus({ preventScroll: true })
+      }
     })
   }
   function inspectOnSite(feature, trigger) {
@@ -612,6 +617,7 @@ function Studio({ data }) {
   useEffect(() => {
     function cancelInteraction(event) {
       if (tourStep || briefOpen || event.target.closest('dialog, [role=dialog]')) return
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.altKey && !event.defaultPrevented && !event.target.closest('input, textarea, select, [contenteditable=true], [role=combobox]')) { event.preventDefault(); restoreHistory(event.shiftKey ? 'redo' : 'undo'); return }
       if (placing && (event.key === 'r' || event.key === 'R') && !event.metaKey && !event.ctrlKey && !event.altKey && !event.defaultPrevented && !event.target.closest('input, textarea, select, [role=combobox], [role=listbox]')) {
         event.preventDefault(); rotateShortcut.current(event.shiftKey ? -15 : 15); return
       }
@@ -690,7 +696,7 @@ function Studio({ data }) {
   return <main className="studio">
     <a className="skip-link" href="#planner-inspector" onClick={event => { event.preventDefault(); focusInspector() }}>Skip to planning controls</a>
     <header className="studio-header">
-      <div className="studio-brand"><span className="planner-brandmark"><Icon name="building"/></span><div><strong>Playhouse</strong><small>Test housing and infrastructure ideas in Pittsburgh</small></div></div>
+      <div className="studio-brand"><span className="planner-brandmark"><Icon name="building"/></span><div><strong>Playhouse</strong><small>Compare housing possibilities for a Pittsburgh parcel</small></div></div>
       <NeighborhoodPicker neighborhoods={manifest.neighborhoods} value={catalogue.get(scenario.pin).id} onChange={id => select(manifest.neighborhoods.find(n => n.id === id).examplePin)}/>
 
       <div className="studio-header-actions"><a href={parcelHref('/explore', scenario.pin)} title="Open this parcel in the Explorer">Explore this lot →</a><button ref={tourButton} className="studio-tour-trigger" onClick={() => setTourRequest(n => n + 1)}>Tour</button><button className="sidebar-toggle" aria-expanded={sidebarOpen} aria-controls="planner-inspector" onClick={() => { setSidebarOpen(!sidebarOpen) }}>{sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}</button><button className="find-sites-button" onClick={() => { setTool('sites'); setInspectorTab('edit') }}>Find sites</button><button className="studio-brief" onClick={() => setBriefOpen(true)} disabled={!result || evaluation.pending || !evaluated}>Print / View 1-Page Site Brief</button><button data-tour="export" className="studio-export" onClick={download} disabled={!result || evaluation.pending}>Export scenario <span aria-hidden="true">↓</span></button></div>
@@ -701,7 +707,7 @@ function Studio({ data }) {
         <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
         {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ 15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ 15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
-        <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => setView3d(!view3d)} aria-pressed={view3d} aria-label="3D view">{view3d ? '3D' : '2D'}</button></div>
+        <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => setView3d(!view3d)} aria-pressed={view3d} aria-label={view3d ? '3D view. Switch to 2D' : '2D view. Switch to 3D'}>{view3d ? '3D' : '2D'}</button></div>
         <div className="canvas-heading"><span className="eyebrow">PITTSBURGH / {props.area?.toUpperCase()}</span></div>
         <div className="canvas-mode">{(tool === 'service' || tool === 'network' || inspectorTab === 'rankings' || scenario.additionalDepartures > 0 || scenario.connections.length > 0 || scenario.parks.length > 0) && <div className="segmented" aria-label="Infrastructure view"><button className={!proposed ? 'active' : ''} aria-pressed={!proposed} onClick={() => setProposed(false)}>Current infrastructure</button><button className={proposed ? 'active' : ''} aria-pressed={proposed} onClick={() => setProposed(true)}>With changes</button></div>}<div className="history-controls"><button aria-label="Undo scenario edit" title="Undo" disabled={!history.past.length || !!pendingHistory} onClick={() => restoreHistory('undo')}>↶</button><button aria-label="Redo scenario edit" title="Redo" disabled={!history.future.length || !!pendingHistory} onClick={() => restoreHistory('redo')}>↷</button></div></div>
         <div className="map-overlays">
@@ -712,7 +718,7 @@ function Studio({ data }) {
       </section>
     }>
       <aside data-tour="inspector" id="planner-inspector" className="studio-inspector" tabIndex={-1}>
-        <div className="inspector-top"><div className="inspector-status"><span className="live-dot"/>{evaluation.pending ? 'Recalculating…' : 'Scenario ready'}<span>{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving…' : autosave.kind === 'error' ? 'Not saved' : 'Local plan'}</span></div><StudioSearch query={query} onQuery={setQuery} matches={matches} pending={addressSearch.pending} error={addressSearch.error} total={addressSearch.total} status={addressSearch.status} onRetry={addressSearch.retry} onSelect={select} onSubmit={() => { const pin = query.trim().toUpperCase(); if (isParcelSearch(pin)) select(pin); else if (matches.length === 1) select(matches[0].properties.pin); else setNotice('Choose an address suggestion, or enter an exact Pittsburgh parcel ID.') }} closeKey={`${tool}:${inspectorTab}`}/></div>
+        <div className="inspector-top"><div className="inspector-status"><span className="live-dot"/>{evaluation.pending ? 'Recalculating…' : 'Scenario ready'}<span>{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving…' : autosave.kind === 'error' ? 'Not saved' : 'Local plan'}</span></div><StudioSearch neighborhood={props.neighborhood} query={query} onQuery={setQuery} matches={matches} pending={addressSearch.pending} error={addressSearch.error} total={addressSearch.total} status={addressSearch.status} onRetry={addressSearch.retry} onSelect={select} onSubmit={() => { const pin = query.trim().toUpperCase(); if (isParcelSearch(pin)) select(pin); else if (matches.length === 1) select(matches[0].properties.pin); else setNotice('Choose an address suggestion, or enter an exact Pittsburgh parcel ID.') }} closeKey={`${tool}:${inspectorTab}`}/></div>
         <nav className="inspector-tabs" aria-label="Inspector sections">{[['edit', tool === 'sites' ? 'Sites' : tool === 'service' ? 'Transit' : tool === 'network' ? 'Streets' : 'Build'], ['rankings','Compare'], ['priorities','Priorities'], ['assumptions','Advanced']].map(([id,label]) => <button key={id} aria-pressed={inspectorTab === id} onClick={() => { setInspectorTab(id); setPlacing(false); if (id === 'rankings') { setSelectedBuilding(null); if (tool === 'sites' || tool === 'compare') setActiveTool('housing') } }}>{label}</button>)}</nav>
         <section className={`plan-impact-bar${bar.empty ? ' empty' : ''}`} aria-label="Your plan">
           <div className="plan-impact-head"><strong>Your plan</strong>{bar.empty ? <span>{bar.text}</span> : !(inspectorTab === 'edit' && tool === 'housing') && <button onClick={() => { setTool('housing'); setInspectorTab('edit'); setPlacing(false) }}>Review</button>}</div>
@@ -745,7 +751,7 @@ function Studio({ data }) {
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
             <div className="drawer-heading"><h3>New building</h3><p>Preview a housing type, then add it to your plan.</p></div>
             <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
-            {paused ? <div className="added-callout" role="status"><p><strong>✓ {justAdded.label} added to your plan.</strong> The preview is paused so it does not sit on top of the new building.</p><div className="placement-actions"><button className="primary-build" onClick={() => setJustAdded(null)}>Preview another building</button><button onClick={event => selectBuilding({ kind: 'placed', id: justAdded.id, pin: justAdded.pin }, event.currentTarget)}>Inspect the new building</button></div></div> : <>
+            {paused ? <div className="added-callout" role="status"><p><strong>✓ {justAdded.label} added to your plan.</strong> The preview is paused so it does not sit on top of the new building.</p><div className="placement-actions"><button onClick={event => selectBuilding({ kind: 'placed', id: justAdded.id, pin: justAdded.pin }, event.currentTarget)}>Inspect the new building</button></div></div> : <>
             <fieldset className="quick-controls" aria-label="Size and orientation">
               <div className="quick-steppers">{[['width', 'Width', `${option.width} m`, 1], ['depth', 'Depth', `${option.depth} m`, 1], ['floors', 'Stories', option.floors ?? housingSpec(option).floors, 1]].map(([key, label, value, step]) => <div key={key} className="stepper"><span>{label}</span><button aria-label={`Decrease ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, -step)} onClick={() => resize(key, -step)}>−</button><output aria-live="polite" aria-label={label}>{value}</output><button aria-label={`Increase ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, step)} onClick={() => resize(key, step)}>+</button></div>)}</div>
               <div className="quick-rotate"><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button><button disabled={!option.placement} onClick={() => { setOption('placement', null); setPlacing(false) }}>Reset alignment</button></div>
@@ -767,9 +773,10 @@ function Studio({ data }) {
             {otherCollision && <p className="planner-warning">This draft overlaps a planned building or reserved infrastructure. Move or rotate it, or choose a smaller type.</p>}
             <div className="build-costs"><AmiChips householdSize={scenario.householdSize} targetIncome={scenario.targetIncome} onIncome={value => set('targetIncome', value)} onSize={value => set('householdSize', value)}/>{costSwitch(true)}</div>
             {!proposed && <p className="compact-help">Viewing current infrastructure. Adding a building returns to the changed-infrastructure view.</p>}
-            <div className="build-actions"><button className="primary-build" disabled={!draftState.canPlace} onClick={() => addBuilding(placing && hoverMassing ? hoverMassing : undefined)}>{placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
+
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
             </>}
+            <div className="build-actions"><button className="primary-build" aria-disabled={!paused && !draftState.canPlace} onClick={() => { if (paused) setJustAdded(null); else if (draftState.canPlace) addBuilding(placing && hoverMassing ? hoverMassing : undefined) }}>{paused ? 'Preview another building' : placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
             <RedevelopmentImpact impact={siteImpact(siteDemolished)}/>
             <PermitPathway pathway={pathway}/>
             <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Advanced · income, costs & evidence →</button>
