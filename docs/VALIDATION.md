@@ -227,3 +227,5 @@ Production-build browser checks covered Studio and Explorer with OpenFreeMap; pr
 The 640×360 and 426×240 CSS-viewport checks represent the available space at roughly 200% and 300% zoom on a 1280×720 window. They are layout-equivalent tests, not a claim that browser zoom itself was instrumented. Header actions wrap without horizontal page overflow; short views scroll vertically and keep a nonzero map area. Native screen-reader, mobile-GPU and real 30-user load testing remain unverified.
 
 An additional East Liberty regression check on `0083F00297000000` confirmed that **Inspect first** opens nearby outline `415479` while retaining the selected parcel. It shows its 187 m² footprint, inferred 7.5 m height and unmatched/outside-site provenance; Escape returns to Inspect first. The final compact map track is 320 px, with controls above the attribution area. These changes do not assign neighboring buildings to the selected parcel.
+
+The desktop widened-sidebar check also keeps bottom map controls above wrapped attribution when the map pane becomes narrower than 640 px. This uses the map container width, independent of the browser viewport breakpoint.

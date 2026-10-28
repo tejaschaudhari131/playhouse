@@ -1027,3 +1027,10 @@
 @media (max-width: 760px) {
   .studio-brand small { display: block; max-width: 200px; font-size: 12px; line-height: 1.35; color: #465b4b; }
 }
+
+/* Keep controls above a one-line attribution, or its wrapped narrow-map form. */
+.canvas-legend, .map-view-toggle { bottom: 40px; }
+@container (max-width: 640px) {
+  .canvas-legend, .map-view-toggle { bottom: 64px; }
+  .map-overlays { bottom: 116px; }
+}
