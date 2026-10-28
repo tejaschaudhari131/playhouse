@@ -1,5 +1,5 @@
 import { MODEL_VERSION } from './plannerState.js'
-import { MAX_PLAN_BYTES, PLAN_STORAGE_VERSION, parseSavedPlan, planBytes, validatePlan, migrateSavedScenario } from './planPersistence.js'
+import { MAX_PLAN_BYTES, PLAN_STORAGE_VERSION, parseSavedPlan, planBytes, validatePlan, migrateSavedScenario, supportedPlanModel } from './planPersistence.js'
 
 export const MAX_IMPORT_BYTES = 10_000_000
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -39,7 +39,7 @@ export function parseScenarioImport(raw) {
   }
   if (payload.schemaVersion === 3) return fail('This is an older A/B scenario export. Import supports the single-draft schema 7; keep this file for reference.')
   if (payload.schemaVersion !== 7) return fail('This scenario export uses an unsupported schema. Expected Playhouse schema 7.')
-  if (payload.modelVersion && payload.modelVersion !== MODEL_VERSION && !/^planner-screen-[12](?:\.\d+)*$/.test(payload.modelVersion)) return fail('This export uses an unsupported scoring model. Open it with the Playhouse version that created it.')
+  if (!supportedPlanModel(payload.modelVersion)) return fail('This export uses an unsupported scoring model. Open it with the Playhouse version that created it.')
   if (!object(payload.scenario) || planBytes(JSON.stringify(payload.scenario)) > MAX_PLAN_BYTES) return fail('Scenario inputs must be smaller than 2 MB.')
   const issue = validatePlan(payload.scenario)
   if (issue) return fail(issue.replace('saved', 'imported'))

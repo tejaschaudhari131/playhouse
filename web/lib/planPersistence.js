@@ -19,6 +19,7 @@ const regionIds = value => value === undefined || list(value, 90) && value.every
 const costValue = (key, value) => number(value, HOUSING_COST_LIMITS[key].min, HOUSING_COST_LIMITS[key].max)
 const affordabilityConfirmation = value => value === undefined || value === null || object(value) && ['targetIncome', 'rent', 'utilities'].every(key => costValue(key, value[key]))
 export const planBytes = value => new TextEncoder().encode(value).byteLength
+export const supportedPlanModel = version => version === undefined || version === null || version === MODEL_VERSION || typeof version === 'string' && /^planner-screen-[12](?:\.\d+)*$/.test(version)
 
 export function safePlanJson(value, depth = 0) {
   if (depth > 14) return false
@@ -93,7 +94,7 @@ export function parseSavedPlan(raw) {
   if (typeof raw !== 'string' || planBytes(raw) > MAX_PLAN_BYTES) return { saved: null, raw, issue: 'The saved plan is too large to restore safely.' }
   try {
     const saved = JSON.parse(raw)
-    const issue = saved.version !== PLAN_STORAGE_VERSION ? 'This saved plan uses an unsupported version.' : validatePlan(saved.scenario)
+    const issue = saved.version !== PLAN_STORAGE_VERSION ? 'This saved plan uses an unsupported version.' : !supportedPlanModel(saved.modelVersion) ? 'This saved plan uses an unsupported scoring model. Keep the original copy for its matching Playhouse version.' : validatePlan(saved.scenario)
     if (issue) return { saved: null, raw, issue }
     if (!object(saved.sources) || typeof saved.sources.networkFile !== 'string') return { saved: null, raw, issue: 'The saved plan has no verifiable network version.' }
     if (!safePlanJson(saved.sources)) return { saved: null, raw, issue: 'The saved source metadata is invalid.' }

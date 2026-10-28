@@ -219,7 +219,7 @@ export function evaluatePlanner({ feature, zoning, scenario, stop, existingBuild
     const otherBuildings = site.existingBuildings === null ? null : [...site.existingBuildings, ...geometries.filter(f => f.properties.id !== site.id)]
     const stopId = String(site.stop?.stop_id)
     const ownUnits = housingSpec(site.option).units
-    const siteScenario = { ...areaScenario, targetIncome: site.targetIncome, affordabilityAuto: false, affordabilityConfirmation: site.affordabilityConfirmation, committedUnitsByStop: { ...committedUnitsByStop, [stopId]: committedUnitsByStop[stopId] - ownUnits } }
+    const siteScenario = { ...areaScenario, targetIncome: site.targetIncome, incomeSource: site.incomeSource || 'legacy', incomeBand: site.incomeBand ?? null, householdSize: site.householdSize || 1, affordabilityAuto: false, affordabilityConfirmation: site.affordabilityConfirmation, committedUnitsByStop: { ...committedUnitsByStop, [stopId]: committedUnitsByStop[stopId] - ownUnits } }
     for (const state of ['baseline', 'proposal']) {
       const isProposal = state === 'proposal'
       const key = `${site.feature.properties.pin}:${stopId}:${state}`

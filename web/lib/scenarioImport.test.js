@@ -90,6 +90,7 @@ test('missing graph provenance is allowed only for plans without drawn infrastru
 test('unsupported, malformed, hostile and unreasonable inputs fail before any scenario is applied', () => {
   for (const value of [null, {}, { schemaVersion: 3 }, { ...payload(plan()), modelVersion: 'planner-screen-99.0' }]) assert.ok(parseScenarioImport(JSON.stringify(value)).issue)
   assert.match(parseScenarioImport(JSON.stringify({ schemaVersion: 3 })).issue, /older A\/B/)
+  assert.match(parseScenarioImport(JSON.stringify({ version: 1, modelVersion: 'planner-screen-99.0', scenario: plan(), sources: { networkFile: FILE } })).issue, /unsupported scoring model/)
   assert.ok(parseScenarioImport('{broken').issue)
   const hostile = JSON.stringify(payload(plan())).replace('"results":{"ignored":true}', '"results":{"__proto__":{"polluted":true}}')
   assert.match(parseScenarioImport(hostile).issue, /unsafe/)
