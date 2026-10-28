@@ -1,3 +1,4 @@
+import { FINANCE_VERSION } from './financeInputs.js'
 import { BUILDINGS, BUILDING_IDS } from './buildings.js'
 import { normalizeDemolition, buildingRefKey } from './redevelopment.js'
 import { housingCostInputs } from './housingCosts.js'
@@ -128,5 +129,5 @@ export function scenarioReducer(state, action) {
 }
 
 export function scenarioExport(scenario, summary) {
-  return { schemaVersion: scenario.draft || scenario.demolitions?.length ? 7 : 3, modelVersion: MODEL_VERSION, dataVersion: summary?.pulled_at || null, exportedAt: new Date().toISOString(), scenario, limitations: ['Dimensions, access connectors and infrastructure buildability are user/model assumptions.', 'Demolitions are hypothetical removals from this plan, applied in both infrastructure states. Source records are unchanged; removal permission, cost, occupancy, relocation and demolition carbon are not assessed.', 'Title Nine checks without sufficient evidence are excluded, not passed. A score is not zoning approval.', 'This model does not evaluate utilities, engineering, route schedules, travel to jobs or marginal tonnes of CO2.'] }
+  return { schemaVersion: scenario.draft || scenario.demolitions?.length ? 7 : 3, modelVersion: MODEL_VERSION, financeVersion: FINANCE_VERSION, dataVersion: summary?.pulled_at || null, exportedAt: new Date().toISOString(), scenario, limitations: ['Dimensions, access connectors and infrastructure buildability are user/model assumptions.', 'Demolitions are hypothetical removals from this plan, applied in both infrastructure states. Source records are unchanged; removal permission, cost, occupancy, relocation and demolition carbon are not assessed.', 'Title Nine checks without sufficient evidence are excluded, not passed. A score is not zoning approval.', 'This model does not evaluate utilities, engineering, route schedules, travel to jobs or marginal tonnes of CO2.'] }
 }

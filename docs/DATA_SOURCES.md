@@ -56,3 +56,15 @@ Checked October 27, 2026. Owner-published examples anchor the scale of recent ap
 - [Albion developer project record](https://albionresidential.com/projects/albion-lawrenceville/): construction began in 2024; listed delivery Q4 2025.
 
 There is no verified comparable new-construction sample for every prototype. `web/lib/rentAssumptions.js` therefore declares editable hypothetical rents and sensitivity ranges; small-building discounts and type differences are assumptions. Availability, concessions, unit size and fixed fees can change. No scraped listings, market-average claim or paid API is introduced. The existing HUD FY2026 HOME table supplies target-income bands, not rents or construction economics.
+
+## Pro forma review — October 27, 2026
+
+| Source | Used for | Limits |
+| --- | --- | --- |
+| [IRR Pittsburgh mid-year 2026](https://www.irr.com/research/32403/2026-mid-year-viewpoint-pittsburgh-pa-multifamily-report) | Public summary: 6–8% cap rates, 5–6% vacancy | Metro context; 7.25%/5.5% are editable model choices, not site observations. |
+| [Terrapin 2026 wood-frame cost guide](https://terrapincg.com/news/multi-family-wood-frame-construction-cost-per-unit-2026) | $185–230/SF two-story; $215–285 three-story; higher bands for taller formats | National contractor examples, not Pittsburgh bids. Story-based prototype mapping, gross-area application and single-family $225–325/SF are assumptions. Land, site-work allowance and other costs are separate. |
+| [IRS Form 8609 instructions](https://www.irs.gov/instructions/i8609) and [PHFA LIHTC/QAP](https://www.phfa.org/mhp/developers/lihtc.aspx) | Explain why qualified basis, applicable fractions, rental restrictions and allocation/bond requirements must be established | An income slider does not establish eligibility; no automatic credit-equity estimate. |
+| [Novogradac LIHTC pricing](https://www.novoco.com/resource-centers/affordable-housing-tax-credits) | September 2026 national pricing context ($0.81 nine-percent / $0.82 four-percent) | Public search-index excerpt checked; direct page retrieval returned a payment/access error. Not a project quote or committed equity. |
+| [City real estate abatement forms](https://www.pittsburghpa.gov/City-Government/Finance-Budget/Taxes/Real-Estate-Taxes/Real-Estate-Forms) and [Chapter 267](https://ecode360.com/45440444) | Program references and application requirements | No automatic relief based on household income; awards and assessment increases are not established. |
+
+Other budget shares and loan assumptions are editable team scenarios, listed in the Studio guide. Neither project-level eligible basis nor official post-development assessed values are in the parcel data. The printed diagram reuses local OSM ground-level walking edges for context; it does not infer road widths, rights-of-way or setbacks and downloads no extra basemap image.

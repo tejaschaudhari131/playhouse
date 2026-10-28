@@ -1,3 +1,4 @@
+import { validFinanceInputs } from './financeInputs.js'
 import { BUILDING_IDS } from './buildings.js'
 import { MODEL_VERSION } from './plannerState.js'
 import { HOUSING_COST_LIMITS } from './housingCosts.js'
@@ -42,6 +43,7 @@ function validOption(option) {
 /** Reject malformed stored inputs; never repair a plan by silently dropping edits. */
 export function validatePlan(scenario) {
   if (!object(scenario) || !safePlanJson(scenario) || !validPlanPin(scenario.pin) || !validOption(scenario.draft)) return 'The saved plan has invalid parcel or building inputs.'
+  if (!validFinanceInputs(scenario.proForma)) return 'The saved pro forma inputs are invalid.'
   if (!affordabilityConfirmation(scenario.affordabilityConfirmation) || scenario.affordabilityAuto !== undefined && typeof scenario.affordabilityAuto !== 'boolean' || scenario.householdSize !== undefined && !(Number.isInteger(scenario.householdSize) && number(scenario.householdSize, 1, 8))) return 'The saved household inputs are invalid.'
   if (!object(scenario.weights) || !PREFERENCE_FACTOR_IDS.every(id => number(scenario.weights[id], 0, 100)) || !['physical', 'capacity'].every(id => scenario.weights[id] === undefined || number(scenario.weights[id], 0, 100))) return 'The saved priorities are invalid.'
   if (!list(scenario.comparisonTypes, BUILDING_IDS.length) || !scenario.comparisonTypes.every(id => BUILDING_IDS.includes(id)) || !unique(scenario.comparisonTypes)) return 'The saved comparison choices are invalid.'

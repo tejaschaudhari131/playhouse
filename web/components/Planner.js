@@ -1,5 +1,7 @@
 "use client"
 
+import FinanceControls from './FinanceControls.js'
+
 import Select from './Select.js'
 import Numeric from './NumberInput.js'
 import Glossary from './Glossary.js'
@@ -433,12 +435,12 @@ function Studio({ data }) {
   function siteImpact(features) {
     const refs = features.map(f => footprintRef(f, scenario.pin)).filter(Boolean)
     const existingHomes = combinedHomes(homesReplaced(refs, { parcel: parcelProps, footprint: ref => features.find(f => footprintKey(f) === demolitionKey(ref)) }))
-    return redevelopmentImpact({ parcel: props, demolished: features, draft: scenario.draft, targetIncome: scenario.targetIncome, householdSize: scenario.householdSize, limits: incomeLimits,
+    return redevelopmentImpact({ parcel: props, demolished: features, draft: scenario.draft, finance: scenario.proForma, targetIncome: scenario.targetIncome, householdSize: scenario.householdSize, limits: incomeLimits,
       existingHomes, parcelFor: parcelProps, benchmarks: benchmarksFor(props.neighborhood ?? null) })
   }
   const planTax = useMemo(() => scenario.buildings.length || scenario.demolitions?.length ? planTaxLedger({ buildings: scenario.buildings,
     demolished: demolitionRecords(scenario.demolitions, entry => demolishedByKey.get(demolitionKey(entry))), parcelFor: parcelProps, benchmarksFor,
-    band: planAmiBand(scenario.buildings, incomeLimits) }) : null, [scenario.buildings, scenario.demolitions, demolishedByKey, parcelProps, benchmarksFor])
+    band: planAmiBand(scenario.buildings, incomeLimits), finance: scenario.proForma }) : null, [scenario.buildings, scenario.demolitions, demolishedByKey, parcelProps, benchmarksFor, scenario.proForma])
   const inspectedPlaced = selectedBuilding?.kind === 'placed' ? scenario.buildings.find(b => b.id === selectedBuilding.id && b.pin === scenario.pin) : null
   const areaSites = useMemo(() => (scenario.buildings || []).map(building => {
     const feature = planByPin.get(building.pin), bounds = geometryBounds(feature.geometry)
@@ -494,6 +496,7 @@ function Studio({ data }) {
     if (!building && emptyCandidates.has(pin)) Object.assign(next, { draft: { ...optionFor(emptyCandidates.get(pin), next.draft.rent), ...prototypeRentOption(emptyCandidates.get(pin)) }, comparisonTypes: defaultComparisonTypes(emptyCandidates.get(pin)) })
     if (sameArea) Object.assign(next, { zoningInputsByPin: scenario.zoningInputsByPin, projectInputs: scenario.projectInputs, connections: scenario.connections, routes: scenario.routes, parks: scenario.parks, parkAccessShare: scenario.parkAccessShare, weights: scenario.weights, comparisonTypes: scenario.comparisonTypes, buildings: scenario.buildings || [], demolitions: scenario.demolitions || [], additionalDepartures: scenario.additionalDepartures, serviceHours: scenario.serviceHours,  spareBoardings: scenario.spareBoardings, ...sharedCapacityInputs(scenario), availablePlacesPerDeparture: scenario.availablePlacesPerDeparture, boardingsPerHome: scenario.boardingsPerHome })
     if (sameArea) {
+      if (scenario.proForma !== undefined) next.proForma = scenario.proForma
       Object.assign(next, sharedHouseholdInputs(scenario))
       next.draft = { ...next.draft, utilities: scenario.draft.utilities, ...(scenario.rentMode !== 'prototype' ? customRentInputs(scenario.draft) : {}) }
     }
@@ -853,6 +856,7 @@ function Studio({ data }) {
             <Numeric label="Stories" integer value={option.floors ?? housingSpec(option).floors} min={1} max={60} step={1} hint="Whole floors used for zoning and the gross floor-area estimate." onChange={v => setOption('floors', v)}/>
             {option.typeId === 'townhouse_duplex' && <label className="planner-field"><span>Legal residential form</span><Select aria-label="Legal residential form" value={option.residentialForm || 'duplex'} onChange={e => setOption('residentialForm', e.target.value)}><option value="duplex">Duplex · two units on one lot</option><option value="attached">Attached house · one unit on its own lot</option></Select><small>Attached houses need a shared wall; this map does not establish that configuration.</small></label>}
             <ZoningInputs inputs={zoningInputs} project={scenario.projectInputs || {}} onChange={setZoningInput} onProjectChange={v => set('projectInputs', v)} numeric={Numeric} typeId={option.typeId} code={props.zoning_code}/>
+            <FinanceControls value={scenario.proForma} option={option} onChange={value => set('proForma', value)}/>
             <details className="planner-details placement-controls">
               <summary>Position & orientation <span>{option.placement ? 'Manual placement' : 'Automatic parcel alignment'}</span></summary>
               <p>Automatic placement follows parcel edges; street frontage is not identified. Manual moves preserve your chosen size and position.</p>

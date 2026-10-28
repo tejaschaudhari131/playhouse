@@ -128,27 +128,15 @@ test('break-even rent capitalizes back to the development cost', () => {
   closeRange(rent.map(r => r * 3 * 12 * 0.6 / 0.065), [650000, 900000], 'round trip')
 })
 
-test('capital stack screens LIHTC (with QCT basis boost), URA HOF and HOME/PHARE by AMI band', () => {
-  const basis = [1000000, 1200000]
-  const at50 = capitalStack({ gapPerUnit: [50000, 80000], units: 12, band: 50, basis, qct: true, typeId: 'small_apartment' })
-  assert.deepEqual(at50.programs.map(p => [p.id, p.status]), [['lihtc', 'eligible'], ['hof', 'eligible'], ['home', 'eligible']])
-  closeRange(at50.gap, [600000, 960000], 'total gap')
-  closeRange(at50.programs[0].estimate.nine, [1000000 * 0.09 * 10 * 0.85 * 1.3, 1200000 * 0.09 * 10 * 0.85 * 1.3], '9% equity with 130% basis')
-  closeRange(at50.programs[0].estimate.four, [1000000 * 0.04 * 10 * 0.85 * 1.3, 1200000 * 0.04 * 10 * 0.85 * 1.3], '4% equity with 130% basis')
-  assert.match(at50.programs[0].note, /2026 HUD Qualified Census Tract \(QCT\): eligible basis may be boosted to 130%/)
-  assert.match(at50.programs[0].note, /12 homes are small for a tax-credit deal/)
-  assert.match(at50.programs[1].name, /Rental Gap Program/)
-  assert.doesNotMatch(at50.programs[1].name, /For-Sale/)
-  const at80 = capitalStack({ gapPerUnit: [10000, 20000], units: 2, band: 80, basis, qct: false, typeId: 'townhouse_duplex' })
-  assert.deepEqual(at80.programs.map(p => p.status), ['conditional', 'eligible', 'eligible'])
-  assert.match(at80.programs[0].note, /income averaging/)
-  assert.match(at80.programs[0].note, /no 130% basis boost/)
-  assert.match(at80.programs[1].name, /For-Sale Development Program/)
-  closeRange(at80.programs[0].estimate.nine, [1000000 * 0.765, 1200000 * 0.765], '9% equity without boost')
-  const market = capitalStack({ gapPerUnit: [10000, 20000], units: 40, band: null, basis, typeId: 'large_apartment' })
-  assert.deepEqual(market.programs.map(p => p.status), ['not_eligible', 'not_eligible', 'not_eligible'])
-  assert.doesNotMatch(market.programs[0].note, /small for a tax-credit deal/)
-  for (const p of at50.programs) assert.match(p.url, /^https:\/\//)
+test('income and QCT alone cannot establish tax-credit equity or program eligibility', () => {
+  for (const band of [30, 50, 60, 80, null]) {
+    for (const units of [1, 3, 12, 40]) {
+      const stack = capitalStack({ gapPerUnit: [50000,80000], units, band, basis:[1e6,1.2e6], qct:true, typeId:'small_apartment' })
+      assert.ok(stack.programs.every(p => p.status === 'not_assessed' && p.estimate === null))
+      assert.match(stack.programs[0].note, /verified eligible basis/)
+      assert.deepEqual(stack.gap, [50000*units,80000*units])
+    }
+  }
 })
 
 test('tax ledger: new construction minus replaced taxable value, by taxing body, with exemptions and abatement', () => {
@@ -160,13 +148,12 @@ test('tax ledger: new construction minus replaced taxable value, by taxing body,
   closeRange(ledger.net, [500000 * 0.027307 - 200000 * 0.027307, 600000 * 0.027307 - 150000 * 0.027307], 'net new tax')
   closeRange(ledger.bodies.reduce((sum, b) => [sum[0] + b.net[0], sum[1] + b.net[1]], [0, 0]), ledger.net, 'bodies sum to the total')
   closeRange(ledger.bodies[0].newTax, [500000 * 0.01042, 600000 * 0.01042], 'City tax')
-  assert.deepEqual([ledger.exempt, ledger.unknown, ledger.abatement.applies, ledger.abatement.program], [1, 1, true, 'City Chapter 267'])
-  assert.deepEqual([ledger.abatement.enhanced, ledger.abatement.years, ledger.abatement.cap], [false, 3, 125000], 'market-rate rental gets the standard 3-year credit')
-  closeRange(ledger.abatement.cityAbated, ledger.bodies[0].net, 'City increase abated in full below the cap')
-  closeRange(ledger.abatement.netDuring, [ledger.net[0] - ledger.bodies[0].net[0], ledger.net[1] - ledger.bodies[0].net[1]], 'schools and County still collect')
-  const affordable = taxLedger({ newValues: [[40e6, 40e6]], band: 60 })
-  assert.deepEqual([affordable.abatement.enhanced, affordable.abatement.years], [true, 10])
-  assert.deepEqual(affordable.abatement.cityAbated, [250000, 250000], 'Enhanced credit is capped at $250,000 a year')
+  assert.deepEqual([ledger.exempt, ledger.unknown, ledger.abatement.applies], [1, 1, false])
+  assert.equal(ledger.abatement.status, 'not_assessed')
+  closeRange(ledger.abatement.netDuring, ledger.net, 'no automatic tax relief')
+  const affordable = taxLedger({ newValues: [[40e6,40e6]], band:60 })
+  assert.equal(affordable.abatement.applies,false,'income band alone is not an abatement award')
+  assert.deepEqual(affordable.abatement.cityAbated,[0,0])
   const loss = taxLedger({ newValues: [[10000, 10000]], replaced: [{ range: [300000, 300000], taxable: true }] })
   assert.equal(loss.abatement.applies, false, 'no abatement when the new building is assessed below what it replaces')
   assert.deepEqual(loss.abatement.cityAbated, [0, 0])

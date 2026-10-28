@@ -144,3 +144,11 @@ The browser loads compact neighborhood data on demand. Rendered detail is bounde
 See [VALIDATION.md](VALIDATION.md) for the current test/build record and observed browser limits. This guide describes the current interface, not a promise of parcel-level engineering accuracy or a causal policy forecast.
 
 If a draft extends beyond the parcel, **Inspect first** can show a nearby building that overlaps it. The panel labels it **Outside selected parcel** and retains its recorded identity and height evidence. Removing that outline in a scenario does not enlarge the selected lot.
+
+## Financial assumptions
+
+The editable `pro-forma-2.0` screen separates vertical construction, site work, demolition, contingency, design/permits/legal, developer fee, construction interest, initial reserves and acquisition. Inputs are saved under `scenario.proForma` and validated on import. Low/high construction overrides belong to each housing type; other assumptions apply across the plan. Finance-only edits do not recompute geometry or preference factors.
+
+NOI = annual scheduled rent × (1 − vacancy) × (1 − operating-expense share). Expenses include taxes but exclude debt service. Capitalized income = NOI ÷ cap rate. Break-even rent reverses that same equation against total development cost; it is not a financing or debt-service test. Reserves here are an upfront allowance. Construction interest uses a financed-cost share, annual rate, term and average drawn balance; it is not a lender draw schedule.
+
+Defaults beyond the cited market/cost ranges are team assumptions: site work 10% of vertical cost; contingency 5% of hard; design/permits/legal 12% of hard; developer fee 10% of hard + contingency + design/permits/legal; initial reserves $3,000/home; 65% financed, 7.5% annual interest, 18 months, 50% average draw; operating expenses 40% of collected rent. These are separated to avoid hiding them in a single soft-cost percentage. No credit equity or abatement is counted without project evidence. The whole-plan tax proxy counts acquisition once per parcel and omits demolition from its aggregate cost basis; its caveat is visible.

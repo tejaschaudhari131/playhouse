@@ -110,3 +110,14 @@ test('file and scenario byte budgets count UTF-8 bytes, including discarded expo
   exported.results.padding = 'é'.repeat(MAX_IMPORT_BYTES / 2)
   assert.match(parseScenarioImport(JSON.stringify(exported)).issue, /10 MB/)
 })
+
+test('financial overrides round-trip without changing housing priorities or losing precision', () => {
+  const scenario = initialStudioScenario(PIN)
+  scenario.proForma = { capRate:.0725,vacancyShare:.055,constructionByType:{triplex:[213.75,289.25]},developerFeeShare:.12 }
+  const exported = scenarioExport(scenario,{pulled_at:'2026-09-27'})
+  assert.equal(exported.financeVersion,'pro-forma-2.0')
+  const imported = parseScenarioImport(JSON.stringify(exported))
+  assert.equal(imported.issue,null)
+  assert.deepEqual(imported.saved.scenario.proForma,scenario.proForma)
+  assert.deepEqual(imported.saved.scenario.weights,scenario.weights)
+})

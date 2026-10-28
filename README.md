@@ -152,3 +152,13 @@ Checks: `npm test` and `npm run build` in `web/`. Pipeline checks: `python -m un
 [Studio guide](docs/PLANNER.md) · [Model card](docs/MODEL_CARD.md) · [Title Nine checks](docs/TITLE_NINE.md) · [Data pipeline](pipeline/README.md) · [AI tool disclosure](docs/AI_TOOLS.md)
 
 Built by **Tejas Chaudhari** (data and scoring), **Chris Severns** (zoning), and **Yoon Yik Ng** (map and frontend), with AI coding assistance under the team's direction.
+
+## Development screening
+
+**Advanced → Development costs & valuation** lets you change construction ranges, site work, design/legal costs, developer fee, contingency, construction interest, reserves, vacancy, operating expenses and cap rate. Inputs save and export with the plan. The pro forma shows the cost breakdown and annual **net operating income (NOI)**; these financial assumptions do not change the housing preference weights.
+
+Defaults are editable screening assumptions. [IRR's August 2026 Pittsburgh report](https://www.irr.com/research/32403/2026-mid-year-viewpoint-pittsburgh-pa-multifamily-report) reports 6–8% metro cap rates and 5–6% vacancy; Playhouse starts at 7.25% and 5.5%, not a Hazelwood appraisal. [Terrapin's 2026 construction guide](https://terrapincg.com/news/multi-family-wood-frame-construction-cost-per-unit-2026) distinguishes low-rise and taller construction. Its national examples inform story-based ranges; they do not certify a prototype's structural system, local price, or unit mix. Model floor area is gross, while prototype rents use one-bedroom examples—review both for a real project.
+
+**No tax-credit equity, subsidy award or abatement is assumed.** A target household income and mapped QCT do not establish project eligibility. [IRS Form 8609 instructions](https://www.irs.gov/instructions/i8609), [PHFA's allocation program](https://www.phfa.org/mhp/developers/lihtc.aspx) and [City abatement requirements](https://www.pittsburghpa.gov/City-Government/Finance-Budget/Taxes/Real-Estate-Taxes/Real-Estate-Forms) remain linked for project review. [Novogradac's September 2026 pricing](https://www.novoco.com/resource-centers/affordable-housing-tax-credits) reports national averages of $0.81 for 9% credits and $0.82 for 4%; a market price alone cannot establish an equity award. The 9%/4% rates are statutory floors for qualifying cases, not a promise of allocation.
+
+The tax illustration retains **27.307 mills** and uses total development cost, including known acquisition, as an explicitly assumed value. This is not an assessment or revenue forecast. Operating expenses already include taxes; the tax illustration is not deducted from NOI again. Acquisition, retained building values, financing commitments and program qualification need project evidence.

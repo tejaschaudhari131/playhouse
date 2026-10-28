@@ -1,3 +1,4 @@
+import { financeInputs, FINANCE_DEFAULTS, FINANCE_VERSION, constructionRates, operatingStatement, developmentBudget } from './financeInputs.js'
 import { geometryArea } from './plannerGeometry.js'
 import { housingSpec } from './titleNine.js'
 import { PRO_FORMA_ASSUMPTIONS, demolishedArea, siteAcquisition, parcelAcquisition, amiBand, breakEvenRent, capitalStack, taxLedger } from './proForma.js'
@@ -77,9 +78,10 @@ export function netHomes(proposed, replacement) {
 /** Screening ranges, not bids or appraisals. Each is shown beside its result. */
 export const IMPACT_ASSUMPTIONS = {
   demolitionPerSqft: [8, 15],
-  constructionPerSqft: { single_family: [225, 325], townhouse_duplex: [225, 325], triplex: [250, 350], small_apartment: [275, 375], large_apartment: [300, 425] },
-  operatingShare: 0.4,
-  capRate: 0.065,
+  constructionPerSqft: { single_family: [225, 325], townhouse_duplex: [215, 285], triplex: [215, 285], small_apartment: [285, 385], large_apartment: [340, 485] },
+  operatingShare: FINANCE_DEFAULTS.operatingShare,
+  vacancyShare: FINANCE_DEFAULTS.vacancyShare,
+  capRate: FINANCE_DEFAULTS.capRate,
   embodiedKgPerM2: [300, 600],
   storyHeightM: 3.5,
   affordableShare: 0.3,
@@ -92,7 +94,7 @@ const minus = (value, cost) => [value - cost[1], value - cost[0]]
 /** Construction cost range for one housing option: gross floor area × the type's $/sq ft range. */
 export function constructionCost(option, assumptions = IMPACT_ASSUMPTIONS) {
   const spec = housingSpec(option), sqft = option.width * option.depth * (option.floors ?? spec.floors) * SQFT
-  const rate = assumptions.constructionPerSqft[option.typeId] || assumptions.constructionPerSqft.small_apartment
+  const rate = assumptions.constructionByType?.[option.typeId] || (assumptions !== IMPACT_ASSUMPTIONS ? assumptions.constructionPerSqft?.[option.typeId] : null) || constructionRates(option)
   return { sqft, rate, cost: range(rate, sqft) }
 }
 
@@ -107,17 +109,19 @@ export function replacedParcels(demolished, acquisitionParcels) {
  * Observed: assessment fields, sales and HUD limits. Assumed: cost, soft-cost, operating, cap-rate, millage-proxy and carbon ranges.
  */
 export function redevelopmentImpact({ parcel = {}, demolished = [], draft, targetIncome, householdSize = 1, limits = null, existingHomes = recordedHomes(parcel),
-  parcelFor = () => null, benchmarks = null, asOfYear, assumptions = IMPACT_ASSUMPTIONS, proForma = PRO_FORMA_ASSUMPTIONS }) {
+  parcelFor = () => null, benchmarks = null, asOfYear, finance = {}, assumptions = IMPACT_ASSUMPTIONS, proForma = PRO_FORMA_ASSUMPTIONS }) {
+  const financial = financeInputs(finance)
   const spec = housingSpec(draft), units = spec.units
   const footprintM2 = demolished.reduce((n, f) => n + geometryArea(f.geometry), 0)
   const area = demolishedArea(demolished, { parcel, parcelFor, storyHeightM: assumptions.storyHeightM })
   const demolition = range(assumptions.demolitionPerSqft, area.sqft)
-  const built = constructionCost(draft, assumptions), construction = built.cost
-  const hard = add(demolition, construction), soft = range(hard, proForma.softShare)
+  const built = constructionCost(draft, { ...assumptions, constructionPerSqft: assumptions === IMPACT_ASSUMPTIONS ? undefined : assumptions.constructionPerSqft, constructionByType: financial.constructionByType }), construction = built.cost
   const acquisition = siteAcquisition({ parcel, demolished, parcelFor, benchmarks, asOfYear, assumptions: proForma })
-  const beforeLand = add(hard, soft), development = add(beforeLand, acquisition.range)
-  const capitalize = monthly => Math.max(0, monthly) * units * 12 * (1 - assumptions.operatingShare) / assumptions.capRate
-  const value = capitalize(draft.rent)
+  const budget = developmentBudget({ construction, demolition, acquisition: acquisition.range, units, assumptions: financial })
+  const { beforeLand, development, hard, soft } = budget
+  const operations = operatingStatement(draft.rent, units, financial)
+  const capitalize = monthly => operatingStatement(monthly, units, financial).capitalized
+  const value = operations.capitalized
   const income = Number.isFinite(targetIncome) && targetIncome > 0 ? targetIncome : null
   const affordableRent = income === null ? null : Math.max(0, income * assumptions.affordableShare / 12 - (draft.utilities || 0))
   const affordableValue = affordableRent === null ? null : capitalize(affordableRent)
@@ -128,21 +132,23 @@ export function redevelopmentImpact({ parcel = {}, demolished = [], draft, targe
   const renterShare = Number.isFinite(parcel.renter_share) ? parcel.renter_share : null
   const homes = existingHomes.homes
   return {
+    finance: { version: FINANCE_VERSION, ...financial },
+    operations,
     existing: {
       landUse: parcel.land_use || null, yearBuilt: parcel.year_built ?? null, livingSqft: parcel.living_sqft ?? null,
       sale: Number.isFinite(parcel.last_valid_sale_price) ? { price: parcel.last_valid_sale_price, year: parcel.last_valid_sale_year ?? null } : null,
       homes: existingHomes, buildings: demolished.length, footprintSqft: footprintM2 * SQFT, demolishedSqft: area.sqft, area,
     },
     replacement: { label: spec.label, units, sqft: built.sqft, netUnits: homes === null ? null : units - homes },
-    cost: { demolition, construction, constructionRate: built.rate, hard, soft, softShare: proForma.softShare, acquisition, development,
+    cost: { ...budget, demolition, construction, constructionRate: built.rate, hard, soft, softShare: financial.softShare, acquisition, development,
       perHome: range(development, 1 / units), hardPerHome: range(hard, 1 / units) },
-    value: { rent: draft.rent, capitalized: value, gap: marketGap, residualLand: minus(value, beforeLand), breakEvenRent: breakEvenRent(development, units, assumptions) },
+    value: { rent: draft.rent, capitalized: value, gap: marketGap, residualLand: minus(value, beforeLand), breakEvenRent: breakEvenRent(development, units, financial) },
     affordability: affordableRent === null ? null : {
       targetIncome: income, affordableRent, band, rentBurden: (draft.rent + (draft.utilities || 0)) * 12 / income,
       capitalized: affordableValue, gap: minus(affordableValue, development), residualLand: minus(affordableValue, beforeLand), subsidyPerUnit,
     },
     capitalStack: shortfallPerUnit[1] > 0 ? capitalStack({ gapPerUnit: shortfallPerUnit, units, band: band?.band ?? null, basis: beforeLand, qct: parcel.qct_2026 === true, typeId: draft.typeId, assumptions: proForma }) : null,
-    tax: taxLedger({ newValues: [construction], replaced: replacedParcels(demolished, acquisition.parcels), band: band?.band ?? null, assumptions: proForma }),
+    tax: taxLedger({ newValues: [development], replaced: acquisition.parcels, band: band?.band ?? null, assumptions: proForma }),
     displacement: {
       homes, renterShare,
       renterHouseholds: homes === null || renterShare === null ? null : homes * renterShare,
@@ -158,11 +164,18 @@ export const demolitionRecords = (demolitions = [], footprint = () => null) => d
   .map(d => ({ properties: { pin: d.pin, footprint_role: footprint(d)?.properties?.footprint_role ?? null } }))
 
 /** Annual tax ledger for the whole plan: every placed building against every parcel whose principal building is demolished. */
-export function planTaxLedger({ buildings = [], demolished = [], parcelFor = () => null, benchmarksFor = () => null, band = null, asOfYear, assumptions = IMPACT_ASSUMPTIONS, proForma = PRO_FORMA_ASSUMPTIONS }) {
-  const pins = [...new Set(demolished.filter(f => f?.properties?.footprint_role !== 'auxiliary').map(f => f?.properties?.pin).filter(Boolean))]
+export function planTaxLedger({ buildings = [], demolished = [], parcelFor = () => null, benchmarksFor = () => null, band = null, asOfYear, finance = {}, assumptions = IMPACT_ASSUMPTIONS, proForma = PRO_FORMA_ASSUMPTIONS }) {
+  const financial = financeInputs(finance)
+  // Land is counted once per site, not once per proposed building.
+  const pins = [...new Set([...buildings.map(b => b.pin), ...demolished.filter(f => f?.properties?.footprint_role !== 'auxiliary').map(f => f?.properties?.pin)].filter(Boolean))]
   const replaced = pins.map(pin => {
     const props = parcelFor(pin)
     return parcelAcquisition(props, { benchmarks: benchmarksFor(props?.neighborhood ?? null), asOfYear, assumptions: proForma })
   })
-  return taxLedger({ newValues: buildings.map(b => constructionCost(b.option, assumptions).cost), replaced, band, assumptions: proForma })
+  const construction = buildings.map(b => constructionCost(b.option, { ...assumptions, constructionPerSqft: assumptions === IMPACT_ASSUMPTIONS ? undefined : assumptions.constructionPerSqft, constructionByType: financial.constructionByType }).cost).reduce(add, [0, 0])
+  const acquisition = replaced.filter(p => p.range).reduce((sum,p) => add(sum,p.range),[0,0])
+  const units = buildings.reduce((n,b) => n + housingSpec(b.option).units,0)
+  const budget = developmentBudget({ construction, acquisition, demolition:[0,0], units, assumptions:financial })
+  return { ...taxLedger({ newValues: buildings.length ? [budget.development] : [], replaced, band, assumptions:proForma }),
+    basisNote: 'Whole-plan cost proxy includes known acquisition once per parcel and financial allowances. Demolition is omitted from this aggregate proxy; retained existing-building value and official assessments are not established.' }
 }

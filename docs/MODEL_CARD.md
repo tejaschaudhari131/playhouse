@@ -72,3 +72,7 @@ Sources, vintages, and caveats: README "Data Sources", `docs/DATA_NOTES.md`, `we
 See README "Limitations" and `docs/VALIDATION.md`. Most important: no expert zoning review yet; Studio applies supported Title Nine checks, with unassessed rules explicitly excluded. Studio does not evaluate utilities or geotechnical conditions; scores use fixed anchors, not citywide percentiles; ACS margins of error; the CHAS vintage lags; Studio uses routed walking estimates; no practitioner validation of the rankings.
 
 Coverage note: the 142,865 mapped records include 142,571 identified parcels and 294 county polygons without a unique PIN. Those polygons have stable `SITE…` map IDs, retain the source label, and disclose that assessment and parcel-ID-based property flags are unknown. No neighborhood is omitted.
+
+## Financial screen (`pro-forma-2.0`)
+
+Finance is separate from the five-factor preference score. It now itemizes costs, vacancy and NOI with editable validated assumptions; see [the Studio guide](PLANNER.md#financial-assumptions) for equations and defaults. No LIHTC equity, grant or tax abatement is inferred from income or QCT status. Tax on the total-cost proxy is illustrative, including known acquisition and allowances; it is not an official assessment. The capitalized-income/cost gap is not a loan or subsidy determination. Historic financial results are not comparable without the same financial version and inputs.
