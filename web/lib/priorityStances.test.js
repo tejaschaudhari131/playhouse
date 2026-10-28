@@ -75,6 +75,22 @@ test('a stance that flips the winner makes it a close call even with a wide marg
   assert.match(clear.text, /leads under every stance/)
 })
 
+test('a wide lead does not imply agreement from tied or unscored stances', () => {
+  const opts = states({ house: option('House', { demand: 90, affordability: 50 }), triplex: option('Triplex', { demand: 40, affordability: 50 }) })
+  const weights = { demand: 1 }
+  const stances = [
+    { id: 'market', label: 'Market', weights },
+    { id: 'costs', label: 'Costs', weights: { affordability: 1 } },
+    { id: 'none', label: 'No weights', weights: { demand: 0 } },
+  ]
+  const call = closeCall(opts, weights, 'proposal', stances)
+  assert.equal(call.close, false)
+  assert.equal(call.winnerLabel, 'House')
+  assert.deepEqual(call.stances.map(stance => stance.winner), ['house', null, null])
+  assert.equal(call.text, 'House leads Triplex by 50.0 pts. No stance selects a clear alternative.')
+  assert.equal(closeCall(opts, weights, 'proposal', []).text, 'House leads Triplex by 50.0 pts. No alternative stances were compared.')
+})
+
 test('ineligible types never win and fewer than two eligible types give no call', () => {
   const opts = { a: option('A', { demand: 99 }, false), b: option('B', { demand: 50 }), c: option('C', { demand: 49 }) }
   const call = closeCall(states(opts), { demand: 1 }, 'proposal', [])

@@ -49,7 +49,10 @@ export function closeCall(states, weights, state = 'proposal', stances = PRIORIT
   const flips = byStance.filter(s => s.winner && s.winner !== first)
   const withinMargin = margin <= CLOSE_CALL_POINTS + 1e-9
   const close = withinMargin || flips.length > 0
-  const text = !close ? `${label(first)} leads ${label(second)} by ${margin.toFixed(1)} pts and leads under every stance.`
+  const allStancesAgree = byStance.length > 0 && byStance.every(stance => stance.winner === first)
+  const stanceSummary = allStancesAgree ? ' and leads under every stance.'
+    : byStance.length ? '. No stance selects a clear alternative.' : '. No alternative stances were compared.'
+  const text = !close ? `${label(first)} leads ${label(second)} by ${margin.toFixed(1)} pts${stanceSummary}`
     : `${withinMargin ? 'No clear winner. ' : ''}${label(first)} and ${label(second)} are ${margin.toFixed(1)} pts apart${withinMargin ? `, within the ${CLOSE_CALL_POINTS.toFixed(1)}-pt close-call band` : ''}.${flips.length ? ` ${flips.map(s => `${s.label} flips it to ${s.winnerLabel}`).join('; ')}.` : ' No stance selects a clear alternative.'}`
   return { winner: withinMargin ? null : first, winnerLabel: withinMargin ? null : label(first), numericalLeader: first, numericalLeaderLabel: label(first), runnerUp: second, runnerUpLabel: label(second), margin, withinMargin, close, flips, stances: byStance, badge: withinMargin ? 'No clear winner' : close ? 'Depends on priorities' : null, text }
 }
