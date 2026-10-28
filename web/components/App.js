@@ -597,6 +597,7 @@ function App({ data, chunk, additionalParcels }) {
           shareUrl={shareUrl}
         />
       ) : null}
+      <footer className="site-support-footer"><a href="/accessibility">Accessibility & contact</a></footer>
     </div>
   )
 }

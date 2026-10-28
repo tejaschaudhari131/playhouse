@@ -15,7 +15,15 @@ const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: fileURLToPath(new URL("../", import.meta.url)),
   async headers() {
-    return [{ source: '/data/studio/:file([a-z0-9-]+\\.[0-9a-f]{16}\\.json)', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] }]
+    return [
+      { source: '/:path*', headers: [
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+        { key: 'Permissions-Policy', value: 'camera=(), microphone=(), payment=(), usb=()' },
+      ] },
+      { source: '/data/studio/:file([a-z0-9-]+\\.[0-9a-f]{16}\\.json)', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
+    ]
   },
   async redirects() {
     // Explorer links created before Studio became the home page keep their scenario.
