@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildingIdentityRows } from './buildingIdentity.js'
+import { buildingIdentityRows, buildingInspectionRow } from './buildingIdentity.js'
 import { rectangleAt, rectangleInside } from './plannerGeometry.js'
-import { footprintRef, isDemolished } from './redevelopment.js'
+import { footprintRef, isDemolished, siteFootprints, blockingFootprints, footprintKey, demolitionKey } from './redevelopment.js'
 import { historyFor, initialStudioScenario, scenarioReducer } from './plannerState.js'
 
 const origin = [-79.94, 40.41]
@@ -111,4 +111,39 @@ test('missing geometry and identifiers do not fabricate area, height, or numbere
   assert.equal(row.areaLabel, 'Footprint area unknown')
   assert.equal(row.heightLabel, 'Height unknown')
   assert.deepEqual(buildingIdentityRows(null, 'site'), [])
+})
+
+test('off-site draft blockers keep evidence without entering or renumbering the site inventory', () => {
+  const parcel = { type: 'Feature', properties: { pin: 'site' }, geometry: rectangleAt(origin, 20, 20) }
+  const own = recorded('own', 'site', 0)
+  const neighbor = recorded('neighbor', 'neighbor-pin', 30, 0, { height_m: 10.5, height_method: 'typology_estimate', height_profile: 'apartments_small' })
+  const rows = buildingIdentityRows([own], 'site'), before = structuredClone(rows)
+  const info = buildingInspectionRow(neighbor, parcel, rows)
+  assert.equal(info.relation, 'outside')
+  assert.equal(info.number, null)
+  assert.equal(info.label, null)
+  assert.equal(info.building, neighbor)
+  assert.equal(info.heightLabel, '~10.5 m inferred')
+  assert.ok(info.areaM2 > 100)
+  assert.equal(buildingInspectionRow(own, parcel, rows), rows[0])
+  assert.deepEqual(rows, before)
+  const crossing = recorded('crossing', 'neighbor-pin', 8)
+  assert.equal(buildingInspectionRow(crossing, parcel).relation, 'crossing')
+  assert.equal(buildingInspectionRow(null, parcel, rows), null)
+})
+
+test('an out-of-parcel draft can overlap an adjacent outline inside the parcel query bounds', () => {
+  const parcel = { type: 'Feature', properties: { pin: 'site' }, geometry: { type: 'Polygon', coordinates: [[at(-20,-20),at(20,20),at(-20,20),at(-20,-20)]] } }
+  const neighbor = { ...recorded('adjacent', 'other-pin', 14, -14, { height_m: 7.5, height_method: 'stories_estimate', stories: 2 }), geometry: rectangleAt(at(14,-14),4,4) }
+  const context = [neighbor], draft = rectangleAt(at(12,-12),14,14)
+  assert.equal(siteFootprints(context, parcel).length, 0)
+  const blockers = blockingFootprints(context, draft)
+  assert.equal(blockers.length, 1)
+  const ref = footprintRef(blockers[0], 'site')
+  assert.equal(ref.pin, 'other-pin'); assert.equal(ref.site, 'site')
+  const inspected = context.find(b => footprintKey(b) === demolitionKey(ref))
+  const info = buildingInspectionRow(inspected, parcel, [])
+  assert.equal(info.relation, 'outside')
+  assert.equal(info.heightLabel, '~7.5 m estimated')
+  assert.equal(info.number, null)
 })

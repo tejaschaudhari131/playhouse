@@ -142,3 +142,5 @@ The sidebar precedes the map in keyboard navigation. It can be resized, collapse
 The browser loads compact neighborhood data on demand. Rendered detail is bounded to the active neighborhood and visible neighbors; distant detail is released and zoomed-out views omit it. Dictionary encoding reduces repeated parcel-property payload without rounding geometry or changing scores. The unused parallel road download is omitted; mapped routing uses the walking graph. OpenFreeMap provides the hosted vector basemap without an API key; its map data comes from OpenStreetMap.
 
 See [VALIDATION.md](VALIDATION.md) for the current test/build record and observed browser limits. This guide describes the current interface, not a promise of parcel-level engineering accuracy or a causal policy forecast.
+
+If a draft extends beyond the parcel, **Inspect first** can show a nearby building that overlaps it. The panel labels it **Outside selected parcel** and retains its recorded identity and height evidence. Removing that outline in a scenario does not enlarge the selected lot.

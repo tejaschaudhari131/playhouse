@@ -1,17 +1,20 @@
 import { useEffect, useRef } from 'react'
+import { buildingInspectionRow } from '../lib/buildingIdentity.js'
 import { housingSpec } from '../lib/titleNine.js'
 import { housingCostConfirmed } from '../lib/housingCosts.js'
 import { footprintKey, footprintRef, isDemolished } from '../lib/redevelopment.js'
 import './buildingInspector.css'
 
-function parcelRelation(building, sitePin) {
+function parcelRelation(building, sitePin, relation) {
   const pin = building.properties?.pin
+  if (relation === 'outside') return pin ? `Outside this parcel; matched to parcel ${pin}.` : 'Outside this parcel; no matched parcel record.'
   return pin === sitePin ? 'Matched to this parcel.' : pin ? `Crosses into this parcel; matched to parcel ${pin}.` : 'Crosses into this parcel; no matched parcel record.'
 }
 
 function BuildingStatus({ relation, removed }) {
-  if (!removed && relation !== 'crossing' && relation !== 'unmatched') return null
+  if (!removed && relation !== 'crossing' && relation !== 'unmatched' && relation !== 'outside') return null
   return <span className="building-statuses">
+    {relation === 'outside' && <span className="building-status">Outside selected parcel</span>}
     {relation === 'crossing' && <span className="building-status">Crossing parcel</span>}
     {relation === 'unmatched' && <span className="building-status">Unmatched parcel</span>}
     {removed && <span className="building-status is-demolished">Demolished in plan</span>}
@@ -19,10 +22,11 @@ function BuildingStatus({ relation, removed }) {
 }
 
 /** Selection is UI state. Removal is an explicit, undoable scenario command. */
-export default function BuildingInspector({ existing, placed, sitePin, buildingRows = [], demolitions = [], onSelect, onDemolish, onRestore, onEditPlaced, onClose, pending, existingHomes, planNet, children }) {
+export default function BuildingInspector({ parcel, existing, placed, sitePin, buildingRows = [], demolitions = [], onSelect, onDemolish, onRestore, onEditPlaced, onClose, pending, existingHomes, planNet, children }) {
   const heading = useRef(null)
   const existingKey = existing && footprintKey(existing)
   const selectedRow = existingKey && buildingRows.find(row => row.key === existingKey)
+  const evidenceRow = buildingInspectionRow(existing, parcel, buildingRows)
   const selectionKey = existing ? `${sitePin}:${existingKey}` : placed?.id
   useEffect(() => { if (selectionKey) heading.current?.focus({ preventScroll: true }) }, [selectionKey])
   const ref = existing && footprintRef(existing, sitePin)
@@ -33,17 +37,18 @@ export default function BuildingInspector({ existing, placed, sitePin, buildingR
     {(existing || placed) && <div className="building-selection">
       <div className="section-heading"><h3 ref={heading} tabIndex={-1}>{placed ? 'Planned building' : `Existing building${selectedRow ? ` #${selectedRow.number}` : ''}`}</h3><button onClick={onClose} aria-label="Close building details">×</button></div>
       <strong className="building-selection-use">{placed ? housingSpec(placed.option).label : existing.properties.use_label || 'Use unknown'}</strong>
-      {placed ? <p className="building-selection-measures">{placed.option.width} × {placed.option.depth} m · {placed.option.height} m high</p> : selectedRow && <p className="building-selection-measures"><span>{selectedRow.areaLabel}</span><span>{selectedRow.heightLabel}</span></p>}
-      {existing && <BuildingStatus relation={selectedRow?.relation} removed={isRemoved}/>}
+      {placed ? <p className="building-selection-measures">{placed.option.width} × {placed.option.depth} m · {placed.option.height} m high</p> : evidenceRow && <p className="building-selection-measures"><span>{evidenceRow.areaLabel}</span><span>{evidenceRow.heightLabel}</span></p>}
+      {existing && <BuildingStatus relation={evidenceRow?.relation} removed={isRemoved}/>}
+      {evidenceRow?.relation === 'outside' && <p className="compact-help">Overlaps the draft, not the selected parcel. Removing it does not enlarge this lot.</p>}
       {placed && <p className="compact-help">Adds {housingSpec(placed.option).units} proposed {housingSpec(placed.option).units === 1 ? 'home' : 'homes'}.</p>}
       {placed && <p className="compact-help">{housingCostConfirmed(placed, placed.option) ? 'Housing costs: included as scenario assumptions recorded at placement.' : 'Housing costs: excluded from the plan score. Turn on Housing costs in score (Build, Compare or Advanced) to include them.'}</p>}
       <div className="placement-actions">{placed ? <><button onClick={() => onEditPlaced(true)} disabled={pending}>Replace planned building</button><button onClick={() => onEditPlaced(false)}>Remove from plan</button></> : isRemoved ? <button aria-label={`Restore original ${selectedName}`} onClick={() => onRestore(ref)}>Restore original building</button> : <><button className="primary-build" aria-label={`Demolish and replace ${selectedName}`} onClick={() => onDemolish(existing, true)} disabled={pending || !ref}>Demolish & replace</button><button aria-label={`Demolish ${selectedName} only`} onClick={() => onDemolish(existing, false)} disabled={pending || !ref}>Demolish only</button></>}</div>
       <details className="building-evidence"><summary>{existing ? 'Building evidence' : 'Plan notes'}</summary>
         {existing && <>
-          <p>{selectedRow?.heightDescription || 'Height unknown. No recorded height evidence is available.'}</p>
-          {selectedRow?.heightSource && <a href={selectedRow.heightSource} target="_blank" rel="noreferrer">Height source for this building ↗</a>}
+          <p>{evidenceRow?.heightDescription || 'Height unknown. No recorded height evidence is available.'}</p>
+          {evidenceRow?.heightSource && <a href={evidenceRow.heightSource} target="_blank" rel="noreferrer">Height source for this building ↗</a>}
           <p>Recorded outline ID: {existing.properties.id ?? existing.id ?? 'Unknown'}</p>
-          <p>{parcelRelation(existing, sitePin)}</p>
+          <p>{parcelRelation(existing, sitePin, evidenceRow?.relation)}</p>
           <p>{existing.properties.recorded_land_use || 'Use unknown'} · {existing.properties.use_evidence || 'Occupancy unverified.'}</p>
           <p>{existing.properties.footprint_role === 'auxiliary' ? 'Accessory outline: its parcel’s recorded homes are not counted as replaced when only this is demolished.' : `Recorded homes on its parcel (estimate from land use): ${existingHomes}`}</p>
         </>}
