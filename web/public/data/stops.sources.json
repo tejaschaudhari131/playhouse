@@ -1,0 +1,16 @@
+{
+  "source": "https://www.rideprt.org/developerresources/GTFS.zip",
+  "publisher": "Pittsburgh Regional Transit",
+  "license_url": "https://www.rideprt.org/business-center/developer-resources/",
+  "service_date": "2026-09-25",
+  "feed_version": "Merged_Clever_2606_2",
+  "feed_valid_until": "2026-10-14",
+  "input_sha256": "7da2f0604a782a2ce53034ec96d0fd5bbb5c5c1e04a6f6fc3e804e1b92b0787e",
+  "output_sha256": "882db18841035df5d07545fbfdd7154fb3cf9fbf107f674b84aea422b1dc82be",
+  "count_method": "unique_boardable_gtfs_trip_per_route",
+  "counts": {
+    "parcels": 142865,
+    "changed_trip_counts": 127431
+  },
+  "note": "Frozen schedule evidence for the recorded service date, not current live service. Unique boardable trip IDs are unioned by route across stops within 400 metres. Direction IDs, source stop names and source trip IDs are retained. Pickup prohibited rows are excluded; repeated loop visits count once. Original six-factor score snapshots are archived and are not recomputed by this evidence-only correction."
+}

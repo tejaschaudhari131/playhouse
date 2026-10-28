@@ -135,7 +135,7 @@ function DropCard({ drop, feature, weights, zoning, stops, summary, onClear }) {
       {transit ? (
         <p>
           Within {WALK_RADIUS_M} m in a straight line (not a walking route): {transit.count} stops and about{" "}
-          {transit.trips.toLocaleString()} weekday scheduled trips
+          {transit.trips === null ? 'an unknown number of' : transit.trips.toLocaleString()} unique weekday scheduled trips
           {transit.routes.length ? ` (${transit.routes.join(", ")})` : ""}. Scheduled service is not reliability.
         </p>
       ) : (

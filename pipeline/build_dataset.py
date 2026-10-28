@@ -453,10 +453,11 @@ def _representative_weekday(feed_start, feed_end, today):
     return cursor
 
 
-def download_transit(neighborhoods, refresh):
+def download_transit(neighborhoods, refresh, *, service_date=None, source_path=None):
     print("PRT GTFS", flush=True)
-    dest = config.RAW_DIR / "gtfs.zip"
-    cached_download(config.GTFS_URL, dest, refresh=refresh)
+    dest = Path(source_path) if source_path else config.RAW_DIR / "gtfs.zip"
+    if source_path is None:
+        cached_download(config.GTFS_URL, dest, refresh=refresh)
     with zipfile.ZipFile(dest) as archive:
         names = {Path(name).name.lower(): name for name in archive.namelist()}
 
@@ -485,14 +486,16 @@ def download_transit(neighborhoods, refresh):
         if len(raw_end) == 8:
             feed_end = datetime.strptime(raw_end, "%Y%m%d").date()
     today = datetime.now(timezone.utc).date()
-    ref = _representative_weekday(feed_start, feed_end, today)
+    ref = date.fromisoformat(service_date) if service_date else _representative_weekday(feed_start, feed_end, today)
+    if (feed_start and ref < feed_start) or (feed_end and ref > feed_end):
+        raise ValueError("Requested service date is outside the cached GTFS feed window")
     active = _service_active(calendar_rows, exception_rows, ref)
     print(f"  representative weekday {ref.isoformat()} with {len(active)} services", flush=True)
     if not active:
         raise RuntimeError(f"No GTFS services run on {ref.isoformat()}")
 
     weekday_trips = {
-        row.get("trip_id"): row.get("route_id")
+        row.get("trip_id"): {"route_id": row.get("route_id"), "direction_id": row.get("direction_id") or "", "headsign": row.get("trip_headsign") or ""}
         for row in trips
         if row.get("service_id") in active and row.get("trip_id")
     }
@@ -500,19 +503,9 @@ def download_transit(neighborhoods, refresh):
         row.get("route_id"): (row.get("route_short_name") or row.get("route_long_name") or row.get("route_id"))
         for row in routes
     }
-    trip_counts = defaultdict(int)
-    stop_routes = defaultdict(set)
     with zipfile.ZipFile(dest) as archive:
         raw = archive.read(names["stop_times.txt"]).decode("utf-8-sig", errors="replace")
-    for row in csv.DictReader(io.StringIO(raw)):
-        trip_id = row.get("trip_id")
-        if trip_id not in weekday_trips:
-            continue
-        stop_id = row.get("stop_id")
-        trip_counts[stop_id] += 1
-        route_id = weekday_trips[trip_id]
-        if route_id:
-            stop_routes[stop_id].add(route_names.get(route_id, route_id))
+    stop_service = _aggregate_stop_service(csv.DictReader(io.StringIO(raw)), weekday_trips, route_names)
 
     union = shapely.union_all([item["geom"] for item in neighborhoods])
     minx, miny, maxx, maxy = envelope(union, pad=0.02)
@@ -535,8 +528,9 @@ def download_transit(neighborhoods, refresh):
                 "lat": lat,
                 "x": point[0],
                 "y": point[1],
-                "trips": int(trip_counts.get(stop_id, 0)),
-                "routes": sorted(stop_routes.get(stop_id, [])),
+                **stop_service.get(stop_id, {"trips": 0, "routes": [], "trip_keys_by_route": {}, "route_directions": [], "first_departure": None, "last_departure": None}),
+                "service_date": ref.isoformat(),
+                "parent_station": stop.get("parent_station") or None,
             }
         )
     trip_rows = sum(stop["trips"] for stop in kept)
@@ -544,7 +538,44 @@ def download_transit(neighborhoods, refresh):
         f"  stops near city area: {len(kept)}; weekday trip-stop rows among them: {trip_rows}",
         flush=True,
     )
-    return {"stops": kept, "service_date": ref.isoformat(), "feed_end": feed_end.isoformat() if feed_end else None}
+    return {"stops": kept, "service_date": ref.isoformat(), "feed_end": feed_end.isoformat() if feed_end else None,
+            "feed_version": feed_info[0].get("feed_version") if feed_info else None,
+            "input_sha256": hashlib.sha256(dest.read_bytes()).hexdigest()}
+
+
+def _aggregate_stop_service(rows, weekday_trips, route_names):
+    """Unique boardable trip IDs, retaining route/direction and actual service span.
+
+    A loop can visit a stop twice. Those visits are retained as a count but never
+    turn one scheduled trip into two. GTFS pickup_type=1 is not boardable.
+    """
+    stops = defaultdict(lambda: {"trip_keys_by_route": defaultdict(set), "directions": defaultdict(set), "headsigns": defaultdict(set), "times": [], "stop_visits": 0})
+    for row in rows:
+        trip_id, stop_id = row.get("trip_id"), row.get("stop_id")
+        trip = weekday_trips.get(trip_id)
+        if not trip or not stop_id or row.get("pickup_type") == "1":
+            continue
+        service = stops[stop_id]
+        route_id, direction = trip["route_id"], trip["direction_id"]
+        service["trip_keys_by_route"][route_id].add(trip_id)
+        service["directions"][(route_id, direction)].add(trip_id)
+        if trip.get("headsign"):
+            service["headsigns"][(route_id, direction)].add(trip["headsign"])
+        service["stop_visits"] += 1
+        time = row.get("departure_time") or row.get("arrival_time")
+        if time and re.fullmatch(r"\d{1,3}:\d{2}:\d{2}", time):
+            h, m, s = map(int, time.split(":"))
+            if m < 60 and s < 60:
+                service["times"].append((h * 3600 + m * 60 + s, time))
+    return {stop_id: {
+        "trips": sum(len(trips) for trips in service["trip_keys_by_route"].values()),
+        "trip_keys_by_route": {key: sorted(trips) for key, trips in sorted(service["trip_keys_by_route"].items())},
+        "routes": sorted({route_names.get(key, key) for key in service["trip_keys_by_route"]}),
+        "route_directions": [{"route_id": route, "route": route_names.get(route, route), "direction_id": direction, "headsigns": sorted(service["headsigns"][(route, direction)]), "trip_ids": sorted(trips)} for (route, direction), trips in sorted(service["directions"].items())],
+        "first_departure": min(service["times"])[1] if service["times"] else None,
+        "last_departure": max(service["times"])[1] if service["times"] else None,
+        "stop_visits": service["stop_visits"],
+    } for stop_id, service in stops.items()}
 
 
 def _lookup_census(tables, geoid):
@@ -955,7 +986,8 @@ def _transit_for_point(point_xy, stops):
     px, py = point_xy
     nearest = None
     frequent = None
-    trips_400 = 0
+    trips_by_route = defaultdict(set)
+    trips_known = True
     stops_800 = 0
     routes = set()
     for stop in stops:
@@ -967,10 +999,15 @@ def _transit_for_point(point_xy, stops):
         if dist <= 800:
             stops_800 += 1
         if dist <= 400:
-            trips_400 += stop["trips"]
+            if "trip_keys_by_route" not in stop:
+                trips_known = False
+            for route, trip_ids in stop.get("trip_keys_by_route", {}).items():
+                trips_by_route[route].update(trip_ids)
             routes.update(stop["routes"])
     return {
-        "trips_within_400m": trips_400,
+        "trips_within_400m": sum(map(len, trips_by_route.values())) if trips_known else None,
+        "trips_by_route_400m": {route: len(trips) for route, trips in sorted(trips_by_route.items())} if trips_known else None,
+        "transit_count_method": "unique_boardable_gtfs_trip_per_route" if trips_known else "trip_identity_unavailable",
         "stops_within_800m": stops_800,
         "nearest_stop_m": None if nearest is None else round(nearest[0]),
         "nearest_stop_name": None if nearest is None else nearest[1]["name"],
@@ -1242,6 +1279,8 @@ def _public_feature(record):
         "steep_slope_overlap": record.get("steep_slope_overlap"),
         "undermined_overlap": record.get("undermined_overlap"),
         "trips_within_400m": record.get("trips_within_400m"),
+        "trips_by_route_400m": record.get("trips_by_route_400m"),
+        "transit_count_method": record.get("transit_count_method"),
         "stops_within_800m": record.get("stops_within_800m"),
         "nearest_stop_m": record.get("nearest_stop_m"),
         "nearest_stop_name": record.get("nearest_stop_name"),
@@ -1317,6 +1356,27 @@ def _source(name, url, publisher, license_name, status, notes, extra=None):
 
 
 def _stops_collection(stops):
+    # Trips serving the identical set of kept stops form a lossless group. The
+    # browser unions group IDs instead of downloading one repeated trip list per
+    # stop or summing the same bus at successive stops. Opposite directions stay
+    # distinct and original GTFS trip IDs are stored once for reproducibility.
+    trip_stops, trip_metadata = defaultdict(set), {}
+    for stop in stops or []:
+        for row in stop.get("route_directions", []):
+            for trip_id in row["trip_ids"]:
+                key = (row["route_id"], row["direction_id"], trip_id)
+                trip_stops[key].add(str(stop["stop_id"]))
+                trip_metadata[key] = row["route"]
+    grouped = defaultdict(list)
+    for (route, direction, trip_id), ids in trip_stops.items():
+        grouped[(route, direction, tuple(sorted(ids)))].append(trip_id)
+    service_groups, groups_by_stop = {}, defaultdict(list)
+    for (route, direction, ids), trips in sorted(grouped.items()):
+        trip_ids = sorted(trips)
+        group_id = hashlib.sha256(json.dumps([route, direction, ids, trip_ids], separators=(",", ":")).encode()).hexdigest()[:16]
+        service_groups[group_id] = {"route_id": route, "route": trip_metadata[(route, direction, trip_ids[0])], "direction_id": direction, "trip_ids": trip_ids, "trips": len(trip_ids)}
+        for stop_id in ids:
+            groups_by_stop[stop_id].append(group_id)
     features = []
     for stop in stops or []:
         features.append(
@@ -1328,10 +1388,19 @@ def _stops_collection(stops):
                     "name": stop.get("name"),
                     "weekday_trips": int(stop.get("trips") or 0),
                     "routes": stop.get("routes") or [],
+                    "service_groups": groups_by_stop[str(stop["stop_id"])],
+                    "route_weekday_trips": [{key: value for key, value in row.items() if key != "trip_ids"} | {"trips": len(row["trip_ids"])} for row in stop.get("route_directions", [])],
+                    "first_departure": stop.get("first_departure"),
+                    "last_departure": stop.get("last_departure"),
+                    "scheduled_stop_visits": stop.get("stop_visits", 0),
+                    "parent_station": stop.get("parent_station"),
                 },
             }
         )
-    return {"type": "FeatureCollection", "features": features}
+    return {"type": "FeatureCollection", "features": features, "service_groups": service_groups,
+            "service_date": next((s.get("service_date") for s in stops or [] if s.get("service_date")), None),
+            "count_method": "unique_boardable_gtfs_trip_per_route",
+            "count_note": "Each boardable GTFS trip is counted once per route within the radius, even when it serves several nearby stops. Direction IDs and source stop names are preserved. Scheduled service is not ridership, spare seats or reliability."}
 
 
 def _chas_status(parcels):
@@ -1477,13 +1546,19 @@ def write_outputs(
         "note": "Base districts are filled from Pittsburgh Zoning Code §911.02. allowed is P. variance_or_exception keeps A, S, C, or P/S and the app calls that special approval. Districts with not_in_use_table are not marked prohibited. needs_expert_review stays true.",
     }
     card = model_card()
+    stop_collection = _stops_collection(stops)
+    if transit_meta:
+        stop_collection.update({"feed_version": transit_meta.get("feed_version"), "feed_valid_until": transit_meta.get("feed_end"), "input_sha256": transit_meta.get("input_sha256")})
     files = {
         "neighborhoods.geojson": hood_fc,
         "summary.json": summary,
         "sources.json": sources,
         "score_model.json": card,
         "zoning_review.json": zoning_review,
-        "stops.geojson": _stops_collection(stops),
+        "stops.geojson": stop_collection,
+        "stops.sources.json": {"source": config.GTFS_URL, "service_date": stop_collection.get("service_date"), "feed_version": stop_collection.get("feed_version"),
+                               "feed_valid_until": stop_collection.get("feed_valid_until"), "input_sha256": stop_collection.get("input_sha256"),
+                               "count_method": stop_collection["count_method"], "note": stop_collection["count_note"]},
         "lihtc.geojson": _lihtc_collection(lihtc),
     }
     for name, payload in files.items():
@@ -1691,7 +1766,7 @@ def main(refresh=False):
         "https://data.wprdc.org/dataset/port-authority-of-allegheny-county-transit-data",
         "Pittsburgh Regional Transit / WPRDC",
         "PRT Developer License Agreement, accepted by downloading the public GTFS zip. See https://www.rideprt.org/business-center/developer-resources/",
-        "stops.txt, trips.txt, calendar.txt, calendar_dates.txt, routes.txt, and stop_times.txt. Weekday trip counts use one representative weekday inside the feed's service window. "
+        "stops.txt, trips.txt, calendar.txt, calendar_dates.txt, routes.txt, and stop_times.txt. Weekday trip counts use one representative weekday inside the feed's service window. Unique boardable trip IDs are unioned per route across nearby stops, retaining direction IDs; repeated stop visits and pickup-prohibited rows do not inflate counts. "
         "The organizers' dataset URL returned HTTP 404 on 2026-09-26. The schedule actually read is the PRT developer GTFS zip. Trip counts are scheduled service, not realized reliability.",
         lambda: download_transit(neighborhoods, refresh),
         extra={
