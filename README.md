@@ -12,7 +12,7 @@ Playhouse helps planners, developers and communities test housing and infrastruc
 
 
 
-The screenshots show the citywide branch. The preview may require team sign-in; production follows `main`.
+Screenshots illustrate the workflow; labels may differ from the latest release. Production follows `main`.
 
 ## Try it for yourself 
 
@@ -32,15 +32,15 @@ Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F0033
 
 1. **Pick a place.** Choose a neighborhood, then a parcel. Use **Find sites** to filter records and sort by lot size, vacancy, City ownership, tax delinquency or transit walk. Every match is reachable through pages. Turn on **Highlight empty sites** to find screened vacant candidates that also pass your current filters; click one to try a fitting template.
 2. **Try housing types.** Preview houses, duplexes, triplexes and apartments. Place several to form a plan.
-3. **Compare options.** Open **Rankings → Compare to**. See scores, factor differences and zoning checks side by side.
+3. **Compare options.** Open **Compare → Compare to**. See scores, factor differences and zoning checks side by side.
 4. **Set your priorities.** Use **Priorities** to change what matters. Relative weights matter: all 1s and all 100s produce the same ranking.
 5. **Test infrastructure.** Add bus service, a walking/street connection or a park. Compare the baseline with your proposal.
 
-Adjust income, rent, utilities and dimensions under **Advanced**. **Tour** walks through a real Hazelwood example, then restores your plan. Edits save on this device automatically; **Export scenario** keeps a portable backup. Storage failures are shown explicitly. **Print / View 1-Page Site Brief** opens a one-page letter brief of the current draft: a site and massing diagram, the zoning and reform table, the pro forma and tax ledger, the permit pathway and the seven-factor receipts. [What the brief contains](docs/PLANNER.md).
+Adjust income, rent, utilities and dimensions under **Advanced**. **Tour** walks through a real Hazelwood example, then restores your plan. Edits save on this device automatically; **Export scenario** and **Import scenario** let someone reload the full plan, including drawn changes. Storage failures are shown explicitly. **Print / View 1-Page Site Brief** opens a one-page letter brief of the current draft: a site and massing diagram, the zoning and reform table, the pro forma and tax ledger, the permit pathway and five score receipts and separate fit/capacity checks. [What the brief contains](docs/PLANNER.md).
 
 Buildings on the selected parcel have matching numbers in the list and on the map. Click a row to focus and highlight that outline; footprint sizes and height labels help tell similar buildings apart. Numbers stay the same through demolition and Undo. Full evidence stays under **Building evidence**.
 
-The sidebar keeps its width between sections. Drag its divider or use **Widen / Reset**; the comparison table scrolls sideways when needed. Keyboard users can skip directly to planning controls.
+The sidebar keeps its width between sections. Drag its divider or use **Widen / Reset**; comparison cards wrap to fit the available width. Keyboard users can skip directly to planning controls.
 
 Dropdowns stay open after a click so you can browse before choosing. Use arrow keys and Enter, or type a neighborhood name; Escape closes without changing your choice.
 
@@ -61,17 +61,17 @@ Adding 60 assumed departures to this stop's 88 scheduled departures reduces esti
 
 </details>
 
-## The seven-factor screen
+## Seven considerations, five scoring factors
 
 The hackathon asks for housing alternatives, explained tradeoffs, adjustable priorities and a clear separation of data from value judgments. Playhouse supports that workflow across these seven factors:
 
 | Challenge factor | What Playhouse uses today |
 | --- | --- |
 | Household demand | Market activity and lot-size fit proxies; not a demand forecast. |
-| Physical feasibility | Building footprints, parcel fit and supported Title Nine zoning checks. |
-| Affordability | Housing-cost burden, scored only after the user confirms rent, utilities and income. HUD income-band references are available in Advanced. |
+| Physical feasibility | Pass/fail/unknown fit and supported Title Nine zoning checks; not a weighted score. |
+| Affordability | Housing-cost burden using labeled prototype rents and a chosen HUD income band; editable or excluded. |
 | Displacement risk | A Census tract screening signal; not a prediction of displacement. |
-| Infrastructure capacity | Scheduled transit service × assumed spare places. Utility capacity is unknown. |
+| Infrastructure capacity | Separate pass/fail/unknown transit reserve check, with an assumption range. Utility capacity is unknown. |
 | Access to opportunity | Walking routes, transit service and park proximity; not travel to jobs. |
 | Marginal carbon | A relative per-home carbon proxy; not marginal tonnes of CO₂. |
 
@@ -79,9 +79,9 @@ The hackathon asks for housing alternatives, explained tradeoffs, adjustable pri
 
 ## Reading the results
 
-Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin. Compare marks a **Close call (±X pts)** when the top two types are within 3.0 points, or when another priority stance would change the leader, and names that stance.
+Scores describe preferences under your assumptions, not development approval. The comparison shows completed and unassessed zoning checks beside the totals. Small score differences are not proof of a better project; the model has no validated uncertainty margin. Compare says **No clear winner** when the leading options are within 3 points. This is a team-chosen caution band, not a statistical confidence interval. It also shows when the result depends on priorities.
 
-Priorities and Compare offer five stances: **Balanced**, **Anti-Displacement & Affordability**, **Transit-Oriented Density**, **Climate & Low-Carbon** and **Fast Market Infill**. They are team-authored value judgments, not surveyed stakeholder preferences. Each factor is labelled **Observed Data** or **Value Judgment / Assumption**; its **Receipt** gives the source dataset, the formula, this draft's inputs and a High, Medium or Low confidence rating. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
+Priorities and Compare offer five stances: **Balanced**, **Anti-Displacement & Affordability**, **Transit-Oriented Density**, **Climate & Low-Carbon** and **Fast Market Infill**. They are team-authored value judgments, not surveyed stakeholder preferences. Each factor distinguishes **Observed Data**, **Measured + assumed**, **Value Judgment / Assumption** or **Fallback / archived value**; its **Receipt** gives the source dataset, the formula, this draft's inputs and a High, Medium or Low confidence rating. The displacement factor rewards lower **existing neighborhood vulnerability**; it does not estimate a proposal’s displacement or tenant protections, and is not an investment strategy for high-need areas.
 
 **Flood evidence is visible.** Find sites offers any status, no mapped overlap, mapped overlap and unknown. Selected parcels show their recorded overlap with [FEMA's National Flood Hazard Layer](https://www.fema.gov/flood-maps/national-flood-hazard-layer), retrieved **September 27, 2026**, plus a source link. The screen covers Special Flood Hazard Areas and 0.2% annual-chance zones. “No mapped overlap” requires both recorded fractions to be zero; missing evidence stays unknown. It does not mean flood-free. The download date is not a map panel's effective date, which this dataset does not retain.
 
@@ -91,9 +91,22 @@ Empty-site highlights follow the active Find sites filters, including flood. The
 
 **Advanced → Household costs** includes [HUD’s FY2026 Pennsylvania HOME income limits](https://www.huduser.gov/portal/datasets/home-datasets/files/HOME_IncomeLmts_State_PA_2026.pdf) (Pittsburgh area, page 2; effective June 1, 2026). Choose 1–8 household members and compare the published 30%, 50%, 60% and 80% bands. The table is included locally; no account or live API is needed. [Provenance and program distinctions](docs/DATA_SOURCES.md).
 
-Starting Census rents describe existing stock, not new construction. Housing-cost scoring starts **excluded**. Confirm the exact rent, utilities and income to include it; changing those inputs requires confirmation again. Placed buildings retain their own assumptions. Compared housing types deliberately share the draft’s costs, so equal cost-burden scores do not demonstrate equal construction economics.
+New plans include housing costs using **editable prototype rent assumptions**, $150/month utilities and the **60% AMI, one-person HUD income reference ($46,380/year)**. Each type starts with its own rent: house $2,200, duplex $1,800, triplex $1,750, small apartment $2,000 and large apartment $2,100. These are illustrative one-bedroom scenarios, not measured market averages by type. At lower income bands, several can correctly score zero because the target is unaffordable. Change the band or costs to test another scenario.
+
+Public owner listings at [Glasshouse](https://www.glasshouseapts.com/floor-plans/apartments?bed=one_bed&order=ASC&param=avail) and [Albion Lawrenceville](https://albionlawrenceville.com/floorplans/) anchor the scale of recent apartment asking rents; [Albion’s developer record](https://albionresidential.com/projects/albion-lawrenceville/) identifies its recent construction. They do **not** establish representative prices for every type. Assumed discounts, ranges and sources stay under **Advanced → Rent assumptions & sources**. Editing rent switches comparison to that custom rent across types; the reset button restores type-specific defaults.
+
+Zero rent, annual income below $5,000 (including $1,000), and fractional stories are rejected with a message. These are simulator guardrails, not household eligibility rules. Earlier-model saved cost inputs are preserved as legacy assumptions and excluded until reviewed; new defaults never silently overwrite an old plan.
 
 The displayed 30%-of-income budget is a planning benchmark, **not a HOME/LIHTC rent ceiling**. Build's pro forma screens construction and acquisition costs, break-even rent, residual land value, a capital-stack guide and the annual property tax ledger. These figures come from labelled cost assumptions and the last recorded sale; they are not a lender's underwriting. Actual financing terms, subsidy awards, vouchers, tenant occupancy and project displacement effects remain unassessed. Existing inclusionary-zoning checks still need district coverage, project inputs and legal review; the HUD table does not certify compliance.
+
+## Model changes for policy review
+
+- **Five relative weights:** market fit, affordability, displacement, access and carbon. Physical fit and transit capacity remain visible checks and no longer dilute the weighted score. Supported zoning or physical conflicts still withhold a score; uncertain transit capacity does not veto housing.
+- **Trips counted once:** the same GTFS trip is counted once per route across nearby stops. The frozen service date is **September 25, 2026**, with the feed valid through **October 14, 2026**; this is historical scenario evidence, not live service. Opposite-direction stops remain separate and show direction/IDs.
+- **Capacity is conditional:** default four daily boardings per proposed home, one assumed spare place per existing departure, ten per added departure. Advanced shows sensitivity ranges. Zero reserve means unassessed. Scheduled service cannot establish occupancy or peak capacity.
+- **Market fit is a proxy:** sales activity is blended 50/50 with a team-chosen lot-size curve. The receipt shows the curve and this parcel’s inputs; it is not housing demand or developer profit.
+- **Displacement:** observed vulnerability provides the risk floor; rising rents can raise it. Flat rents no longer cap the risk at 50. This remains a normative screen, not a prediction of project displacement.
+- **Audit separation:** Studio uses `planner-screen-3.0`. `/explore` and the six-factor parcel scores are explicitly labeled legacy reference outputs. Their archived totals are not the Studio’s final scores.
 
 ## Policy follow-up
 
@@ -108,13 +121,15 @@ Follow [City housing policy updates](https://engage.pittsburghpa.gov/implementin
 - **All 90 Pittsburgh neighborhoods:** 142,571 identified parcels plus 294 shared-ground/anonymous polygons.
 - **116,502 building outlines:** recorded locations with estimated heights. Colours show recorded use, not recommended redevelopment.
 - **Public sources:** county parcels/assessments, Census ACS, HUD CHAS, PRT schedules, OpenStreetMap, zoning and environmental layers. [Sources and provenance](docs/DATA_SOURCES.md).
-- **Small address search:** the initial manifest is about 140 KB; a search fetches one address-only file (largest 99 KB). No citywide parcel details are downloaded for search. Records without searchable addresses remain accessible by parcel ID.
+- **Small address search:** the initial manifest is about 149 KB; a search fetches one address-only file (largest 99 KB). No citywide parcel details are downloaded for search. Records without searchable addresses remain accessible by parcel ID.
 - **Fast browsing:** detailed geometry loads for the selected neighborhood and visible adjoining neighborhoods. Zooming out hides detail without simplifying the source geometry.
 - **Responsive controls:** priorities reuse existing calculations, map movement updates only changed features, and empty-site candidates are prepared with the data.
 
 This is a planning screen, not development approval. Utility capacity, traffic, actual transit occupancy and causal changes to rents, displacement or emissions are not modeled. [Validation and known gaps](docs/VALIDATION.md).
 
-Studio is at `/`; the original Explorer remains at `/explore` for reference.
+Studio is at `/`; Explorer at `/explore` is explicitly labeled as the legacy six-factor reference.
+
+The basemap uses [OpenFreeMap](https://openfreemap.org/), an open-source, free hosted service with no API key or account. County building geometry and height evidence still supply the planning visualization. The provider has no uptime guarantee; its basemap is context, not a new scoring source.
 
 ## Run locally
 

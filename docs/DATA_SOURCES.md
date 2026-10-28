@@ -46,3 +46,13 @@ Stretch rows on the list that this build does not join: [EPA EJScreen](https://w
 The Census API (`api.census.gov`) redirected unauthenticated calls to a missing-key page on 2026-09-26. The ACS numbers above are the Bureau's own 2024 ACS 5-year summary files, not a substitute dataset. Nothing in the parcel file is invented to fill a failed source.
 
 About 5% of clipped parcels (411 of 8,645) did not match an assessment row in ZIP 15201 or 15207. Those parcels stay on the map with lower confidence and without land use or sale fields. They are not given fake attributes.
+
+## Prototype rent assumptions (Studio v3)
+
+Checked October 27, 2026. Owner-published examples anchor the scale of recent apartment asking rents, not representative rents by housing type:
+
+- [Glasshouse one-bedroom floor plans](https://www.glasshouseapts.com/floor-plans/apartments?bed=one_bed&order=ASC&param=avail): advertised base-rent examples approximately $2,180–$2,455/month.
+- [Albion Lawrenceville floor plans](https://albionlawrenceville.com/floorplans/): J2.2 base $2,002 / fixed monthly price $2,028; A7.4 base $2,370 / fixed monthly price $2,396. Variable utilities are separate.
+- [Albion developer project record](https://albionresidential.com/projects/albion-lawrenceville/): construction began in 2024; listed delivery Q4 2025.
+
+There is no verified comparable new-construction sample for every prototype. `web/lib/rentAssumptions.js` therefore declares editable hypothetical rents and sensitivity ranges; small-building discounts and type differences are assumptions. Availability, concessions, unit size and fixed fees can change. No scraped listings, market-average claim or paid API is introduced. The existing HUD FY2026 HOME table supplies target-income bands, not rents or construction economics.
