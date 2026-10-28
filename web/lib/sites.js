@@ -3,6 +3,7 @@
 import { TYPE_LABELS, rankTypes } from "./rank.js"
 import { dropZoningBadge, resolveZoning } from "./zoning.js"
 import { passesFloodFilter } from './floodEvidence.js'
+import { displacementScreen } from './displacementModel.js'
 import { hiddenByRecord, siteCautions } from "./siteCautions.js"
 
 export const SITE_CAVEAT =
@@ -143,8 +144,7 @@ function scoreTypeFor(typeId) {
 }
 
 export function placeDisplacement(props) {
-  const value = props?.scores?.small_apartment?.displacement_risk
-  return value === undefined ? null : value
+  return displacementScreen(props, props?.scores?.small_apartment?.displacement_risk).risk
 }
 
 const FLAG_FILTERS = [
@@ -157,6 +157,9 @@ const FLAG_FILTERS = [
 
 /** Filters that do not depend on zoning or weights. Unknown data fails a filter that asks about it. */
 export function passesRecordFilters(props, filters) {
+  // Unit-only condo records have no independently developable land area.
+  if (props.lot_sqft === 0 && /CONDO|CONDOMINIUM/i.test(String(props.land_use || ''))) return false
+  if (filters.excludeRestricted && /CEMETERY|BURIAL|GRAVEYARD/i.test(String(props.land_use || ''))) return false
   const active = FLAG_FILTERS.filter(([key]) => filters[key])
   if (active.length) {
     const hits = active.map(([, prop]) => props[prop] === true)
@@ -179,7 +182,7 @@ export function passesRecordFilters(props, filters) {
     if (props.walk_min_frequent === null || props.walk_min_frequent === undefined) return false
     if (props.walk_min_frequent > Number(filters.maxWalkMin)) return false
   }
-  if (filters.minLotSqft) {
+  if (Number(filters.minLotSqft) > 0) {
     if (!props.lot_sqft || props.lot_sqft < Number(filters.minLotSqft)) return false
   }
   if (filters.displacement && filters.displacement !== "any") {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Select from './Select.js'
+import NumberInput from './NumberInput.js'
 import { FloodSource } from './FloodEvidence.js'
 import { BUILDINGS } from '../lib/buildings.js'
 import { FLOOD_FILTER_OPTIONS, FLOOD_SCOPE } from '../lib/floodEvidence.js'
@@ -14,16 +15,16 @@ export default function StudioSites({ filters, setFilters, sites, onSelect, sele
   const changePage = value => setPagination({ key: filterKey, page: value })
   return <section className="studio-sites">
     <div className="section-heading"><h3>Find a site</h3><span>{loading ? 'Loading area…' : `${sites.length.toLocaleString()} matches`}</span></div>
-    <p className="compact-help">Filter public records in this area. A record does not establish availability, occupancy or buildability.</p>
+    <p className="compact-help">Filter public records in this area. Unit-only condo records with no land area are excluded. Records do not establish availability or buildability.</p>
     <label className="planner-field"><span>Address or parcel ID</span><input value={filters.query || ''} onChange={event => set('query', event.target.value)} placeholder="Search this area…"/></label>
     <div className="site-filter-checks">
       {[['vacant', 'Recorded vacant'], ['cityOwned', 'Recorded City ownership'], ['taxDelinquent', 'Tax-delinquency flag']].map(([key, label]) => <label key={key}><input type="checkbox" checked={!!filters[key]} onChange={event => set(key, event.target.checked)}/>{label}</label>)}
-      <label><input type="checkbox" checked={filters.excludeRestricted !== false} onChange={event => set('excludeRestricted', event.target.checked)}/>Hide right-of-way, institutional public land and HUD-assisted housing</label>
+      <label><input type="checkbox" checked={filters.excludeRestricted !== false} onChange={event => set('excludeRestricted', event.target.checked)}/>Hide cemeteries, right-of-way, institutional public land and HUD-assisted housing</label>
       {emptyAvailable && <label><input type="checkbox" checked={!!filters.emptyOnly} onChange={event => set('emptyOnly', event.target.checked)}/>Pre-screened empty-space fit in the current map view</label>}
     </div>
     <div className="field-grid">
-      <label className="planner-field"><span>Minimum lot area (sq ft)</span><input type="number" min="0" step="any" value={filters.minLotSqft ?? ''} placeholder="Any size" onChange={event => set('minLotSqft', event.target.value === '' ? null : Number(event.target.value))}/></label>
-      <label className="planner-field"><span>Maximum transit walk (min)</span><input type="number" min="0" step="any" value={filters.maxWalkMin ?? ''} placeholder="Any distance" onChange={event => set('maxWalkMin', event.target.value === '' ? null : Number(event.target.value))}/></label>
+      <NumberInput label="Minimum lot area (sq ft)" min={0} max={100000000} step="any" nullable value={filters.minLotSqft} onChange={value => set('minLotSqft', value)} hint="Leave blank for any size."/>
+      <NumberInput label="Maximum transit walk (min)" min={0} max={120} step="any" nullable value={filters.maxWalkMin} onChange={value => set('maxWalkMin', value)} hint="Leave blank for any distance."/>
     </div>
     <p className="compact-help">Transit walk is a straight-line estimate to a stop with 60+ weekday departures, not a routed walk. Unknown values are excluded when these filters are set.</p>
     <label className="planner-field"><span>Flood screen</span><Select aria-label="Flood screen" value={filters.flood || 'any'} onChange={event => set('flood', event.target.value)}>{FLOOD_FILTER_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select><small>{FLOOD_SCOPE}</small></label>
