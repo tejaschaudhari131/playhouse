@@ -482,3 +482,5 @@ button.explain { font-weight: 700; }
 .chip.caution { background: #fde2e2; color: #7f1d1d; font-weight: 600; }
 .site-cautions { margin: 6px 0; padding-left: 18px; font-size: 13px; color: #7f1d1d; }
 .site-cautions li { margin: 2px 0; }
+.reference-model-notice { margin: 0; padding: 12px 20px; background: #fff2d8; color: #553e17; font-size: 14px; line-height: 1.5; border-bottom: 1px solid #d7bd83; }
+.reference-model-notice a { color: #22553c; text-decoration: underline; font-weight: 600; }

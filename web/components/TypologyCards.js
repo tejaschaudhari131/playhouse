@@ -28,10 +28,11 @@ export default function TypologyCards({ cards, onChoose, onScoreAll, pending }) 
         <span className="typology-meta">{card.units} {card.units === 1 ? 'home' : 'homes'} · {card.width} × {card.depth} m · {card.floors} st.</span>
         <span className="typology-status">
           <span className={`permission-chip ${card.permission.category}`}>{card.permission.label}</span>
-          <span className={`typology-score ${card.status}`}>{pending && card.status !== 'unscored' ? '…' : card.statusText}</span>
+          <span title={card.statusDetail || undefined} className={`typology-score ${card.status}`}>{pending && card.status !== 'unscored' ? '…' : card.statusText}</span>
         </span>
+        {card.review && <small className="typology-review">{card.review}</small>}
       </button>)}
     </div>
-    <small>Score uses your priorities and the shared Compare coverage. Zoning reads the mapped district’s §911.02 use row only.</small>
+    <small>Scores use the five preference factors. Use permission and whole-proposal checks are separate; neither is zoning approval.</small>
   </div>
 }

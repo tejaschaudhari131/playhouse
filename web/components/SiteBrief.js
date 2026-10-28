@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { siteDiagram, standardsTable } from '../lib/siteBrief.js'
 import { factorReceipt } from '../lib/factorReceipts.js'
 import { PLANNER_FACTORS } from '../lib/plannerState.js'
-import { FACTOR_LABELS, zoningBadge, comparisonScore } from '../lib/studioPresentation.js'
+import { PREFERENCE_FACTOR_IDS } from '../lib/scoringPolicy.js'
+import { FACTOR_LABELS, zoningBadge, comparisonScore, zoningReviewLabel, proposalStatus, proposalChecks } from '../lib/studioPresentation.js'
 import { stanceFor } from '../lib/priorityStances.js'
 import { money, dollars, span } from './RedevelopmentImpact.js'
 import { trapDialogTab } from '../lib/dialogFocus.js'
@@ -81,13 +82,13 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
         <section className="brief-summary">
           <h2>Proposal</h2>
           <p><strong>{label}</strong>: {replacement.units} {replacement.units === 1 ? 'home' : 'homes'}, {option.width} × {option.depth} m, {evaluated?.floors ?? option.floors} stories, {Math.round(option.height * FT)} ft ({option.height} m), {Math.round(replacement.sqft).toLocaleString()} sq ft. Net homes: {replacement.netUnits === null ? 'unknown' : `${replacement.netUnits >= 0 ? '+' : '−'}${Math.abs(replacement.netUnits)}`}.</p>
-          {score && <p><strong>{score.value === null ? 'No score' : `${fmt(score.value)} / 100`}</strong> {score.kind === 'score' ? 'eligible score' : `underlying score, not eligible: ${evaluated.gate}`} · {badge.text}</p>}
+          {score && <><p><strong>{score.kind === 'underlying' || score.value === null ? 'Not ranked' : `${fmt(score.value)} / 100`}</strong> · {proposalStatus(evaluated)}</p><p>{badge.text} · {zoningReviewLabel(evaluated)}</p><p>{proposalChecks(evaluated).map(check => `${check.label}: ${check.status === 'pass' ? 'pass' : check.status === 'fail' ? 'does not pass' : 'not assessed'} — ${check.detail}`).join('; ')}</p></>}
           <p>Priorities: {stance ? stance.label : 'Custom weights'} (team value judgment).{call ? ` ${call.close ? `${call.badge}: ` : ''}${call.text}` : ''}</p>
           <p>Rent {dollars(option.rent)} + utilities {dollars(option.utilities)} per month{affordability ? `; target income ${dollars(affordability.targetIncome)}${affordability.band ? ` (about ${Math.round(affordability.band.percent)}% AMI)` : ''}` : ''}.</p>
           {pathway && <div className="brief-pathway">
             <h2>Permit and acquisition pathway</h2>
             <p><strong>Acquisition:</strong> {pathway.acquisition.label}. {pathway.acquisition.steps[0]}{pathway.acquisition.privacy ? ' Owner name withheld.' : ''}</p>
-            <p><strong>Zoning:</strong> {pathway.zoning.label} (§ {pathway.zoning.section}). {pathway.zoning.detail}</p>
+            <p><strong>Zoning only:</strong> {pathway.zoning.label} (§ {pathway.zoning.section}). {pathway.zoning.detail}</p>
             {pathway.worksheet && <p className="brief-small">§ {pathway.worksheet.section} worksheet: {pathway.worksheet.failed.length} {pathway.worksheet.failed.length === 1 ? 'standard needs' : 'standards need'} relief (see the table below). Five findings: {pathway.worksheet.criteria.map(c => `${c.label} (${c.status === 'evidence' ? 'pre-filled' : 'applicant'})`).join('; ')}.</p>}
           </div>}
         </section>
@@ -101,7 +102,7 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
             <td>{r.label}</td><td>{r.section}</td><td>{r.required || '—'}</td><td>{r.proposed || '—'}</td><td>{STATUS[r.status] || r.status}</td>{relief && <td>{relief[r.id] || ''}</td>}
             <td>{reformText(r, table.presets)}</td>
           </tr>)}</tbody>
-          <tfoot><tr><td colSpan={relief ? 7 : 6}>Passes every assessed check: current code {evaluated.titleNine.conflict ? 'no' : 'yes'}; {table.presets.map(p => `${REFORM_SHORT[p.id]} ${p.eligible ? 'yes' : 'no'}`).join('; ')}.</td></tr></tfoot>
+          <tfoot><tr><td colSpan={relief ? 7 : 6}>Passes assessed zoning checks only (physical fit is separate): current code {evaluated.titleNine.conflict ? 'no' : 'yes'}; {table.presets.map(p => `${REFORM_SHORT[p.id]} ${p.eligible ? 'yes' : 'no'}`).join('; ')}.</td></tr></tfoot>
         </table>
         <p className="brief-small">{table.alsoPass.length ? `Also passes: ${table.alsoPass.join('; ')}. ` : ''}{table.notAssessed.length ? `Not assessed: ${table.notAssessed.join('; ')}. ` : ''}Current code includes Bill 2025-1579. Reform presets lift only the conflicts their rules name; {reformPreset !== 'current' ? `the Studio is set to ${REFORM_SHORT[reformPreset]}. ` : ''}Unassessed checks are excluded, not passed.</p>
       </section>}
@@ -129,10 +130,10 @@ export default function SiteBrief({ props, geometry, option, evaluated, label, r
       </section>
 
       <section>
-        <h2>Seven-factor receipts</h2>
-        <table className="brief-table receipts" tabIndex={0} aria-label="Seven-factor receipts">
+        <h2>Five preference-factor receipts</h2>
+        <table className="brief-table receipts" tabIndex={0} aria-label="Five preference-factor receipts">
           <thead><tr><th>Factor</th><th>Score</th><th>Share</th><th>Evidence · confidence</th><th>Dataset</th><th>Formula · this draft</th></tr></thead>
-          <tbody>{PLANNER_FACTORS.map(f => {
+          <tbody>{PLANNER_FACTORS.filter(f => PREFERENCE_FACTOR_IDS.includes(f.id)).map(f => {
             const r = factorReceipt(f.id, evaluated), s = share(f.id)
             return <tr key={f.id}><td>{FACTOR_LABELS[f.id]}</td><td>{fmt(r.score)}</td><td>{s?.included ? `${Math.round(s.effectiveWeight * 100)}%` : 'Excluded'}</td><td>{r.badge} · {r.confidence}</td><td>{r.dataset}</td><td>{r.formula}{r.inputs ? ` · ${r.inputs}` : ''}</td></tr>
           })}</tbody>

@@ -388,6 +388,7 @@ function App({ data, chunk, additionalParcels }) {
           <strong>Screening aid only.</strong> Not a permit or legal advice; confirm real decisions with City Planning.
         </p>
       </header>
+      <p className="reference-model-notice"><strong>Reference explorer · legacy six-factor model.</strong> These scores use precomputed source fields. The <a href={parcelHref("/", selectedPin)}>Planning Studio</a> uses the current five preference factors with physical fit and transit capacity checked separately.</p>
       <div className="next-bar" role="status">
         <span>{nextStep.text}</span>
         {nextStep.action ? (

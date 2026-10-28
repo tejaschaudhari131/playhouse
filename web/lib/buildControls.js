@@ -1,9 +1,10 @@
 import { BUILDING_IDS } from './buildings.js'
 import { optionFor } from './plannerState.js'
 import { housingPermission, housingSpec } from './titleNine.js'
+import { zoningBadge, zoningReviewLabel, proposalStatus } from './studioPresentation.js'
 
 const PERMISSION_SHORT = {
-  permitted: 'Permitted',
+  permitted: 'Use permitted',
   partial: 'Some unit counts',
   special: 'Special approval',
   not_permitted: 'Needs zoning change',
@@ -17,13 +18,16 @@ export function typologyCards({ draft, options, code, zoning }) {
     const option = active ? draft : optionFor(typeId, draft.rent)
     const spec = housingSpec(option), evaluated = options?.[typeId]
     const permission = housingPermission(option, code, zoning)
+    const badge = evaluated ? zoningBadge(evaluated) : null
     const status = !evaluated ? 'unscored' : !evaluated.eligible ? 'review' : Number.isFinite(evaluated.total) ? 'scored' : 'noscore'
     return {
       typeId, active, label: spec.label, units: spec.units,
       width: option.width, depth: option.depth, floors: option.floors ?? spec.floors,
-      permission: { category: permission.category, label: PERMISSION_SHORT[permission.category] || PERMISSION_SHORT.unknown, detail: permission.label },
+      permission: { category: badge?.tone || permission.category, label: badge?.text || PERMISSION_SHORT[permission.category] || PERMISSION_SHORT.unknown, detail: permission.label },
+      review: evaluated ? zoningReviewLabel(evaluated) : null,
+      statusDetail: evaluated ? proposalStatus(evaluated) : null,
       status, score: status === 'scored' ? evaluated.total : null,
-      statusText: status === 'scored' ? `${Math.round(evaluated.total)} / 100` : status === 'review' ? Number.isFinite(evaluated.suitability) ? `Review · ${Math.round(evaluated.suitability)} underlying` : 'Needs review' : status === 'noscore' ? 'No score' : 'Not scored yet',
+      statusText: status === 'scored' ? `${Math.round(evaluated.total)} / 100` : status === 'review' ? 'Not ranked · needs review' : status === 'noscore' ? 'No score' : 'Not scored yet',
     }
   })
 }

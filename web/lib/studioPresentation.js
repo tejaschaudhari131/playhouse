@@ -17,10 +17,37 @@ export function zoningBadge(option) {
   if (conflicts.length > others.length) return { tone: 'reform', text: `Requires zoning variance / reform: Proposed use${others.length ? ` + ${others.length} other ${others.length === 1 ? 'conflict' : 'conflicts'}` : ''}` }
   if (others.length) return { tone: 'conflict', text: `Zoning conflict: ${others[0].label}${others.length > 1 ? ` + ${others.length - 1} more` : ''}` }
   const category = option?.permission?.category
-  if (category === 'permitted') return { tone: 'permitted', text: 'Permitted' }
+  if (category === 'permitted') return { tone: 'permitted', text: 'Use permitted · other checks separate' }
   if (category === 'special') return { tone: 'special', text: 'Needs special approval (not a variance)' }
   if (category === 'partial') return { tone: 'special', text: 'Permitted for some unit counts' }
   return { tone: 'unknown', text: 'Proposed use not reviewed' }
+}
+
+/** Keep missing review beside the score, rather than treating excluded checks as passes. */
+export function zoningReviewLabel(option) {
+  if (option?.zoningReview?.label) return option.zoningReview.label
+  if (!option?.titleNine) return 'Zoning review incomplete · checks not assessed'
+  const excluded = option.titleNine.excluded || (option.titleNine.checks || []).filter(check => check.status === 'unknown')
+  return excluded.length ? `Zoning review incomplete · ${excluded.length} checks not assessed` : 'All supported zoning checks assessed · not an approval'
+}
+
+/** Feasibility is a condition, never a source of extra preference points. */
+export function proposalChecks(option) {
+  const checks = option?.checks || {}
+  const physical = checks.physical || { status: option?.physicalEligible === true ? 'pass' : option?.massing?.fits === false || option?.massing?.collisions > 0 ? 'fail' : 'unknown' }
+  const capacity = checks.capacity || { status: 'unknown' }
+  return [
+    { ...physical, id: 'physical', label: 'Physical fit', detail: physical.detail || option?.massing?.reason || physical.label || 'Physical evidence unavailable.' },
+    { ...capacity, id: 'capacity', label: 'Transit capacity', detail: capacity.detail || capacity.label || 'Service capacity has not been assessed.' },
+  ]
+}
+
+/** A physical conflict must remain visible even when the zoning-only review finds no conflict. */
+export function proposalStatus(option) {
+  const physical = proposalChecks(option).find(check => check.id === 'physical')
+  if (physical.status === 'fail') return `Physical conflict: ${physical.detail || option?.gate || 'proposal does not fit'}`
+  if (option?.eligible === false) return `Not eligible: ${option.gate || 'proposal needs review'}`
+  return option?.eligible === true ? 'Eligible for preference comparison · approval not established' : 'Proposal assessment incomplete'
 }
 
 /**

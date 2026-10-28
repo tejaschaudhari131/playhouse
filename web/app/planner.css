@@ -946,3 +946,74 @@
 .flood-evidence { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 .flood-evidence .section-heading { flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .flood-evidence .section-heading > strong { font-size: 12px; }
+
+/* Complete comparisons reflow by available inspector width, never by a fixed table width. */
+.housing-comparison-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 255px), 1fr)); gap: 14px; align-items: start; }
+.housing-score-card { min-width: 0; overflow-wrap: anywhere; border: 1px solid var(--line); border-top: 4px solid var(--type-color); border-radius: 9px; padding: 12px; background: #fffefa; }
+.housing-score-card h4 { margin: 0 0 4px; font-size: 16px; }
+.housing-score-card header small, .housing-card-dimensions { font-size: 12px; color: #475c4d; line-height: 1.5; }
+.housing-score-head { display: grid; gap: 5px; margin: 12px 0; }
+.housing-score-head > strong { font-size: 25px; line-height: 1.2; }
+.housing-score-head > span, .housing-score-head > small { font-size: 12px; line-height: 1.45; }
+.housing-score-head .zoning-badge { justify-self: start; }
+.zoning-review-status { color: #695117; font-weight: 600; }
+.housing-card-factors { margin: 12px 0; }
+.housing-card-factors > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); }
+.housing-card-factors dt { font-size: 13px; }
+.housing-card-factors dt small { display: block; margin-top: 3px; font-size: 12px; color: #475c4d; }
+.housing-card-factors dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.housing-card-factors .excluded { color: #59615b; }
+.proposal-checks { list-style: none; margin: 10px 0; padding: 0; }
+.proposal-checks li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 4px 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.proposal-checks small { grid-column: 1/-1; line-height: 1.45; color: #475c4d; }
+.proposal-checks li.fail > span { color: #963c25; }
+.proposal-checks li.unknown > span { color: #695117; }
+.housing-card-evidence { margin: 12px 0; font-size: 13px; }
+.housing-card-evidence summary, .planner-glossary summary { cursor: pointer; }
+.housing-card-evidence > div { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.housing-card-use { width: 100%; }
+.planner-glossary { margin: 12px 0; font-size: 13px; line-height: 1.5; }
+.planner-glossary dt { font-weight: 650; margin-top: 8px; }
+.planner-glossary dd { margin: 2px 0 0; color: #475c4d; }
+.typology-review { display: block; margin-top: 5px; font-size: 12px; font-weight: 500; color: #695117; }
+/* Readable caveats are part of the decision, not decorative fine print. */
+.studio .compact-help, .studio .section-help, .studio .planner-field, .studio .planner-field small,
+.studio .planner-details, .studio .planner-details p, .studio .planner-warning, .studio .coverage-note,
+.studio .factor-receipt, .studio .factor-values, .studio .evidence-badge, .studio .priority-raw,
+.studio .typology-meta, .studio .typology-cards > small, .studio .quick-controls > small,
+.studio .cost-switch small, .studio .close-call > small, .studio .stance-winners,
+.studio .site-records small, .studio .card-tradeoffs p, .studio .card-tradeoffs small,
+.studio .draft-preview-status small, .studio .service-baseline small, .studio .site-buildings small,
+.studio .plan-impact-note, .studio .impact-panel > small, .studio .impact-panel dd small,
+.studio .tax-ledger > small, .studio .capital-stack > small { font-size: 12px; line-height: 1.5; color: #465b4b; }
+.studio .site-search input, .studio .search-results button { font-size: 13px; }
+.studio .permission-chip, .studio .zoning-badge { font-size: 12px; }
+@media screen { .site-brief .brief-small, .site-brief .brief-meta, .site-brief .brief-diagram figcaption { font-size: 12px; line-height: 1.45; color: #37463c; } }
+.studio .input-feedback { display: block; font-size: 12px; line-height: 1.45; color: #724218; font-weight: 550; }
+.evidence-badge.mixed { background: #f3ead7; color: #654f21; }
+.evidence-badge.fallback { background: #fff1dc; color: #6e4419; }
+.studio .planner-field input[aria-invalid=true] { border-color: #9d3b27; outline-color: #9d3b27; }
+.comparison-picker, .housing-card-evidence .factor-receipt dl { min-width: 0; }
+.housing-score-card .evidence-badge { white-space: normal; }
+.studio .priority-slider > span { flex-wrap: wrap; }
+
+/* Sidebar comes first for keyboard navigation; explicit cells keep the map first visually. */
+.studio-canvas { grid-column: 1; grid-row: 1; }
+.sidebar-divider { grid-column: 2; grid-row: 1; }
+.studio-inspector { grid-column: 3; grid-row: 1; }
+@media (max-width: 760px) {
+  .studio-canvas { grid-column: 1; grid-row: 1; }
+  .studio-inspector { grid-column: 1; grid-row: 2; }
+}
+/* Browser zoom reduces CSS viewport height. Never collapse the map into a hidden grid track. */
+@media (max-width: 760px) and (max-height: 600px) {
+  .studio { height: auto; min-height: 100dvh; overflow: visible; }
+  .studio-workspace, .studio-workspace.is-comparing { flex: none; grid-template-rows: 240px 520px; overflow: visible; }
+  .studio-workspace.sidebar-collapsed { grid-template-rows: 240px; }
+  .studio-canvas { height: 240px; min-height: 240px; }
+  .studio-inspector { height: 520px; min-height: 0; }
+  .studio-header-actions { flex-wrap: wrap; }
+  .canvas-mode { top: 58px; }
+  .studio-canvas .maplibregl-ctrl-top-right { top: 58px; right: 160px; }
+  .map-detail-status { top: 104px; left: 10px; max-width: calc(100% - 210px); }
+}
