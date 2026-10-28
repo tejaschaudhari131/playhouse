@@ -1,15 +1,29 @@
 "use client"
 
 import { useEffect, useMemo, useRef } from "react"
-import { CircleMarker, GeoJSON, MapContainer, TileLayer, Tooltip, useMap } from "react-leaflet"
+import { CircleMarker, GeoJSON, MapContainer, Tooltip, useMap } from "react-leaflet"
 import L from "leaflet"
 import "leaflet/dist/leaflet.css"
+import { maplibreGL } from '@maplibre/maplibre-gl-leaflet'
+import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { PITTSBURGH_BOUNDS } from '../lib/pittsburgh.js'
 import { TYPE_COLORS } from "../lib/colors.js"
 import { featurePoint } from "../lib/geo.js"
 import { HOUSING_TYPES, composite } from "../lib/rank.js"
 import { resolveZoning } from "../lib/zoning.js"
+import { configureMapWorkers } from '../lib/maplibreSetup.js'
+import { basemapStyle, BASEMAP_PROVIDER } from '../lib/basemap.js'
+
+function HostedBasemap() {
+  const map = useMap()
+  useEffect(() => {
+    configureMapWorkers()
+    const layer = maplibreGL({ style: basemapStyle(), interactive: false, attributionControl: { customAttribution: BASEMAP_PROVIDER.attribution } }).addTo(map)
+    return () => layer.remove()
+  }, [map])
+  return null
+}
 
 function boundsFor(collection, group) {
   const features = group
@@ -170,10 +184,7 @@ export default function MapView({
       preferCanvas
       style={{ height: "100%", width: "100%" }}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <HostedBasemap />
       <FitTo collection={neighborhoods} focus={focus} />
       <FitToMatches parcels={parcels} highlight={highlight} />
       <GeoJSON

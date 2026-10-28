@@ -18,6 +18,7 @@ import { siteBuildingLabels } from '../lib/siteBuildingLabels.js'
 import { recordedBuildingRef, retainedBuildings, demolitionKey, demolitionSite, footprintKey } from '../lib/redevelopment.js'
 import { playDemolitionEffect } from '../lib/demolitionEffect.js'
 import { playConstructionEffect } from '../lib/constructionEffect.js'
+import { basemapStyle } from '../lib/basemap.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
 const fc = features => ({ type: 'FeatureCollection', features })
@@ -80,10 +81,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
         maxBounds: PITTSBURGH_BOUNDS, renderWorldCopies: false,
         // Native MSAA smooths silhouettes without changing coordinates, heights or pixel ratio.
         canvasContextAttributes: { antialias: !benchmark || new URLSearchParams(window.location.search).get('antialias') !== 'off' },
-        style: { version: 8, sources: { basemap: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' } }, layers: [
-          { id: 'background', type: 'background', paint: { 'background-color': '#dde5df' } },
-          { id: 'basemap', type: 'raster', source: 'basemap', paint: { 'raster-saturation': -.7, 'raster-opacity': .75 } },
-        ] },
+        style: basemapStyle(),
       })
     } catch { setError('3D rendering is unavailable on this device. The scenario controls and comparison still work.'); return }
     mapRef.current = map
@@ -131,7 +129,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addLayer({ id: 'selected-building-outline', type: 'line', source: 'selected-building', paint: { 'line-color': '#22d3ee', 'line-width': 4 }, layout: { 'line-join': 'round' } })
       for (const id of ['discovery-outline', 'selected-fill', 'selected-line', 'park-fill', 'reservation-fill', 'connection-line', 'saved-route-line', 'draft-point', 'service-link', 'service-zone', 'placed-buildings-fill', 'placed-buildings-outline', 'building-fill', 'building-outline', 'selected-building-outline']) map.setLayerZoomRange(id, DETAIL_EXIT_ZOOM, 24)
       // One small symbol layer for this parcel, with badges lifted to the rendered roof.
-      // Local glyph rendering avoids a font service or extra downloaded assets.
+      // Reuse the basemap's Noto glyphs; badge artwork is a tiny local canvas.
       for (const [id, fill, stroke] of [['building-number', '#ffffff', '#315b46'], ['building-number-selected', '#176353', '#ffffff']]) {
         const canvas = document.createElement('canvas'); canvas.width = canvas.height = 52
         const ctx = canvas.getContext('2d')
@@ -143,7 +141,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
         layout: {
           'symbol-height-offset': ['step', ['zoom'], 0, 16, ['+', ['get', 'height_m'], 1]],
           'symbol-sort-key': ['case', ['get', 'selected'], -1, 0],
-          'text-field': ['to-string', ['get', 'number']], 'text-font': ['Arial'], 'text-size': 12,
+          'text-field': ['to-string', ['get', 'number']], 'text-font': ['Noto Sans Regular'], 'text-size': 12,
           'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport', 'text-allow-overlap': false, 'text-ignore-placement': false, 'text-padding': 0,
           'icon-image': ['case', ['get', 'selected'], 'building-number-selected', 'building-number'],
           'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'icon-ignore-placement': false, 'icon-padding': 0,

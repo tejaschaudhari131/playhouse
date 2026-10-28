@@ -9,19 +9,7 @@ import { BUILDINGS } from "../lib/buildings.js"
 import { configureMapWorkers } from "../lib/maplibreSetup.js"
 import { TYPE_COLORS } from "../lib/colors.js"
 import { circlePolygon, featurePoint } from "../lib/geo.js"
-
-const OSM_STYLE = {
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-  layers: [{ id: "osm", type: "raster", source: "osm" }],
-}
+import { basemapStyle } from '../lib/basemap.js'
 
 const SLOT_COLORS = { A: "#1d4ed8", B: "#b45309" }
 
@@ -76,7 +64,7 @@ export default function DropMap({ parcels, neighborhoods, stops, drops, focus, o
     configureMapWorkers()
     const map = new MapLibreMap({
       container: containerRef.current,
-      style: OSM_STYLE,
+      style: basemapStyle(),
       center: [-79.96, 40.45],
       zoom: 13,
       maxBounds: PITTSBURGH_BOUNDS, renderWorldCopies: false,
