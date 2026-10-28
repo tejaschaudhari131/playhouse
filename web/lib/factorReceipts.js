@@ -1,22 +1,22 @@
-export const EVIDENCE_LABEL = { observed: 'Observed Data', judgment: 'Value Judgment / Assumption' }
+export const EVIDENCE_LABEL = { observed: 'Observed Data', judgment: 'Value Judgment / Assumption', mixed: 'Measured + assumed', fallback: 'Fallback / archived value' }
 export const CONFIDENCE = ['High', 'Medium', 'Low']
 
 const RECEIPTS = {
-  demand: { evidence: 'observed', confidence: 'Medium', dataset: 'County assessment sales',
+  demand: { evidence: 'mixed', confidence: 'Medium', dataset: 'County assessment sales',
     source: 'Allegheny County property assessments: valid residential sales (price per sq ft, turnover per 100 parcels) by neighborhood, plus recorded lot area.',
     formula: '50% market heat (60% price per sq ft + 40% turnover, each on team-set anchors) + 50% lot fit for the type. A proxy for market strength, not household demand.' },
   physical: { evidence: 'observed', confidence: 'Medium', dataset: 'County parcel + roof outlines',
     source: 'County parcel outline and County roof outlines of retained buildings, against your proposed footprint.',
-    formula: '100 if the footprint fits inside the parcel outline without touching a retained building or reserved infrastructure; otherwise 0. Map outlines, not a survey.' },
+    formula: 'Pass when the footprint fits the parcel without overlapping a retained building or reserved infrastructure; fail on a supported conflict; unknown when outlines are unavailable. Eligibility check only: no weight or points. Map outlines, not a survey.' },
   affordability: { evidence: 'judgment', confidence: 'Low', dataset: 'Scenario rent, utilities, income',
-    source: 'Your proposed rent and utilities and the target household income (scenario inputs, compared with HUD FY2026 income limits).',
+    source: 'Your proposed rent and utilities and the target household income (explicit assumptions, compared with HUD FY2026 income limits). Never inherits the parcel data confidence.',
     formula: 'Burden = (rent + utilities) × 12 ÷ income. Score = 100 × (50% − burden) ÷ 30%, clamped 0–100: 100 at 20% burden, 0 at 50%. The anchors are value judgments.' },
   displacement: { evidence: 'observed', confidence: 'Medium', dataset: 'ACS 2020–2024 + HUD CHAS 2018–2022',
     source: 'ACS 2020–2024 renter share and median gross rent (vs ACS 2015–2019 and the county), HUD CHAS 2018–2022 low-income renter cost burden, by tract.',
-    formula: '100 − tract risk. Risk blends vulnerability (renter share and cost-burden share) with rent pressure, each on team-set anchors. Neighborhood context, not the project’s impact.' },
+    formula: '100 − tract risk. Risk = 100 × [vulnerability + (1 − vulnerability) × rent pressure], on team-set 0–1 anchors. Vulnerability is the floor: flat rents never halve it. Neighborhood context, not the project’s impact.' },
   capacity: { evidence: 'judgment', confidence: 'Low', dataset: 'PRT schedules + assumed spare places',
     source: 'PRT scheduled weekday departures at the selected stop × assumed spare places per departure (or your manual reserve), plus added departures × assumed places.',
-    formula: '100 × available daily boardings ÷ (homes sharing the stop × assumed boardings per home), capped at 100. Not observed occupancy.' },
+    formula: 'Compare assumed daily spare boarding places with homes sharing the stop × assumed daily boardings per home. Separate pass/fail/unknown check, never weighted. Test the stated range; daily schedules cannot establish peak occupancy. Zero reserve is unknown.' },
   access: { evidence: 'observed', confidence: 'Medium', dataset: 'OSM walking graph + PRT schedules',
     source: 'OpenStreetMap walking graph and mapped parks, PRT scheduled weekday departures at the selected stop, and the assumed service span.',
     formula: '100 × (1 − (walk + half the average headway) ÷ 30 min), clamped; blended with park access (15-min anchor) by your park share. The anchors are policy choices.' },
@@ -29,13 +29,13 @@ const fmt = (n, digits = 1) => typeof n === 'number' && Number.isFinite(n) ? n.t
 
 function inputs(id, option) {
   if (!option) return null
-  if (id === 'demand') return `Market/lot proxy ${fmt(option.raw?.demand)}`
+  if (id === 'demand') return option.marketEvidence ? `Market activity ${fmt(option.marketEvidence.marketHeat)} × 50% + assumed lot fit ${fmt(option.marketEvidence.lotFit)} × 50%; lot ${fmt(option.marketEvidence.lotSqft, 0)} sq ft` : `Market/lot proxy ${fmt(option.raw?.demand)} (archived inputs)`
   if (id === 'physical') return !option.massing ? null : !option.massing.fits ? 'Footprint does not fit the outline' : option.massing.collisions === null ? 'Building context unavailable' : option.massing.collisions ? 'Overlaps a retained building' : 'Fits; no overlap'
   if (id === 'affordability') return option.burden === null || option.burden === undefined ? 'Housing costs not confirmed' : `$${Math.round(option.monthly).toLocaleString()}/month = ${fmt(option.burden * 100, 0)}% of target income`
-  if (id === 'displacement') return `Tract risk ${fmt(option.raw?.displacement_risk)}`
+  if (id === 'displacement') return option.displacement ? `Tract risk ${fmt(option.displacement.risk)}; vulnerability ${fmt(option.displacement.vulnerability === null ? null : option.displacement.vulnerability * 100)}; rent pressure ${fmt(option.displacement.pressure === null ? null : option.displacement.pressure * 100)}${option.displacement.method === 'archived_screen' ? ' · archived fallback' : ''}` : `Tract risk ${fmt(option.raw?.displacement_risk)} (archived inputs)`
   if (id === 'capacity') return option.supply === null || option.supply === undefined ? 'No reserve assessed' : `${fmt(option.supply, 0)} available ÷ ${fmt(option.groupBoardings, 0)} assumed boardings (${option.reserve?.method === 'manual' ? 'manual reserve' : 'schedule × assumed places'})`
   if (id === 'access') return option.service ? `${fmt(option.service.walk)} min walk + ${fmt(option.service.wait)} min wait · ${option.service.departures} departures/day${option.service.method === 'straight_line' ? ' · straight-line walk' : ''}` : 'No stop within reach'
-  if (id === 'carbon') return `Relative index ${fmt(option.raw?.carbon_index)} per home`
+  if (id === 'carbon') return `Relative index ${fmt(option.carbonEvidence?.index ?? option.raw?.carbon_index)} per home${option.carbonEvidence?.method === 'archived_proxy' ? ' · archived fallback' : ''}`
   return null
 }
 
@@ -43,8 +43,12 @@ function inputs(id, option) {
 export function factorReceipt(id, option = null) {
   const base = RECEIPTS[id]
   if (!base) return null
-  let confidence = base.confidence
+  let confidence = base.confidence, evidence = base.evidence
+  if (id === 'demand' && option?.marketEvidence) confidence = option.marketEvidence.confidence
+  if (id === 'displacement' && option?.displacement) { confidence = option.displacement.confidence; if (option.displacement.evidence === 'fallback') evidence = 'fallback' }
+  if (id === 'carbon' && option?.carbonEvidence?.evidence === 'fallback') evidence = 'fallback'
+  if (id === 'affordability' && Object.values(option?.costEvidence || {}).some(value => value.kind === 'fallback')) evidence = 'fallback'
   if (id === 'access' && option?.service?.method === 'straight_line') confidence = 'Low'
   if (id === 'affordability' && option?.costAssumptionsConfirmed === false) confidence = 'Low'
-  return { id, ...base, confidence, badge: EVIDENCE_LABEL[base.evidence], score: option?.scores?.[id] ?? null, inputs: inputs(id, option) }
+  return { id, ...base, evidence, confidence, badge: EVIDENCE_LABEL[evidence], details: id === 'demand' ? option?.marketEvidence : id === 'affordability' ? option?.costEvidence : id === 'displacement' ? option?.displacement : id === 'carbon' ? option?.carbonEvidence : null, score: option?.scores?.[id] ?? null, inputs: inputs(id, option) }
 }

@@ -60,8 +60,7 @@ NORMATIVE = {
     "displacement_chas_high": 0.80,
     "displacement_rent_change_vs_county_low": 0.0,
     "displacement_rent_change_vs_county_high": 0.30,
-    "displacement_vulnerability_weight": 0.5,
-    "displacement_pressure_weight": 0.5,
+    "displacement_method": "vulnerability_floor_plus_pressure_uplift",
     # Marginal-carbon estimate. Embodied tiers are coarse on purpose: the cited studies
     # separate new single-family homes from multi-unit homes, but do not reliably
     # separate the three multi-unit types from each other per home.
@@ -356,7 +355,8 @@ def displacement_risk(renter_share, chas_rent_burden_share, rent_change_vs_count
 
     Vulnerability is the average of the renter share and the CHAS low-income renter
     cost-burden share. Pressure is how much faster median gross rent rose than the
-    county's between the 2015-2019 and 2020-2024 ACS. The risk blends the two.
+    county's between the 2015-2019 and 2020-2024 ACS. Vulnerability is the floor;
+    pressure increases the remaining risk. Flat rents never erase vulnerability.
     A missing input is dropped. Returns (risk 0-100 or None, parts dict).
     """
     renter = _anchor(
@@ -375,12 +375,7 @@ def displacement_risk(renter_share, chas_rent_burden_share, rent_change_vs_count
         NORMATIVE["displacement_rent_change_vs_county_high"],
     )
     vulnerability = _weighted_present([(renter, 1.0), (burden, 1.0)])
-    risk = _weighted_present(
-        [
-            (vulnerability, NORMATIVE["displacement_vulnerability_weight"]),
-            (pressure, NORMATIVE["displacement_pressure_weight"]),
-        ]
-    )
+    risk = pressure if vulnerability is None else vulnerability if pressure is None else vulnerability + (1 - vulnerability) * pressure
     parts = {
         "renter_component": None if renter is None else round(renter, 3),
         "cost_burden_component": None if burden is None else round(burden, 3),
@@ -733,7 +728,7 @@ def model_card():
                 ],
                 "normative": [
                     "Anchors: renter share 25 to 75 percent, CHAS cost burden 30 to 80 percent, rent growth 0 to 30 percentage points above the county",
-                    "Vulnerability (renter share and cost burden, averaged) and pressure (rent growth) weighted 50/50. A missing input is dropped.",
+                    "Risk = vulnerability + (1 - vulnerability) × pressure, on 0-1 anchors. Vulnerability (renter share and cost burden, averaged) is the floor; flat rents never halve it. A missing component is omitted. This is a team-authored screening rule, not a calibrated probability.",
                     "The same value for every housing type on a parcel. Evidence on whether a given building type adds to or relieves local displacement is mixed, so the screen does not guess.",
                     "The slider prefers lower-risk places. A CDC pursuing anti-displacement housing can set it to 0 and filter for high-risk tracts in Find Sites instead.",
                     "Overlaps the equity score's sales-heat penalty on purpose: that term is neighborhood sale prices; this one is tract renters and rents.",

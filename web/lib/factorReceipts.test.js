@@ -6,12 +6,12 @@ import { PLANNER_FACTORS } from './plannerState.js'
 test('every factor has a receipt with evidence type, source, formula and confidence', () => {
   for (const f of PLANNER_FACTORS) {
     const r = factorReceipt(f.id)
-    assert.ok(['Observed Data', 'Value Judgment / Assumption'].includes(r.badge), f.id)
+    assert.ok(Object.values(EVIDENCE_LABEL).includes(r.badge), f.id)
     assert.ok(r.source.length > 30 && r.formula.length > 30 && r.dataset.length > 8, f.id)
     assert.ok(CONFIDENCE.includes(r.confidence), f.id)
   }
   const kinds = Object.fromEntries(PLANNER_FACTORS.map(f => [f.id, factorReceipt(f.id).evidence]))
-  assert.deepEqual(kinds, { demand: 'observed', physical: 'observed', affordability: 'judgment', displacement: 'observed', capacity: 'judgment', access: 'observed', carbon: 'judgment' })
+  assert.deepEqual(kinds, { demand: 'mixed', physical: 'observed', affordability: 'judgment', displacement: 'observed', capacity: 'judgment', access: 'observed', carbon: 'judgment' })
   assert.equal(EVIDENCE_LABEL.judgment, 'Value Judgment / Assumption')
   assert.equal(factorReceipt('nope'), null)
   assert.match(factorReceipt('affordability').formula, /100 at 20% burden, 0 at 50%/)
@@ -32,8 +32,8 @@ test('receipts show the inputs behind one option and lower confidence for weaker
   assert.equal(factorReceipt('capacity', option).inputs, '120 available ÷ 30 assumed boardings (schedule × assumed places)')
   assert.equal(factorReceipt('physical', option).inputs, 'Fits; no overlap')
   assert.equal(factorReceipt('physical', { ...option, massing: { fits: false } }).inputs, 'Footprint does not fit the outline')
-  assert.equal(factorReceipt('displacement', option).inputs, 'Tract risk 42.4')
-  assert.equal(factorReceipt('demand', option).inputs, 'Market/lot proxy 55.0')
+  assert.equal(factorReceipt('displacement', option).inputs, 'Tract risk 42.4 (archived inputs)')
+  assert.equal(factorReceipt('demand', option).inputs, 'Market/lot proxy 55.0 (archived inputs)')
   assert.equal(factorReceipt('carbon', option).inputs, 'Relative index 30.0 per home')
   assert.equal(factorReceipt('access', { scores: {} }).inputs, 'No stop within reach')
 })

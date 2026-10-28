@@ -113,12 +113,19 @@ class ScoreTests(unittest.TestCase):
     def test_displacement_blends_vulnerability_and_pressure(self):
         # renter 0.5 -> 0.5, CHAS 0.55 -> 0.5, rent +15 points over county -> 0.5
         risk, parts = displacement_risk(0.5, 0.55, 0.15)
-        self.assertEqual(risk, 50.0)
+        self.assertEqual(risk, 75.0)
         self.assertEqual(parts["vulnerability"], 0.5)
         high, _ = displacement_risk(0.8, 0.85, 0.4)
         low, _ = displacement_risk(0.2, 0.25, -0.1)
         self.assertEqual(high, 100.0)
         self.assertEqual(low, 0.0)
+
+    def test_flat_rents_do_not_cap_high_vulnerability_at_fifty(self):
+        risk, parts = displacement_risk(0.75, 0.80, 0.0)
+        self.assertEqual(risk, 100.0)
+        self.assertEqual(parts["rent_pressure_component"], 0.0)
+        moderate, _ = displacement_risk(0.60, 0.65, 0.0)
+        self.assertEqual(moderate, 70.0)
 
     def test_missing_displacement_inputs_are_dropped_not_zeroed(self):
         vulnerability_only, parts = displacement_risk(0.75, 0.8, None)

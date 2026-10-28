@@ -22,25 +22,25 @@ function fixture() {
 test('all 1, 5, 50 or 100 produce identical multi-type scores, leaders, and effective shares', () => {
   const input = fixture()
   const results = [1, 5, 50, 100].map(n => evaluatePlanner({ ...input, scenario: { ...input.scenario, weights: uniform(n) } }))
-  assert.equal(results[0].included.length, 7)
+  assert.equal(results[0].included.length, 5)
   for (const r of results) {
     assert.deepEqual(r.comparison.baseline, results[0].comparison.baseline)
     assert.deepEqual(r.comparison.proposal, results[0].comparison.proposal)
     for (const state of ['baseline', 'proposal']) for (const id of BUILDING_IDS) close(r[state][id].total, results[0][state][id].total)
-    for (const factor of r.comparison.factors) close(factor.effectiveWeight, 1 / 7)
+    for (const factor of r.comparison.factors) close(factor.effectiveWeight, ['physical', 'capacity'].includes(factor.id) ? 0 : 1 / 5)
   }
 })
 
 test('relative ratios, zero weights and missing evidence drive displayed shares', () => {
   const weights = { ...uniform(1), demand: 2 }
-  close(priorityShares(weights).demand, 2 / 8)
-  close(priorityShares(weights).physical, 1 / 8)
+  close(priorityShares(weights).demand, 2 / 6)
+  close(priorityShares(weights).physical, 0)
   assert.equal(samePriorityRatios(weights, Object.fromEntries(ids.map(id => [id, weights[id] * 5]))), true)
   const shared = ids.filter(id => id !== 'capacity')
   const shares = priorityShares({ ...uniform(1), capacity: 100, carbon: 0 }, shared)
   assert.equal(shares.capacity, 0)
   assert.equal(shares.carbon, 0)
-  close(shares.demand, 1 / 5)
+  close(shares.demand, 1 / 4)
   close(Object.values(shares).reduce((a, b) => a + b, 0), 1)
 })
 

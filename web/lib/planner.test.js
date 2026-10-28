@@ -60,6 +60,8 @@ test('a missing or unserved stop cannot generate access or conditional capacity'
 
 test('unknown capacity is excluded on both sides; supplied capacity compares explicit loads', () => {
   const input = inputFor()
+  input.scenario.boardingsPerHome = 2
+  input.scenario.availablePlacesPerDeparture = 20
   input.scenario.additionalDepartures = 30
   let result = evaluatePlanner(input)
   assert.equal(result.proposal.A.supply, null)
@@ -67,11 +69,16 @@ test('unknown capacity is excluded on both sides; supplied capacity compares exp
   assert.ok(result.excluded.includes('capacity'))
   input.scenario.spareBoardings = 0
   result = evaluatePlanner(input)
-  assert.equal(result.baseline.A.scores.capacity, 0)
+  assert.equal(result.baseline.A.scores.capacity, null)
+  assert.equal(result.baseline.A.checks.capacity.status, 'unknown')
   assert.equal(result.proposal.A.addedPlaces, 600)
   assert.equal(result.proposal.A.demandBoardings, 4)
   assert.equal(result.proposal.B.demandBoardings, 6)
-  assert.equal(result.proposal.B.scores.capacity, 100)
+  assert.equal(result.proposal.B.scores.capacity, null)
+  assert.ok(!result.included.includes('capacity'))
+  input.scenario.spareBoardings = 10
+  result = evaluatePlanner(input)
+  assert.equal(result.proposal.B.checks.capacity.status, 'pass')
 })
 
 test('all-zero weights produce no winner and no numerical total', () => {

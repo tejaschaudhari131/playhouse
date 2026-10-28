@@ -56,15 +56,16 @@ test('common transit gains do not manufacture a different housing order', () => 
   }
 })
 
-test('explicit capacity assumptions can change the leader without inventing demand or rent changes', () => {
+test('capacity assumptions change checks without diluting preference scores', () => {
   const input = fixture()
   input.scenario.weights = { demand: 50, capacity: 50 }
   input.scenario.spareBoardings = 2
   input.scenario.additionalDepartures = 60
   const { shortlist } = evaluatePlanner(input)
-  assert.deepEqual(shortlist.baseline.leaders, ['single_family'])
+  assert.deepEqual(shortlist.baseline.leaders, ['large_apartment'])
   assert.deepEqual(shortlist.proposal.leaders, ['large_apartment'])
-  assert.equal(shortlist.changed, true)
+  assert.equal(shortlist.changed, false)
+  assert.ok(!shortlist.included.includes('capacity'))
   for (const entry of shortlist.entries) {
     assert.equal(entry.baseline.scores.demand, entry.proposal.scores.demand)
     assert.equal(entry.baseline.rent, entry.proposal.rent)
@@ -128,9 +129,11 @@ test('preview uses the exact screened template, preserves other edits and can be
 test('ties are retained and high-scoring ineligible templates never lead', () => {
   const options = Object.fromEntries(BUILDING_IDS.map(id => [id, { eligible: true, total: 60 }]))
   options.large_apartment = { eligible: false, total: 100 }
-  assert.equal(rankTemplates(options).leaders.length, 4)
+  assert.equal(rankTemplates(options).leaders.length, 0)
+  assert.equal(rankTemplates(options).contenders.length, 4)
   options.single_family.total = 60.09
-  assert.equal(rankTemplates(options).leaders.length, 4)
-  options.single_family.total = 60.11
+  assert.equal(rankTemplates(options).leaders.length, 0)
+  assert.equal(rankTemplates(options).contenders.length, 4)
+  options.single_family.total = 63.01
   assert.deepEqual(rankTemplates(options).leaders, ['single_family'])
 })

@@ -12,7 +12,7 @@ const states = proposal => ({ baseline: proposal, proposal })
 test('five named stances, each a full set of weights with balanced as the default', () => {
   assert.deepEqual(PRIORITY_STANCES.map(s => s.label), ['Balanced', 'Anti-Displacement & Affordability', 'Transit-Oriented Density', 'Climate & Low-Carbon', 'Fast Market Infill'])
   for (const s of PRIORITY_STANCES) {
-    for (const f of PLANNER_FACTORS) assert.ok(s.weights[f.id] > 0, `${s.id}.${f.id}`)
+    for (const f of PLANNER_FACTORS) assert.ok(['physical', 'capacity'].includes(f.id) ? s.weights[f.id] === 0 : s.weights[f.id] > 0, `${s.id}.${f.id}`)
     assert.ok(s.description.length > 40)
   }
   assert.deepEqual(PRIORITY_STANCES[0].weights, INITIAL_WEIGHTS)
@@ -20,7 +20,7 @@ test('five named stances, each a full set of weights with balanced as the defaul
   assert.deepEqual(top('anti-displacement'), ['affordability', 'displacement'])
   assert.equal(top('transit')[0], 'access')
   assert.deepEqual(top('climate'), ['access', 'carbon'])
-  assert.deepEqual(top('market'), ['demand', 'physical'])
+  assert.deepEqual(top('market'), ['affordability', 'demand'])
   assert.equal(stanceFor(Object.fromEntries(Object.entries(INITIAL_WEIGHTS).map(([k, v]) => [k, v * 3]))).id, 'balanced', 'ratios, not magnitudes')
   assert.equal(stanceFor({ ...INITIAL_WEIGHTS, demand: 99 }), null)
 })
@@ -49,8 +49,9 @@ test('close call within 3.0 pts, naming the runner-up', () => {
   assert.equal(call.close, true)
   assert.equal(call.withinMargin, true)
   assert.ok(Math.abs(call.margin - 1) < 1e-9)
-  assert.equal(call.badge, 'Close call (±1.0 pts)')
-  assert.match(call.text, /Duplex leads Triplex by 1\.0 pts, within the 3\.0-pt close-call band\. No stance changes the leader\./)
+  assert.equal(call.badge, 'No clear winner')
+  assert.equal(call.winner, null)
+  assert.match(call.text, /No clear winner\. Duplex and Triplex are 1\.0 pts apart, within the 3\.0-pt close-call band\. No stance selects a clear alternative\./)
   assert.equal(CLOSE_CALL_POINTS, 3)
   const edge = closeCall(states({ a: option('A', { demand: 63 }), b: option('B', { demand: 60 }) }), { demand: 1 }, 'proposal', [])
   assert.equal(edge.close, true, 'exactly 3.0 is a close call')
@@ -77,7 +78,7 @@ test('a stance that flips the winner makes it a close call even with a wide marg
 test('ineligible types never win and fewer than two eligible types give no call', () => {
   const opts = { a: option('A', { demand: 99 }, false), b: option('B', { demand: 50 }), c: option('C', { demand: 49 }) }
   const call = closeCall(states(opts), { demand: 1 }, 'proposal', [])
-  assert.deepEqual([call.winnerLabel, call.runnerUpLabel], ['B', 'C'])
+  assert.deepEqual([call.numericalLeaderLabel, call.runnerUpLabel], ['B', 'C'])
   assert.equal(closeCall(states({ a: option('A', { demand: 99 }), b: option('B', { demand: 50 }, false) }), { demand: 1 }), null)
   assert.equal(rescore(states(opts), { demand: 0 }).proposal.b, null, 'no weight, no total')
 })

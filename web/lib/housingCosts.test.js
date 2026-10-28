@@ -8,6 +8,8 @@ import { evaluatePlanner } from './plannerModel.js'
 test('in explicit mode (plans saved before live mode), Census costs remain context until the exact assumptions are confirmed', () => {
   const { affordabilityAuto, ...state } = initialStudioScenario('site', { median_gross_rent: 643, median_income: 40000 })
   state.affordabilityConfirmation = null
+  state.targetIncome = 40000
+  state.draft = { ...state.draft, rent: 493 }
   assert.equal(affordabilityAuto, true)
   assert.equal(housingCostBurden(state, state.draft).score, null)
   assert.equal(housingCostBurden(state, state.draft).burden, 643 * 12 / 40000)
@@ -41,6 +43,7 @@ test('each placed building retains its own confirmation; the current draft canno
   assert.ok(Number.isFinite(run().committed.proposal[0].scores.affordability))
   assert.ok(run().included.includes('affordability'))
   scenario.affordabilityConfirmation = null
+  scenario.affordabilityAuto = false
   assert.ok(Number.isFinite(run().committed.proposal[0].scores.affordability), 'placed assumption does not depend on the current draft')
   assert.ok(!run().included.includes('affordability'))
 })
@@ -48,8 +51,8 @@ test('each placed building retains its own confirmation; the current draft canno
 test('live mode keeps housing costs in the score through rent, utility, income and AMI edits, and one switch covers the plan', () => {
   const start = initialStudioScenario('site', { median_gross_rent: 643, median_income: 40000 })
   assert.equal(start.affordabilityAuto, true)
-  assert.deepEqual(start.affordabilityConfirmation, { targetIncome: 40000, rent: 493, utilities: 150 })
-  assert.equal(housingCostBurden(start, start.draft).score, 100)
+  assert.deepEqual(start.affordabilityConfirmation, { targetIncome: 46380, rent: 1800, utilities: 150 })
+  assert.equal(housingCostBurden(start, start.draft).score, 0, 'prototype new construction does not meet this income target')
   let history = historyFor(start)
   const step = action => { history = scenarioReducer(history, action); return history.present }
   for (const action of [{ type: 'draft', value: { rent: 1100 } }, { type: 'draft', value: { utilities: 175 } }, { type: 'set', key: 'targetIncome', value: 58650 }, { type: 'patch', value: { targetIncome: 41950 } }]) {
