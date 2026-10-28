@@ -12,6 +12,8 @@ npm run dev
 
 Open http://localhost:3000. Run `npm test` and `npm run build` before releasing; `npm start` serves the production build.
 
+Dependency security check (2026-10-27): Next.js is pinned to 15.5.28, the maintained 15.x patch for the [image-processing vulnerability](https://github.com/advisories/GHSA-2464-fhr4-w9xw). The lockfile also includes patched Sharp, Undici, Zod and source-map-js releases. `npm audit` reports no known vulnerabilities for this lockfile; rerun it before releases because advisories change.
+
 ## Deploy
 
 Vercel: select **Next.js**, root directory **web**, and use the default build settings. The existing project deploys from `main`. All required data is committed in `public/data/`; no Python pipeline or database is needed for hosting.
