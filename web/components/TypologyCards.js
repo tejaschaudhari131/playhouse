@@ -23,7 +23,7 @@ export default function TypologyCards({ cards, onChoose, onScoreAll, pending }) 
     <div role="radiogroup" aria-labelledby="typology-label" onKeyDown={onKeyDown}>
       {cards.map((card, index) => <button key={card.typeId} ref={node => { refs.current[index] = node }} role="radio" aria-checked={card.active} tabIndex={card.active ? 0 : -1}
         className={`typology-card${card.active ? ' active' : ''}`} style={{ '--type-color': simulatedColor(card.typeId) }} onClick={() => choose(index)}
-        aria-label={`${card.label}. ${card.units} ${card.units === 1 ? 'home' : 'homes'}, ${card.width} by ${card.depth} metres, ${card.floors} ${card.floors === 1 ? 'story' : 'stories'}. Zoning: ${card.permission.detail}. Score: ${pending && card.status !== 'unscored' ? 'updating' : card.statusText}.`}>
+        aria-label={`${card.label}. ${card.units} ${card.units === 1 ? 'home' : 'homes'}, ${card.width} by ${card.depth} metres, ${card.floors} ${card.floors === 1 ? 'story' : 'stories'}. Proposal zoning: ${card.permission.label}. ${card.statusDetail || ''} Score: ${pending && card.status !== 'unscored' ? 'updating' : card.statusText}.`}>
         <strong>{card.label}</strong>
         <span className="typology-meta">{card.units} {card.units === 1 ? 'home' : 'homes'} · {card.width} × {card.depth} m · {card.floors} st.</span>
         <span className="typology-status">

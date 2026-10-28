@@ -1013,7 +1013,17 @@
   .studio-canvas { height: 240px; min-height: 240px; }
   .studio-inspector { height: 520px; min-height: 0; }
   .studio-header-actions { flex-wrap: wrap; }
-  .canvas-mode { top: 58px; }
-  .studio-canvas .maplibregl-ctrl-top-right { top: 58px; right: 160px; }
-  .map-detail-status { top: 104px; left: 10px; max-width: calc(100% - 210px); }
+  .canvas-mode { top: 58px; right: 10px; max-width: calc(100% - 68px); }
+  .studio-canvas .maplibregl-ctrl-top-right { top: 58px; right: auto; left: 10px; }
+  .studio-canvas .maplibregl-ctrl-top-right .maplibregl-ctrl { float: none; margin: 0; }
+  .map-detail-status { top: 10px; left: auto; right: 10px; max-width: calc(100% - 170px); }
+}
+.plan-confirm { width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 24px; border: 1px solid #9db6a4; border-radius: 12px; color: #263e30; background: #fffefa; box-shadow: 0 12px 48px #172d2a55; font-size: 15px; line-height: 1.5; }
+.plan-confirm::backdrop { background: #10261ccc; }
+.plan-confirm h2 { margin: 0 0 12px; font-size: 22px; line-height: 1.25; }
+.plan-confirm button { min-height: 42px; padding: 9px 14px; margin: 6px 6px 0 0; }
+
+.map-detail-status:empty { display: none; }
+@media (max-width: 760px) {
+  .studio-brand small { display: block; max-width: 200px; font-size: 12px; line-height: 1.35; color: #465b4b; }
 }

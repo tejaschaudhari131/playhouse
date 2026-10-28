@@ -36,9 +36,15 @@ export function proposalChecks(option) {
   const checks = option?.checks || {}
   const physical = checks.physical || { status: option?.physicalEligible === true ? 'pass' : option?.massing?.fits === false || option?.massing?.collisions > 0 ? 'fail' : 'unknown' }
   const capacity = checks.capacity || { status: 'unknown' }
+  const detail = (check, fallback) => {
+    if (!(check.members?.length > 1)) return check.detail || fallback
+    const failed = check.members.filter(member => member?.status === 'fail').length
+    const unknown = check.members.filter(member => !member || member.status === 'unknown').length
+    return `${check.members.length} building checks: ${failed} do not pass, ${unknown} not assessed. Each building keeps its own site and service evidence.`
+  }
   return [
-    { ...physical, id: 'physical', label: 'Physical fit', detail: physical.detail || option?.massing?.reason || physical.label || 'Physical evidence unavailable.' },
-    { ...capacity, id: 'capacity', label: 'Transit capacity', detail: capacity.detail || capacity.label || 'Service capacity has not been assessed.' },
+    { ...physical, id: 'physical', label: 'Physical fit', detail: detail(physical, option?.massing?.reason || physical.label || 'Physical evidence unavailable.') },
+    { ...capacity, id: 'capacity', label: 'Transit capacity', detail: detail(capacity, capacity.label || 'Service capacity has not been assessed.') },
   ]
 }
 

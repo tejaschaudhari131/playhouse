@@ -79,3 +79,12 @@ test('proposal status separates physical eligibility from permitted use and name
   const tall = { ...overlap, titleNine: { checks: [{ id: 'height', status: 'conflict', label: 'Height' }], excluded: [] } }
   assert.equal(zoningBadge(tall).text, 'Zoning conflict: Height')
 })
+
+test('portfolio checks never describe a passing next-building footprint as proof every building fits', async () => {
+  const { proposalChecks, proposalStatus } = await import('./studioPresentation.js')
+  const option = { eligible: false, massing: { fits: true, reason: 'This next footprint fits.' }, checks: { physical: { status: 'fail', detail: 'First footprint fits.', members: [{ status: 'pass' }, { status: 'fail' }, { status: 'unknown' }] } } }
+  const [physical] = proposalChecks(option)
+  assert.match(physical.detail, /3 building checks: 1 do not pass, 1 not assessed/)
+  assert.doesNotMatch(physical.detail, /footprint fits/)
+  assert.match(proposalStatus(option), /Physical conflict: 3 building checks/)
+})
