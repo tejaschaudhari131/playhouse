@@ -2,7 +2,7 @@
 
 Playhouse helps people compare housing and infrastructure ideas for a real Pittsburgh site. It is a screening tool, not a permit, a market forecast or a finding that a property is available.
 
-The Studio at `/` uses **five preference factors and separate feasibility checks**. The Explorer at `/explore` is a clearly labeled **legacy six-factor reference model**. Its scores are not interchangeable with Studio scores.
+The Studio at `/` uses **five preference factors and separate feasibility checks**. The legacy Explorer has been removed. Old links open Studio at the linked parcel; old weights and A/B options are not imported. Archived six-factor source fields remain available for provenance, not as another live recommendation model.
 
 See [MODEL_CARD.md](MODEL_CARD.md) for formulas and limitations, [TITLE_NINE.md](TITLE_NINE.md) for supported zoning rules, and [DATA_SOURCES.md](DATA_SOURCES.md) for the source inventory.
 

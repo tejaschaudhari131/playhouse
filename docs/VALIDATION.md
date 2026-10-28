@@ -13,6 +13,8 @@ python -m unittest discover -s pipeline -p 'test_*.py'
 cd web && npm ci && npm test && npm run build
 ```
 
+The release records below are historical. Explorer and its explanation endpoint were retired on October 27, 2026; prior checks do not describe current routes.
+
 ## Citywide release — September 27, 2026
 
 - **Coverage:** all 90 Pittsburgh neighborhoods; 142,865 mapped records (142,571 identified parcels plus 294 anonymous/shared-ground polygons with internal map IDs). No neighborhood omitted. 140,983 records match assessment evidence. Unknown parcel-ID-based property flags stay unknown.
@@ -229,3 +231,13 @@ The 640×360 and 426×240 CSS-viewport checks represent the available space at r
 An additional East Liberty regression check on `0083F00297000000` confirmed that **Inspect first** opens nearby outline `415479` while retaining the selected parcel. It shows its 187 m² footprint, inferred 7.5 m height and unmatched/outside-site provenance; Escape returns to Inspect first. The final compact map track is 320 px, with controls above the attribution area. These changes do not assign neighboring buildings to the selected parcel.
 
 The desktop widened-sidebar check also keeps bottom map controls above wrapped attribution when the map pane becomes narrower than 640 px. This uses the map container width, independent of the browser viewport breakpoint.
+
+
+## Legacy Explorer retirement — October 27, 2026
+
+Removed the Explorer UI, its optional AI endpoint, obsolete UI/model helpers and their feature-specific tests, plus Leaflet and AI SDK dependencies. Shared source-score, zoning and parcel helpers remain covered; no source records, geometry, Studio formulas or plan schema changed. Historical Explorer validation above is retained as a release record.
+
+- All **61 remaining web test files pass**, including new compatibility-link regressions (valid parcels, old encoded A/B links, malformed input, oversized input and unsupported versions).
+- Full `npm run build` passes; a final Next build confirms the home page remains static. `/explore` is only a server redirect, not a second interface. `/api/explain` returns 404.
+- Local production browser: old parcel bookmarks and encoded `/?s=…` links redirect to Studio with the correct PIN; legacy weights/options are not applied. Studio shows a retirement notice. The Hazelwood map, housing scores, Add to plan, Undo and comparison cards work. The header contains no Explorer link. No browser warnings/errors were captured.
+- README, setup and model documentation now describe one live interface. No deployment or production smoke test was performed for this change.

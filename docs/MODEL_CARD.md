@@ -6,7 +6,7 @@ by Hack the House
 
 # Model card: Playhouse suitability screen
 
-Archived Explorer reference: score model v1 (`web/public/data/score_model.json`), data pulled 2026-09-26/27, prompt version in `web/lib/explainPrompt.js`. Code: https://github.com/tejaschaudhari131/playhouse.
+Archived source reference: score model v1 (`web/public/data/score_model.json`), data pulled 2026-09-26/27. The legacy Explorer interface, comparison controls and optional AI endpoint have been removed; their implementation remains in Git history. Code: https://github.com/tejaschaudhari131/playhouse.
 
 ## What it is
 
@@ -52,19 +52,16 @@ Factors overlap: transit enters directly and through the carbon proxy's transpor
 - Suitability for a higher-is-worse factor is 100 minus the value. The score is the weighted average over factors with a finite value and a positive weight; missing factors are skipped and the weights renormalize ("N of M weighted factors available"). No usable weight → no score, with a message.
 - Default relative weights 25/25/25/25/15/15 (demand, transit, equity, climate, displacement, carbon). Raw weights are relative, not percentages.
 - Rounding: one decimal, ties to even, in both Python (`round`) and JavaScript (`round1`). Shared vectors in `shared/rank_vector.json` check both.
-- Comparison (`web/lib/comparison.js`): contribution = weight × suitability ÷ that scenario's usable weight. Differences sum to the unrounded gap. Zero-weight factors are never drivers. Held-constant, negligible (rounds to 0.0), and uneven-coverage factors are named. Permission is reported separately from the score.
+- Historical Explorer comparison: contribution = weight × suitability ÷ that scenario's usable weight. Differences sum to the unrounded gap. Zero-weight factors are never drivers. Held-constant, negligible (rounds to 0.0), and uneven-coverage factors are named. Permission is reported separately from the score.
 - Permission (`web/lib/zoning.js`): the §911.02 row for the building's unit count (triplex → Three-Unit; 12 and 40 units → Multi-Unit). States: permitted, partial, special approval (A/S/C, not a variance), not permitted under the checked row, unknown (never permitted). Every reading needs expert review.
 
-## Archived Explorer sensitivity (`web/lib/robustness.js`)
+## Historical Explorer sensitivity
 
 Five team-authored illustrative priorities (Balanced, Transit, Housing-need, Lower-hazard, Lower-carbon emphasis), not measured stakeholder preferences. The one-factor sweep moves one raw weight 0–100 in steps of 1 with the others fixed; the exact crossing is solved (polynomial of degree ≤ 2 in the weight) and reported with the first sampled change. On one parcel, transit and displacement cannot reorder options.
 
-## Explanation component
+## Explanations
 
-- Runtime: Vercel AI SDK 7. Provider order: AI Gateway (`AI_MODEL`, default `anthropic/claude-haiku-4.5`) when `AI_GATEWAY_API_KEY` is set; otherwise an OpenAI-compatible endpoint from `LLM_API_KEY`/`LLM_BASE_URL`/`LLM_MODEL`, then the gateway via Vercel OIDC.
-- Grounding: the server rebuilds all facts from committed data; the browser sends only ids, types, weights, toggles, and filters. The facts include contributions, permission, coverage, sources, and computed sensitivity. The prompt forbids new numbers and legal conclusions.
-- Guardrails: 600 output tokens, 15 s / 8 s timeouts, input-hash cache, per-IP and per-instance limits (in-memory, per server instance; not a global spending cap), 4 KB requests, redacted server logs, `AI_EXPLANATIONS=off` kill switch.
-- **Production status at Checkpoint 3: no working credential, so the live site always shows the labeled deterministic template** (`web/lib/explainTemplate.js`, `explainSites.js`, `explainFacts.js`), which is built from the same facts.
+Studio uses deterministic factor receipts and evidence explanations. The legacy Explorer AI endpoint and provider dependencies have been removed. No model credentials are needed. Historical implementation and checkpoint validation remain in Git history.
 
 ## Data and privacy
 
@@ -72,6 +69,6 @@ Sources, vintages, and caveats: README "Data Sources", `docs/DATA_NOTES.md`, `we
 
 ## Known limitations
 
-See README "Limitations" and `docs/VALIDATION.md`. Most important: no expert zoning review yet; Explorer does not evaluate dimensional rules; Studio applies supported Title Nine checks, with unassessed rules explicitly excluded. Neither evaluates utilities or geotechnical conditions; scores use fixed anchors, not citywide percentiles; ACS margins of error; the CHAS vintage lags; Explorer uses straight-line distances and Studio uses routed walking estimates; no practitioner validation of the rankings.
+See README "Limitations" and `docs/VALIDATION.md`. Most important: no expert zoning review yet; Studio applies supported Title Nine checks, with unassessed rules explicitly excluded. Studio does not evaluate utilities or geotechnical conditions; scores use fixed anchors, not citywide percentiles; ACS margins of error; the CHAS vintage lags; Studio uses routed walking estimates; no practitioner validation of the rankings.
 
 Coverage note: the 142,865 mapped records include 142,571 identified parcels and 294 county polygons without a unique PIN. Those polygons have stable `SITE…` map IDs, retain the source label, and disclose that assessment and parcel-ID-based property flags are unknown. No neighborhood is omitted.

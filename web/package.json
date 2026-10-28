@@ -19,14 +19,9 @@
     "postcss": "8.5.23"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^3.0.57",
-    "@maplibre/maplibre-gl-leaflet": "0.1.4",
-    "ai": "^7.0.116",
-    "leaflet": "^1.9.4",
     "maplibre-gl": "^6.11.2",
     "next": "15.5.28",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-leaflet": "^5.0.0"
+    "react-dom": "^19.1.1"
   }
 }

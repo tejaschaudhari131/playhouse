@@ -1,9 +1,3 @@
-/** Same-parcel links between the Studio (/) and the Explorer (/explore). */
-export function parcelHref(path, pin) {
-  const value = typeof pin === 'string' ? pin.trim() : ''
-  return value ? `${path}?pin=${encodeURIComponent(value)}` : path
-}
-
 const NEW_TAB = ' (opens in a new tab)'
 
 /** Accessible name for a link that opens in a new tab; never empty. */

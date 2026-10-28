@@ -106,7 +106,7 @@ The displayed 30%-of-income budget is a planning benchmark, **not a HOME/LIHTC r
 - **Capacity is conditional:** default four daily boardings per proposed home, one assumed spare place per existing departure, ten per added departure. Advanced shows sensitivity ranges. Zero reserve means unassessed. Scheduled service cannot establish occupancy or peak capacity.
 - **Market fit is a proxy:** sales activity is blended 50/50 with a team-chosen lot-size curve. The receipt shows the curve and this parcel’s inputs; it is not housing demand or developer profit.
 - **Displacement:** observed vulnerability provides the risk floor; rising rents can raise it. Flat rents no longer cap the risk at 50. This remains a normative screen, not a prediction of project displacement.
-- **Audit separation:** Studio uses `planner-screen-3.0`. `/explore` and the six-factor parcel scores are explicitly labeled legacy reference outputs. Their archived totals are not the Studio’s final scores.
+- **One live model:** Studio uses `planner-screen-3.0`. The legacy Explorer and its AI explanation endpoint have been removed. Archived six-factor source fields remain for data provenance; they are not Studio’s final scores.
 
 ## Policy follow-up
 
@@ -127,7 +127,7 @@ Follow [City housing policy updates](https://engage.pittsburghpa.gov/implementin
 
 This is a planning screen, not development approval. Utility capacity, traffic, actual transit occupancy and causal changes to rents, displacement or emissions are not modeled. [Validation and known gaps](docs/VALIDATION.md).
 
-Studio is at `/`; Explorer at `/explore` is explicitly labeled as the legacy six-factor reference.
+Studio is at `/`. Old `/explore` bookmarks redirect to Studio and retain the parcel when available. Old Explorer weights and A/B scenarios are not imported; Studio explains this on arrival. Use Studio’s JSON export/import to transfer current plans.
 
 The basemap uses [OpenFreeMap](https://openfreemap.org/), an open-source, free hosted service with no API key or account. County building geometry and height evidence still supply the planning visualization. The provider has no uptime guarantee; its basemap is context, not a new scoring source.
 
@@ -145,7 +145,7 @@ Open http://localhost:3000. Prepared data is included. Keep the repository root 
 
 Checks: `npm test` and `npm run build` in `web/`. Pipeline checks: `python -m unittest discover -s pipeline -p 'test_*.py'` after installing [pipeline dependencies](pipeline/requirements.txt).
 
-**Deploy:** import the repo into Vercel with **web** as the root directory. No database or AI credentials are required. Optional AI explains calculated facts; it does not calculate housing scores. [Web setup](web/README.md).
+**Deploy:** import the repo into Vercel with **web** as the root directory. No database or AI credentials are required. Scores and explanations are calculated locally. [Web setup](web/README.md).
 
 ## More detail
 

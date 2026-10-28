@@ -1,14 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
-import { codeLinkLabel, externalLinkLabel, linkHost, parcelHref } from './links.js'
-
-test('parcel links carry the selected parcel both ways and stay valid without one', () => {
-  assert.equal(parcelHref('/explore', '0055D00123000000'), '/explore?pin=0055D00123000000')
-  assert.equal(parcelHref('/', ' 12 34 '), '/?pin=12%2034')
-  assert.equal(parcelHref('/', null), '/')
-  assert.equal(parcelHref('/explore', ''), '/explore')
-})
+import { codeLinkLabel, externalLinkLabel, linkHost } from './links.js'
 
 test('new-tab link names are never empty and cite the code section', () => {
   assert.equal(externalLinkLabel('Zoning map ↗'), 'Zoning map (opens in a new tab)')

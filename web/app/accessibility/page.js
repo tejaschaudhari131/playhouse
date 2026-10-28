@@ -22,6 +22,6 @@ export default function AccessibilityPage() {
     <p><a href="https://github.com/tejaschaudhari131/hack-the-house/issues/new" target="_blank" rel="noreferrer">Open a GitHub issue</a> with the page, browser, assistive technology if relevant, and the steps that caused the problem. Include only information you are comfortable posting publicly.</p>
     <h2>Data and your scenario</h2>
     <p>Plans are saved in this browser. Exporting a scenario creates a file you can choose to share. Basemap tiles are requested from OpenFreeMap and use OpenStreetMap data; the tile service receives the usual network request information. Public-record sources and modeling assumptions are available in the app and the repository README.</p>
-    <p><a href="/">Open Planning Studio</a> · <a href="/explore">Open the reference Explorer</a></p>
+    <p><a href="/">Open Planning Studio</a></p>
   </main>
 }
