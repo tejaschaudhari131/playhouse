@@ -1,7 +1,7 @@
 import { BUILDING_IDS } from './buildings.js'
 import { optionFor } from './plannerState.js'
 import { housingPermission, housingSpec } from './titleNine.js'
-import { zoningBadge, zoningReviewLabel, proposalStatus } from './studioPresentation.js'
+import { zoningBadge, zoningReviewLabel, proposalStatus, proposalChecks } from './studioPresentation.js'
 
 const PERMISSION_SHORT = {
   permitted: 'Use permitted',
@@ -20,11 +20,28 @@ export function typologyCards({ draft, options, code, zoning }) {
     const permission = housingPermission(option, code, zoning)
     const badge = evaluated ? zoningBadge(evaluated) : null
     const status = !evaluated ? 'unscored' : !evaluated.eligible ? 'review' : Number.isFinite(evaluated.total) ? 'scored' : 'noscore'
+    const conflicts = (evaluated?.titleNine?.checks || []).filter(check => check.status === 'conflict')
+    const physical = evaluated ? proposalChecks(evaluated).find(check => check.id === 'physical') : null
+    const shortPermission = PERMISSION_SHORT[permission.category] || PERMISSION_SHORT.unknown
+    const blockedBy = conflicts.length || evaluated?.titleNine?.conflict
+      ? physical?.status === 'fail' ? 'Fit + zoning conflict' : 'Zoning conflict'
+      : evaluated?.area?.invalid?.length ? 'Plan needs review'
+      : physical?.status === 'fail' ? 'Doesn’t fit'
+      : physical?.status === 'unknown' ? 'Fit unassessed' : 'Needs review'
+    const notAssessed = !evaluated ? null : Number.isInteger(evaluated.zoningReview?.notAssessed) ? evaluated.zoningReview.notAssessed
+      : evaluated.titleNine ? (evaluated.titleNine.excluded || (evaluated.titleNine.checks || []).filter(check => ['unknown', 'conditional'].includes(check.status))).length : null
+    const reviewText = notAssessed === null ? 'Checks unassessed' : notAssessed ? `${notAssessed} ${notAssessed === 1 ? 'check' : 'checks'} unassessed` : 'Supported checks assessed'
+    const details = conflicts.map(check => ({ text: `${check.label}: ${check.detail}`, url: check.url, section: check.section }))
+    if (physical && physical.status !== 'pass') details.push({ text: `Physical fit: ${physical.detail}` })
+    for (const member of evaluated?.area?.invalid || []) details.push({ text: `Planned building on ${member.pin}: ${member.gate}` })
     return {
-      typeId, active, label: spec.label, units: spec.units,
+      typeId, active, label: spec.label, shortLabel: spec.label.replace(/ \(.*\)$/, ''), units: spec.units,
       width: option.width, depth: option.depth, floors: option.floors ?? spec.floors,
       permission: { category: badge?.tone || permission.category, label: badge?.text || PERMISSION_SHORT[permission.category] || PERMISSION_SHORT.unknown, detail: permission.label },
-      review: evaluated ? zoningReviewLabel(evaluated) : null,
+      review: evaluated ? zoningReviewLabel(evaluated) : 'This type has not been evaluated.',
+      reviewText, notAssessed, planScope: (evaluated?.area?.buildings || 0) > 1,
+      compactStatus: status === 'review' ? blockedBy : shortPermission,
+      details,
       statusDetail: evaluated ? proposalStatus(evaluated) : null,
       status, score: status === 'scored' ? evaluated.total : null,
       statusText: status === 'scored' ? `${Math.round(evaluated.total)} / 100` : status === 'review' ? 'Not ranked · needs review' : status === 'noscore' ? 'No score' : 'Not scored yet',

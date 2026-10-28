@@ -533,18 +533,26 @@
 .typology-cards { margin: 12px 0; }
 .typology-heading { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; font-size: 12px; color: #5b6e5e; }
 .studio .typology-heading .assumptions-link { width: auto; margin: 0; padding: 0; border: 0; font-size: 12px; text-decoration: underline; }
-.typology-cards [role=radiogroup] { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; }
-.typology-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: 84px; padding: 9px 10px 9px 13px; text-align: left; border: 1px solid #d4dfd2; border-left: 4px solid var(--type-color, #cbd5e1); border-radius: 8px; background: #fff; font-size: 12px; line-height: 1.35; cursor: pointer; }
+.typology-cards [role=radiogroup] { display: grid; grid-auto-rows: 1fr; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 7px; }
+.typology-card { display: flex; flex-direction: column; align-items: stretch; gap: 5px; min-width: 0; padding: 10px; text-align: left; border: 1px solid #d4dfd2; border-left: 4px solid var(--type-color, #cbd5e1); border-radius: 8px; background: #fff; font-size: 12px; line-height: 1.35; cursor: pointer; }
 .typology-card:hover { border-color: #9fbea9; border-left-color: var(--type-color, #cbd5e1); }
 .typology-card.active { border-color: #315b46; border-left-color: var(--type-color, #cbd5e1); background: #eef5ee; box-shadow: 0 0 0 1px #315b46 inset; }
 .typology-card:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
-.typology-card strong { font-size: 13px; font-weight: 650; }
+.typology-card strong { display: block; font-size: 13px; font-weight: 650; }
 .typology-meta { color: #5f7465; font-size: 11px; }
-.typology-status { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-top: auto; flex-wrap: wrap; }
+.typology-card .typology-score { display: block; margin-top: 3px; }
 .typology-score { font-variant-numeric: tabular-nums; font-weight: 650; color: #2e4d3c; }
 .typology-score.unscored, .typology-score.noscore { font-weight: 500; color: #7a877c; }
 .typology-score.review { color: #9a4b2f; }
-.typology-cards > small { display: block; margin-top: 6px; color: #64745f; font-size: 11px; line-height: 1.45; }
+.typology-heading-actions { display: inline-flex; align-items: center; gap: 10px; }
+.studio .typology-info-toggle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 14px; font-weight: 650; }
+.typology-info, .typology-details { font-size: 12px; line-height: 1.5; color: #465b4b; }
+.typology-info { margin: 0 0 8px; }
+.typology-details { margin-top: 8px; }
+.typology-details summary { cursor: pointer; color: #315b46; }
+.typology-details p { margin: 6px 0; }
+.typology-details ul { margin: 8px 0; padding-left: 18px; }
+.typology-details li + li { margin-top: 6px; }
 .permission-chip { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; background: #eef0ea; color: #56614f; }
 .permission-chip.permitted { background: #dff0e3; color: #22603a; }
 .permission-chip.partial, .permission-chip.special { background: #fbf0d9; color: #7d5715; }
@@ -974,7 +982,8 @@
 .planner-glossary { margin: 12px 0; font-size: 13px; line-height: 1.5; }
 .planner-glossary dt { font-weight: 650; margin-top: 8px; }
 .planner-glossary dd { margin: 2px 0 0; color: #475c4d; }
-.typology-review { display: block; margin-top: 5px; font-size: 12px; font-weight: 500; color: #695117; }
+.typology-review { display: block; margin-top: auto; font-size: 12px; font-weight: 500; color: #695117; }
+.typology-review.assessed { color: #465b4b; }
 /* Readable caveats are part of the decision, not decorative fine print. */
 .studio .compact-help, .studio .section-help, .studio .planner-field, .studio .planner-field small,
 .studio .planner-details, .studio .planner-details p, .studio .planner-warning, .studio .coverage-note,

@@ -28,7 +28,7 @@ import InfrastructurePanel from './InfrastructurePanel.js'
 import RecommendationAudit from './RecommendationAudit.js'
 import StudioPriorities from './StudioPriorities.js'
 import StudioSites from './StudioSites.js'
-import { studioSites, FACTOR_LABELS, zoningBadge, planImpact, zoningReviewLabel } from '../lib/studioPresentation.js'
+import { studioSites, FACTOR_LABELS, planImpact, zoningReviewLabel } from '../lib/studioPresentation.js'
 import HousingComparison from './HousingComparison.js'
 import TitleNineChecks, { ZoningInputs } from './TitleNine.js'
 import SiteZoning from './SiteZoning.js'
@@ -624,7 +624,6 @@ function Studio({ data }) {
   const blockingBuildings = useMemo(() => paused || evaluation.pending || !draftMassing?.geometry || !draftMassing.collisions ? [] : blockingFootprints(retainedNearbyBuildings, draftMassing.geometry), [paused, evaluation.pending, draftMassing, retainedNearbyBuildings])
   const otherCollision = !paused && !evaluation.pending && draftMassing?.collisions > 0 && !blockingBuildings.length
   const fitIssue = !paused && !evaluation.pending && evaluated && !hoverMassing ? fitDiagnosis(option, selected.geometry, evaluated.massing) : null
-  const dimensionConflicts = !paused && !evaluation.pending && evaluated ? (evaluated.titleNine?.checks || []).filter(c => c.status === 'conflict' && ['coverage', 'far', 'height', 'stories', 'lot'].includes(c.id)) : []
   function fitDraftToLot() {
     if (evaluation.pending) return
     const district = districtStandards(props.zoning_code), lotM2 = Number.isFinite(props.lot_sqft) ? props.lot_sqft / 10.7639 : null
@@ -828,7 +827,7 @@ function Studio({ data }) {
           </div></details>}
           {inspectorTab === 'rankings' && <HousingComparison weights={scenario.weights} onWeights={weights => set('weights', weights)} comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={reformPreset} onReform={setReformPreset} zoningCode={props.zoning_code ?? null} costControl={costSwitch(true)}/>}
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
-            <div className="drawer-heading"><h3>{buildingEdit ? 'Edit planned building' : 'New building'}</h3><p>Preview a housing type, then add it to your plan.</p></div>
+            <div className="drawer-heading"><h3>{buildingEdit ? 'Edit planned building' : 'New building'}</h3></div>
             <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
             {paused ? <div className="added-callout" role="status"><p><strong>✓ {justAdded.label} {justAdded.edited ? 'updated in' : 'added to'} your plan.</strong> The preview is paused so it does not sit on top of the new building.</p><div className="placement-actions"><button onClick={event => selectBuilding({ kind: 'placed', id: justAdded.id, pin: justAdded.pin }, event.currentTarget)}>Inspect {justAdded.edited ? 'updated' : 'new'} building</button></div></div> : <>
             <fieldset className="quick-controls" aria-label="Size and orientation">
@@ -836,12 +835,12 @@ function Studio({ data }) {
               <div className="quick-rotate"><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button><button disabled={!option.placement} onClick={() => { setOption('placement', null); setPlacing(false) }}>Reset alignment</button></div>
               <small>{option.height} m high · {option.placement ? `manual position, bearing ${round(placement.bearing)}°` : 'automatic parcel alignment'} · <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Exact values in Advanced</button></small>
             </fieldset>
-            <div className="draft-result" aria-busy={evaluation.pending}><div><span>Current draft</span><strong>{draftState.title}</strong><small>{evaluated?.eligible && !evaluation.pending ? 'Under your priorities' : draftState.detail}</small>{!evaluation.pending && evaluated && <span className={`zoning-badge ${zoningBadge(evaluated).tone}`}>{zoningBadge(evaluated).text}</span>}{!evaluation.pending && evaluated && <small>{zoningReviewLabel(evaluated)}</small>}{!evaluation.pending && evaluated?.checks && <small>Fit: {evaluated.checks.physical?.status || 'unknown'} · Transit reserve: {evaluated.checks.capacity?.status || 'unknown'} (assumed)</small>}</div><button onClick={() => setInspectorTab('rankings')}>Compare types →</button></div>
-            {(fitIssue || dimensionConflicts.length > 0) && <div className="fit-callout" role="group" aria-label="Why this draft does not fit">
-              <p><strong>{fitIssue ? 'This footprint does not fit the parcel outline.' : 'The footprint fits, but zoning dimensions conflict.'}</strong></p>
-              <ul>{fitIssue?.reasons.map(r => <li key={r.id}>{r.text}</li>)}{dimensionConflicts.map(c => <li key={c.id}>{c.label} (§{c.section}): {c.detail}</li>)}</ul>
-              {fitIssue && <div className="placement-actions"><button className="primary-build" disabled={evaluation.pending} onClick={fitDraftToLot}>Fit dimensions to lot</button></div>}
-              <small>{fitIssue ? `Finds the largest ${housingSpec(option).label.toLowerCase()} footprint, down to the type minimum, that fits at a position aligned to a parcel edge${districtStandards(props.zoning_code)?.coverage ? ' and within the district’s lot coverage' : ''}. Stories stay the same. Lot size is measured from the map outline, not legal frontage.` : 'Fit to lot changes only width and depth. Height, stories and lot-area limits need a smaller type, a variance or a reform scenario.'}</small>
+            <div className="draft-result" aria-busy={evaluation.pending}><div><span>Current draft</span><strong>{draftState.title}</strong><small>{evaluated?.eligible && !evaluation.pending ? 'Under your priorities' : draftState.detail}</small>{!evaluation.pending && evaluated && <small>{zoningReviewLabel(evaluated)}</small>}{!evaluation.pending && evaluated?.checks && <small>Fit: {evaluated.checks.physical?.status || 'unknown'} · Transit reserve: {evaluated.checks.capacity?.status || 'unknown'} (assumed)</small>}</div><button onClick={() => setInspectorTab('rankings')}>Compare types →</button></div>
+            {fitIssue && <div className="fit-callout" role="group" aria-label="Why this draft does not fit">
+              <p><strong>This footprint does not fit the parcel outline.</strong></p>
+              <ul>{fitIssue.reasons.map(r => <li key={r.id}>{r.text}</li>)}</ul>
+              <div className="placement-actions"><button className="primary-build" disabled={evaluation.pending} onClick={fitDraftToLot}>Fit dimensions to lot</button></div>
+              <small>{`Finds the largest ${housingSpec(option).label.toLowerCase()} footprint, down to the type minimum, that fits at a position aligned to a parcel edge${districtStandards(props.zoning_code)?.coverage ? ' and within the district’s lot coverage' : ''}. Stories stay the same. Lot size is measured from the map outline, not legal frontage.`}</small>
             </div>}
             {!evaluation.pending && evaluated?.titleNine?.conflict && options && <PolicyReformSimulator compact presetId={reformPreset} onPreset={setReformPreset} options={Object.values(options)} code={props.zoning_code ?? null} focusTypeId={option.typeId}/>}
             {!!blockingBuildings.length && <div className="redevelop-callout" role="group" aria-label="Existing buildings under this draft">
