@@ -78,3 +78,12 @@ test('adding a building resets the draft to automatic placement in one step and 
   const next = evaluatePlanner({ ...input, scenario: history.present, areaSites: [{ ...building, feature: input.feature, stop: null, existingBuildings: [] }] })
   assert.equal(next.proposal[input.scenario.draft.typeId].massing.collisions, 0, 'the next automatic draft avoids the building just added')
 })
+
+test('keyboard nudges are exact cardinal metres and stay bounded', async () => {
+  const { nudgePlacement } = await import('./buildControls.js')
+  const p = { east: 0, north: 0, bearing: 37 }
+  assert.deepEqual(nudgePlacement(p, 'ArrowUp'), { east: 0, north: 1, bearing: 37 })
+  assert.deepEqual(nudgePlacement(p, 'ArrowLeft', 5), { east: -5, north: 0, bearing: 37 })
+  assert.equal(nudgePlacement({ ...p, east: 2000 }, 'ArrowRight').east, 2000)
+  assert.equal(nudgePlacement(p, 'Tab'), null)
+})

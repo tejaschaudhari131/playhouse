@@ -54,8 +54,15 @@ export function rotatePlacement(placement, degrees) {
   return { ...base, bearing: round1(((base.bearing + degrees) % 360 + 360) % 360) }
 }
 
+/** Cardinal moves use map metres, independent of the camera bearing. */
+export function nudgePlacement(placement, key, step = 1) {
+  const delta = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, step], ArrowDown: [0, -step] }[key]
+  if (!delta) return null
+  return { ...placement, east: round1(Math.max(-2000, Math.min(2000, placement.east + delta[0]))), north: round1(Math.max(-2000, Math.min(2000, placement.north + delta[1]))) }
+}
+
 /** The preview pauses right after an add until the draft, site or plan changes. */
 export const draftKey = draft => JSON.stringify(draft)
 export function previewPaused(added, scenario) {
-  return !!added && added.pin === scenario.pin && scenario.buildings?.at(-1)?.id === added.id && added.draft === draftKey(scenario.draft)
+  return !!added && added.pin === scenario.pin && scenario.buildings?.some(b => b.id === added.id) && added.draft === draftKey(scenario.draft)
 }

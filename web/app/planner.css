@@ -1034,3 +1034,6 @@
   .canvas-legend, .map-view-toggle { bottom: 64px; }
   .map-overlays { bottom: 116px; }
 }
+
+.restored-plan-note { display: flex; gap: 8px; align-items: start; padding: 10px 14px; font-size: 13px; line-height: 1.4; color: #334d3e; background: #edf3e9; border-bottom: 1px solid #d4dfd1; }
+.restored-plan-note button { flex: none; }

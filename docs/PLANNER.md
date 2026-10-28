@@ -145,6 +145,12 @@ See [VALIDATION.md](VALIDATION.md) for the current test/build record and observe
 
 If a draft extends beyond the parcel, **Inspect first** can show a nearby building that overlaps it. The panel labels it **Outside selected parcel** and retains its recorded identity and height evidence. Removing that outline in a scenario does not enlarge the selected lot.
 
+## Placement and editing
+
+Position on map stays active when cycling housing types. The colored preview and Add control use the same live fit/zoning screen. While full scores recalculate, dimensions update immediately in a grey preview and placement stays unavailable. R rotates +15°; Shift+R rotates −15°. Arrow keys move east/west/north/south by 1 metre (Shift: 5 metres), except when editing text or using a control's own keyboard navigation. Exact offsets and bearing remain in Advanced. Automatic alignment follows the parcel; the source data does not establish legal street frontage or setbacks for automatic snapping.
+
+Inspect a proposed building and choose **Edit shape & position**. Change the shape at its existing location, then Save or Cancel. The saved plan is unchanged until Save, which is one undoable action and keeps the building's ID and list position. Changing sites requires saving or cancelling first. Scenario export is explicit; autosave writes only to this device's local storage and does not download files.
+
 ## Financial assumptions
 
 The editable `pro-forma-2.0` screen separates vertical construction, site work, demolition, contingency, design/permits/legal, developer fee, construction interest, initial reserves and acquisition. Inputs are saved under `scenario.proForma` and validated on import. Low/high construction overrides belong to each housing type; other assumptions apply across the plan. Finance-only edits do not recompute geometry or preference factors.

@@ -1,6 +1,7 @@
 "use client"
 
 import FinanceControls from './FinanceControls.js'
+import { finishBuildingEdit } from '../lib/buildingEdit.js'
 
 import Select from './Select.js'
 import Numeric from './NumberInput.js'
@@ -42,7 +43,7 @@ import EmptySitesControl from './EmptySitesControl.js'
 import useEmptySites from './useEmptySites.js'
 import StudioTour from './StudioTour.js'
 import { TOUR_PIN, tourScenario, tourEvidence } from '../lib/studioTour.js'
-import { draftPreview } from '../lib/draftPreview.js'
+import { draftPreview, previewAtPlacement } from '../lib/draftPreview.js'
 import { retainedBuildings, footprintRef, footprintKey, demolitionKey, demolitionSite, siteFootprints, blockingFootprints, isDemolished } from '../lib/redevelopment.js'
 import BuildingInspector from './BuildingInspector.js'
 import { buildingIdentityRows } from '../lib/buildingIdentity.js'
@@ -51,7 +52,7 @@ import RedevelopmentImpact, { TaxLedger } from './RedevelopmentImpact.js'
 import { homesReplaced, netHomes, combinedHomes, recordedHomes, homesText, redevelopmentImpact, planTaxLedger, demolitionRecords } from '../lib/redevelopmentImpact.js'
 import { priceBenchmarks, planAmiBand } from '../lib/proForma.js'
 import incomeLimits from '../lib/hudIncomeLimits.json'
-import { typologyCards, resizeDraft, rotatePlacement, draftKey, previewPaused } from '../lib/buildControls.js'
+import { typologyCards, resizeDraft, rotatePlacement, nudgePlacement, draftKey, previewPaused } from '../lib/buildControls.js'
 import { nearbyStops, preferredStop, round } from '../lib/plannerModel.js'
 import { createPlannerEvaluator, sameEvaluationContext } from '../lib/plannerEvaluation.js'
 import { EXAMPLES, PLANNER_FACTORS, MASSING_DEFAULTS, optionFor, initialStudioScenario, historyFor, scenarioReducer, scenarioExport, defaultComparisonTypes } from '../lib/plannerState.js'
@@ -222,6 +223,7 @@ export default function Planner() {
       if (!chunk.parcels.features.some(f => f.properties.pin === initialPin)) throw new Error('The selected parcel is missing from its neighborhood data.')
       const differentLink = restored && initialPin !== record.saved.scenario.pin
       if (differentLink) messages.push('Opened the linked parcel as a new plan. Undo returns to your saved plan; it stays saved until you edit this one.')
+      if (restored && !differentLink && (record.saved.scenario.buildings.length || record.saved.scenario.demolitions?.length)) messages.push(`Restored your saved plan: ${record.saved.scenario.buildings.length} added building(s), ${record.saved.scenario.demolitions?.length || 0} demolished. Existing planned buildings can block a new draft. Review Your plan or start a New plan.`)
       if (restored && record.migrated) messages.push('Saved scenario restored. Legacy cost inputs are preserved but excluded until you review them in Advanced.')
       if (restored && record.saved.sources.dataVersion !== summary.pulled_at) messages.push('Your saved inputs were restored and recalculated with the current public data.')
       if (!controller.signal.aborted) setData({ transitSources, manifest, neighborhoods, stops, zoning, summary, buildingManifest, sources, initialPin,
@@ -263,11 +265,12 @@ function Studio({ data }) {
     const fresh = historyFor({ ...initialStudioScenario(initialPin, feature.properties, String(preferredStop(nearbyStops(feature, stops))?.stop_id || '')), accessMode: 'network' })
     return data.savedScenario ? { ...fresh, past: [data.savedScenario] } : fresh
   })
+  const [buildingEdit, setBuildingEdit] = useState(null)
   const scenario = history.present
   const proposedHomeCount = scenario.buildings.reduce((n, b) => n + housingSpec(b.option).units, 0)
   const [tourStep, setTourStep] = useState(null), [tourApplied, setTourApplied] = useState(null)
   const tourReturn = useRef(null)
-  const personalPlan = tourStep && tourReturn.current ? tourReturn.current.history.present : scenario
+  const personalPlan = tourStep && tourReturn.current ? tourReturn.current.history.present : buildingEdit?.history.present || scenario
   const autosave = usePlanAutosave(personalPlan, data.storage, plan => ({ dataVersion: summary.pulled_at, networkFile: manifest.neighborhoods.find(n => n.id === catalogue.get(plan.pin)?.id)?.networkFile || '' }))
   const networkDescriptor = manifest.neighborhoods.find(n => n.id === catalogue.get(scenario.pin).id)
   const networkFile = networkDescriptor.networkFile
@@ -329,7 +332,7 @@ function Studio({ data }) {
     }
   }, [pendingHistory, historyTarget, loaded.chunks])
   const returningCamera = useRef(null)
-  function setTool(value) { setActiveTool(value); setSidebarOpen(true); setPlacing(false); if (value !== 'housing') setSelectedBuilding(null) }
+  function setTool(value) { if (buildingEdit && value !== 'housing') cancelBuildingEdit(); setActiveTool(value); setSidebarOpen(true); setPlacing(false); if (value !== 'housing') setSelectedBuilding(null) }
   useEffect(() => {
     if (returningCamera.current !== null) { setView3d(returningCamera.current); returningCamera.current = null; return }
     if (tool === 'housing') setView3d(true)
@@ -338,6 +341,7 @@ function Studio({ data }) {
   const [placing, setPlacing] = useState(false)
   const [hoverPoint, setHoverPoint] = useState(null)
   const [justAdded, setJustAdded] = useState(null)
+  const [showRestoredPlan, setShowRestoredPlan] = useState(() => !!data.storage.restored && !!(scenario.buildings.length || scenario.demolitions?.length))
   const [reformPreset, setReformPreset] = useState('current')
   const [briefOpen, setBriefOpen] = useState(false)
   const [confirmation, setConfirmation] = useState(null), [importBusy, setImportBusy] = useState(false)
@@ -346,7 +350,7 @@ function Studio({ data }) {
   useEffect(() => { if (!placing) setHoverPoint(null) }, [placing])
   const [drawing, setDrawing] = useState(null), [draftNode, setDraftNode] = useState(null)
   const drawingRevision = useRef(0), drawingBusy = useRef(false)
-  useEffect(() => { setPlacing(false) }, [tool, scenario.pin, scenario.draft.typeId])
+  useEffect(() => { setPlacing(false) }, [tool, scenario.pin])
   useEffect(() => { drawingRevision.current++; drawingBusy.current = false; setDrawing(null); setDraftNode(null) }, [tool, scenario.pin, networkFile])
   useEffect(() => { if (!placing) setHoverPoint(null) }, [scenario.pin, placing])
   const [query, setQuery] = useState(''), [notice, setNotification] = useState(data.startupNotice ? { text: data.startupNotice, tone: 'info' } : null), [inspectorTab, setInspectorTab] = useState('edit')
@@ -458,7 +462,7 @@ function Studio({ data }) {
   const options = result ? (proposed ? result.proposal : result.baseline) : null
   const option = scenario.draft, evaluated = options?.[option.typeId]
   const pathway = !evaluation.pending && evaluated ? permitPathway({ props, checks: evaluated.titleNine?.checks ?? null, permission: evaluated.permission, option: { ...option, floors: option.floors ?? housingSpec(option).floors }, label: housingSpec(option).label, geometry: selected.geometry, options: Object.values(options) }) : null
-  const draftState = draftStatus({ evaluated, proposal: result?.proposal?.[option.typeId], weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors, hasPlacedBuildings: scenario.buildings.length > 0 })
+
   const paused = previewPaused(justAdded, scenario) && !placing
   const costsIncluded = housingCostConfirmed(scenario, option)
   const placedCostsExcluded = scenario.buildings.filter(b => !housingCostConfirmed(b, b.option)).length
@@ -475,6 +479,7 @@ function Studio({ data }) {
   const selectionRevision = useRef(0)
 
   async function select(pin, building = null) {
+    if (buildingEdit) { setNotice('Save or cancel the building edit before changing sites.'); return }
     const revision = ++selectionRevision.current
     setSelectedBuilding(building)
     setPlacing(false); setJustAdded(null)
@@ -508,7 +513,7 @@ function Studio({ data }) {
     if (nearby.some(s => String(s.stop_id) === id)) { dispatch({ type: 'set', key: 'stopId', value: id }); setNotice('Selected stop updated. The same stop is used for baseline and proposal.', 'transient') }
     else setNotice('Choose a scheduled stop within 1,200 m of this parcel.')
   }
-  function restoreHistory(direction) { setSelectedBuilding(null); setPendingPin(null); setPendingHistory(direction) }
+  function restoreHistory(direction) { if (buildingEdit) { cancelBuildingEdit(); return } setSelectedBuilding(null); setPendingPin(null); setJustAdded(null); setPlacing(false); setHoverPoint(null); setPendingHistory(direction) }
   function closeBuildingDetails() {
     setSelectedBuilding(null)
     requestAnimationFrame(() => {
@@ -570,11 +575,17 @@ function Studio({ data }) {
   function editPlaced(replace = false) {
     if (!inspectedPlaced) return
     const building = inspectedPlaced
+    if (replace) setBuildingEdit({ id: building.id, pin: building.pin, index: scenario.buildings.findIndex(b => b.id === building.id), history })
     dispatch({ type: 'patch', value: { buildings: scenario.buildings.filter(b => b.id !== building.id), ...(replace ? restoredBuildingInputs(building) : {}) } })
     closeBuildingDetails(); setPlacing(false); setTool('housing'); setInspectorTab('edit')
-    setNotice(replace ? 'Planned building moved back to the draft. Change its type or size, then add the replacement.' : 'Planned building removed. Undo restores it.', 'transient')
+    setNotice(replace ? 'Editing this building at its current position. Rotate, resize or move it, then Save changes. Cancel keeps the original.' : 'Planned building removed. Undo restores it.', 'transient')
   }
-  function changeType(typeId) { setSelectedBuilding(null); dispatch({ type: 'draft', value: { typeId, ...MASSING_DEFAULTS[typeId], height: BUILDINGS[typeId].heightM, floors: BUILDINGS[typeId].floors, residentialForm: 'duplex', placement: null, ...(scenario.rentMode === 'prototype' ? prototypeRentOption(typeId) : {}) } }) }
+  function cancelBuildingEdit() {
+    if (!buildingEdit) return
+    dispatch({ type: 'restoreHistory', history: buildingEdit.history }); setBuildingEdit(null); setPlacing(false); setJustAdded(null); setHoverPoint(null); setSelectedBuilding(null)
+    setNotice('Building edit cancelled; original plan restored.', 'transient')
+  }
+  function changeType(typeId) { setSelectedBuilding(null); dispatch({ type: 'draft', value: { typeId, ...MASSING_DEFAULTS[typeId], height: BUILDINGS[typeId].heightM, floors: BUILDINGS[typeId].floors, residentialForm: 'duplex', placement: placing || buildingEdit ? placement : null, ...(scenario.rentMode === 'prototype' ? prototypeRentOption(typeId) : {}) } }) }
   function previewTemplate(template) {
     if (evaluation.pending) return
     dispatch({ type: 'draft', value: template }); setTool('housing'); setInspectorTab('edit'); setPlacing(false)
@@ -593,11 +604,16 @@ function Studio({ data }) {
   function setHouseholdSize(value) { dispatch({ type: 'patch', value: { householdSize: value, ...(scenario.incomeSource === 'hud' && incomeLimits.incomeLimits[scenario.incomeBand] ? { targetIncome: incomeLimits.incomeLimits[scenario.incomeBand][value - 1] } : {}) } }) }
   const placement = option.placement || evaluated?.massing.placement || { east: 0, north: 0, bearing: 0 }
   function moveProposal(changes) { setOption('placement', { ...placement, ...changes }) }
-  const canAdjust = !evaluation.pending && !!evaluated
-  function rotate(degrees) { if (canAdjust) setOption('placement', rotatePlacement(placement, degrees)) }
+  const canAdjust = !!context && !!evaluated
+  function rotate(degrees) { if (canAdjust) setOption('placement', rotatePlacement(hoverPoint ? placementAt(selected.geometry, hoverPoint, placement.bearing) : placement, degrees)) }
   function resize(key, delta) { const patch = resizeDraft(option, key, delta); if (patch) dispatch({ type: 'draft', value: patch }) }
   const rotateShortcut = useRef(rotate)
   rotateShortcut.current = rotate
+  const nudgeShortcut = useRef(null)
+  nudgeShortcut.current = (key, step) => {
+    const moved = nudgePlacement(hoverPoint ? placementAt(selected.geometry, hoverPoint, placement.bearing) : placement, key, step)
+    if (moved) { setHoverPoint(null); moveProposal(moved) }
+  }
   const proposalObstacles = useMemo(() => retainedNearbyBuildings === null ? null : [...retainedNearbyBuildings, ...(result?.committed?.proposal || []).filter(b => b.massing.geometry).map(b => ({ geometry: b.massing.geometry })), ...(result?.reservations || [])], [retainedNearbyBuildings, result])
   const hoverMassing = useMemo(() => hoverPoint ? fitMassing(selected.geometry, option.width, option.depth, placementAt(selected.geometry, hoverPoint, placement.bearing), proposalObstacles) : null, [hoverPoint, selected, option.width, option.depth, placement.bearing, proposalObstacles])
   function screenPlacement(massing) {
@@ -618,17 +634,24 @@ function Studio({ data }) {
     dispatch({ type: 'draft', value: { width: fit.width, depth: fit.depth, placement: null } })
     setNotice(`Fitted to the lot: ${fitSummary(fit, option)} Undo restores the previous size.`, 'transient')
   }
-  const previewOption = hoverMassing && evaluated ? { ...evaluated, massing: hoverMassing, titleNine: screenPlacement(hoverMassing) } : evaluated
-  const buildingPreview = useMemo(() => draftPreview(previewOption, evaluation.pending), [previewOption, evaluation.pending])
+  // Immediate geometry feedback while the worker recomputes full tradeoffs.
+  const pendingMassing = useMemo(() => evaluation.pending && evaluated?.massing && !hoverMassing ? fitMassing(selected.geometry, option.width, option.depth, placement, proposalObstacles) : null, [evaluation.pending, evaluated, hoverMassing, selected, option.width, option.depth, placement, proposalObstacles])
+  const previewMassing = hoverMassing || pendingMassing
+  const previewOption = previewMassing && evaluated ? previewAtPlacement({ ...evaluated, height: option.height }, previewMassing, screenPlacement(previewMassing)) : evaluated
+  const placementPreview = previewMassing && result?.proposal?.[option.typeId] ? previewAtPlacement({ ...result.proposal[option.typeId], height: option.height }, previewMassing, screenPlacement(previewMassing)) : result?.proposal?.[option.typeId]
+  const draftState = draftStatus({ evaluated: previewOption, proposal: placementPreview, weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors, hasPlacedBuildings: scenario.buildings.length > 0 })
+  const buildingPreview = useMemo(() => draftPreview(placementPreview, evaluation.pending), [placementPreview, evaluation.pending])
   function addBuilding(massing = result?.proposal?.[option.typeId]?.massing) {
     if (!evaluation.pending && massing?.fits && massing.collisions > 0 && blockingFootprints(retainedNearbyBuildings, massing.geometry).length) { setNotice('An existing building is in the way. Use “Demolish & replace existing building” to clear it in this plan, or choose another spot.'); return }
     if (evaluation.pending || result?.infrastructureErrors?.length || !massing?.fits || massing.collisions !== 0 || screenPlacement(massing).conflict) { setNotice('Cannot add: physical fit or a supported zoning check conflicts. Check the red preview and zoning details.'); return }
     if ((scenario.buildings || []).length >= 40) { setNotice('This local plan supports 40 buildings.'); return }
-    const id = crypto.randomUUID()
+    const id = buildingEdit?.id || crypto.randomUUID()
     setConstructionEffect({ id, pin: scenario.pin, geometry: massing.geometry, height: option.height, typeId: option.typeId })
-    dispatch({ type: 'addBuilding', building: { id, pin: scenario.pin, option: { ...option, placement: massing.placement }, targetIncome: scenario.targetIncome, affordabilityConfirmation: scenario.affordabilityConfirmation || null, incomeSource: scenario.incomeSource || 'legacy', incomeBand: scenario.incomeBand ?? null, rentMode: scenario.rentMode || 'custom', householdSize: scenario.householdSize || 1, stopId: scenario.stopId } })
-    setJustAdded({ id, pin: scenario.pin, label: housingSpec(option).label, draft: draftKey({ ...option, placement: null }) })
-    setProposed(true); setPlacing(false); setNotice('Building added to your plan. Undo is available.', 'transient')
+    const building = { id, pin: scenario.pin, option: { ...option, placement: massing.placement }, targetIncome: scenario.targetIncome, affordabilityConfirmation: scenario.affordabilityConfirmation || null, incomeSource: scenario.incomeSource || 'legacy', incomeBand: scenario.incomeBand ?? null, rentMode: scenario.rentMode || 'custom', householdSize: scenario.householdSize || 1, stopId: scenario.stopId }
+    if (buildingEdit) { dispatch({ type: 'restoreHistory', history: finishBuildingEdit(buildingEdit, scenario, building) }); setBuildingEdit(null) }
+    else dispatch({ type: 'addBuilding', building })
+    setJustAdded({ id, pin: scenario.pin, label: housingSpec(option).label, edited: !!buildingEdit, draft: draftKey({ ...option, placement: null }) })
+    setProposed(true); setPlacing(false); setNotice(buildingEdit ? 'Building changes saved. Undo restores its previous shape and position.' : 'Building added to your plan. Undo is available.', 'transient')
   }
   function placeProposal(coordinates) {
     addBuilding(fitMassing(selected.geometry, option.width, option.depth, placementAt(selected.geometry, coordinates, placement.bearing), proposalObstacles))
@@ -642,6 +665,7 @@ function Studio({ data }) {
     function cancelInteraction(event) {
       if (tourStep || briefOpen || event.target.closest('dialog, [role=dialog]')) return
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.altKey && !event.defaultPrevented && !event.target.closest('input, textarea, select, [contenteditable=true], [role=combobox]')) { event.preventDefault(); restoreHistory(event.shiftKey ? 'redo' : 'undo'); return }
+      if (placing && event.key.startsWith('Arrow') && !event.metaKey && !event.ctrlKey && !event.altKey && !event.defaultPrevented && !event.target.closest('input, textarea, select, [role=combobox], [role=listbox], [role=slider], [contenteditable=true]')) { event.preventDefault(); nudgeShortcut.current(event.key, event.shiftKey ? 5 : 1); return }
       if (placing && (event.key === 'r' || event.key === 'R') && !event.metaKey && !event.ctrlKey && !event.altKey && !event.defaultPrevented && !event.target.closest('input, textarea, select, [role=combobox], [role=listbox]')) {
         event.preventDefault(); rotateShortcut.current(event.shiftKey ? -15 : 15); return
       }
@@ -651,6 +675,7 @@ function Studio({ data }) {
       const editing = event.target.closest('input, textarea, select, [role=combobox]')
       if (!editing && drawing) { cancelDrawing(); setNotice('Drawing cancelled.', 'transient') }
       else if (!editing && placing) { setPlacing(false); setNotice('Placement cancelled.', 'transient') }
+      else if (!editing && buildingEdit) cancelBuildingEdit()
       else if (!editing && selectedBuilding) closeBuildingDetails()
       else if (notice) dismissNotice()
       else return
@@ -658,7 +683,7 @@ function Studio({ data }) {
     }
     document.addEventListener('keydown', cancelInteraction)
     return () => document.removeEventListener('keydown', cancelInteraction)
-  }, [drawing, placing, selectedBuilding, tourStep, briefOpen, notice])
+  }, [drawing, placing, selectedBuilding, tourStep, briefOpen, notice, buildingEdit])
   async function drawInfrastructure(coordinates) {
     if (!network || !drawing || !context) { setNotice('Wait for network and building context to load before drawing.'); return }
     if (drawingBusy.current) return
@@ -728,7 +753,7 @@ function Studio({ data }) {
       const restored = await restorePlanContext(saved, manifest, { locate: locateNeighborhood, load: fetchNeighborhood, networkSha256: currentNetworkSha })
       for (const [id, chunk] of restored.chunks) for (const f of chunk.parcels.features) catalogue.set(f.properties.pin, { id, properties: { pin: f.properties.pin, address: f.properties.address, neighborhood: f.properties.neighborhood, area: f.properties.area } })
       loaded.ingestChunks(restored.chunks)
-      selectionRevision.current++; setPendingPin(null); setPendingHistory(null); cancelDrawing(); setSelectedBuilding(null); setJustAdded(null)
+      selectionRevision.current++; setPendingPin(null); setPendingHistory(null); cancelDrawing(); setSelectedBuilding(null); setJustAdded(null); setShowRestoredPlan(false)
       dispatch({ type: 'reset', scenario: saved.scenario })
       setTool('housing'); setInspectorTab('edit'); setProposed(true); setConfirmation(null)
       setNotice(`Scenario imported; scores recalculated with this release. Undo restores your previous plan.${confirmation.notices?.length ? ' ' + confirmation.notices.join(' ') : ''}`, 'info')
@@ -738,7 +763,7 @@ function Studio({ data }) {
   function newPlan() {
     setConfirmation(null)
     selectionRevision.current++; setPendingPin(null); setPendingHistory(null)
-    cancelDrawing(); setSelectedBuilding(null); setConstructionEffect(null); setDemolitionEffect(null)
+    cancelDrawing(); setSelectedBuilding(null); setConstructionEffect(null); setDemolitionEffect(null); setShowRestoredPlan(false); setJustAdded(null)
     dispatch({ type: 'reset', scenario: makeScenario(scenario.pin) })
     setTool('housing'); setInspectorTab('edit'); setProposed(true)
     setNotice('Started a new plan on this parcel. Undo restores your previous plan.', 'transient')
@@ -751,13 +776,13 @@ function Studio({ data }) {
       <div className="studio-brand"><span className="planner-brandmark"><Icon name="building"/></span><div><strong>Playhouse</strong><small>Compare housing possibilities for a Pittsburgh parcel</small></div></div>
       <NeighborhoodPicker neighborhoods={manifest.neighborhoods} value={catalogue.get(scenario.pin).id} onChange={id => select(manifest.neighborhoods.find(n => n.id === id).examplePin)}/>
 
-      <div className="studio-header-actions"><button ref={tourButton} className="studio-tour-trigger" onClick={() => setTourRequest(n => n + 1)}>Tour</button><button className="sidebar-toggle" aria-expanded={sidebarOpen} aria-controls="planner-inspector" onClick={() => { setSidebarOpen(!sidebarOpen) }}>{sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}</button><button className="find-sites-button" onClick={() => { setTool('sites'); setInspectorTab('edit') }}>Find sites</button><button className="studio-brief" onClick={() => setBriefOpen(true)} disabled={!result || evaluation.pending || !evaluated}>Print / View 1-Page Site Brief</button><input ref={importInput} type="file" accept="application/json,.json" hidden onChange={readImport}/><button onClick={() => importInput.current?.click()} disabled={!!tourStep || importBusy}>Import scenario</button><button data-tour="export" className="studio-export" onClick={download} disabled={!result || evaluation.pending}>Export scenario <span aria-hidden="true">↓</span></button></div>
+      <div className="studio-header-actions"><button ref={tourButton} className="studio-tour-trigger" disabled={!!buildingEdit} onClick={() => setTourRequest(n => n + 1)}>Tour</button><button className="sidebar-toggle" aria-expanded={sidebarOpen} aria-controls="planner-inspector" onClick={() => { setSidebarOpen(!sidebarOpen) }}>{sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}</button><button className="find-sites-button" onClick={() => { setTool('sites'); setInspectorTab('edit') }}>Find sites</button><button className="studio-brief" onClick={() => setBriefOpen(true)} disabled={!result || evaluation.pending || !evaluated}>Print / View 1-Page Site Brief</button><input ref={importInput} type="file" accept="application/json,.json" hidden onChange={readImport}/><button onClick={() => importInput.current?.click()} disabled={!!tourStep || importBusy || !!buildingEdit}>Import scenario</button><button data-tour="export" className="studio-export" onClick={download} disabled={!result || evaluation.pending || !!buildingEdit}>Export scenario <span aria-hidden="true">↓</span></button></div>
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
         <PlannerMap buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding || paused ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
         <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
-        {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ 15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ 15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
+        {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates. Arrow keys move 1 m; Shift moves 5 m.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
         <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => setView3d(!view3d)} aria-pressed={view3d} aria-label={view3d ? '3D view. Switch to 2D' : '2D view. Switch to 3D'}>{view3d ? '3D' : '2D'}</button></div>
         <div className="canvas-heading"><span className="eyebrow">PITTSBURGH / {props.area?.toUpperCase()}</span></div>
@@ -783,6 +808,8 @@ function Studio({ data }) {
             <small className="plan-impact-note">{bar.netDetail}{bar.score.detail ? ` · ${bar.score.detail}` : ''}</small>
           </>}
         </section>
+        {buildingEdit && <div className="restored-plan-note" role="status"><span>Editing one planned building. Your saved plan stays unchanged until Save. Use the same rotate, size and position controls below.</span><button onClick={cancelBuildingEdit}>Cancel edit</button></div>}
+        {showRestoredPlan && (scenario.buildings.length > 0 || scenario.demolitions?.length > 0) && <div className="restored-plan-note" role="status"><span>Saved plan restored. Its buildings still occupy their sites. Review Your plan or start a New plan below.</span><button onClick={() => setShowRestoredPlan(false)} aria-label="Dismiss saved plan notice">×</button></div>}
         <div className="inspector-scroll" ref={inspectorScroll} key={inspectorTab}>
           {inspectorTab === 'edit' && tool === 'sites' && <><div className="drawer-heading"><h2>Find a site</h2><p>Choose a parcel to start building.</p></div><EmptySitesControl enabled={highlightEmpty} onChange={setHighlightEmpty} count={emptyPins.length} pending={emptySites.pending} loading={loaded.pending} error={emptySites.error || loaded.error} zoomedOut={!!viewport && !hasMapDetail(viewport)}/><StudioSites filters={siteFilters} setFilters={setSiteFilters} sites={sites} selectedPin={scenario.pin} onSelect={select} loading={sitesLoading} emptyAvailable={highlightEmpty} sources={data.sources}/></>}
           {inspectorTab === 'priorities' && <StudioPriorities pending={evaluation.pending} weights={scenario.weights} included={result?.comparison?.included} onChange={weights => set('weights', weights)}/>}
@@ -801,9 +828,9 @@ function Studio({ data }) {
           </div></details>}
           {inspectorTab === 'rankings' && <HousingComparison weights={scenario.weights} onWeights={weights => set('weights', weights)} comparison={result?.comparison} draft={option} selectedTypes={scenario.comparisonTypes} onSelection={types => set('comparisonTypes', types)} proposed={proposed} pending={evaluation.pending} expanded onExpand={() => setInspectorTab('rankings')} onBack={() => setInspectorTab('edit')} area={!!scenario.buildings?.length} onUse={previewTemplate} onAssumptions={() => setInspectorTab('assumptions')} reform={reformPreset} onReform={setReformPreset} zoningCode={props.zoning_code ?? null} costControl={costSwitch(true)}/>}
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
-            <div className="drawer-heading"><h3>New building</h3><p>Preview a housing type, then add it to your plan.</p></div>
+            <div className="drawer-heading"><h3>{buildingEdit ? 'Edit planned building' : 'New building'}</h3><p>Preview a housing type, then add it to your plan.</p></div>
             <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
-            {paused ? <div className="added-callout" role="status"><p><strong>✓ {justAdded.label} added to your plan.</strong> The preview is paused so it does not sit on top of the new building.</p><div className="placement-actions"><button onClick={event => selectBuilding({ kind: 'placed', id: justAdded.id, pin: justAdded.pin }, event.currentTarget)}>Inspect the new building</button></div></div> : <>
+            {paused ? <div className="added-callout" role="status"><p><strong>✓ {justAdded.label} {justAdded.edited ? 'updated in' : 'added to'} your plan.</strong> The preview is paused so it does not sit on top of the new building.</p><div className="placement-actions"><button onClick={event => selectBuilding({ kind: 'placed', id: justAdded.id, pin: justAdded.pin }, event.currentTarget)}>Inspect {justAdded.edited ? 'updated' : 'new'} building</button></div></div> : <>
             <fieldset className="quick-controls" aria-label="Size and orientation">
               <div className="quick-steppers">{[['width', 'Width', `${option.width} m`, 1], ['depth', 'Depth', `${option.depth} m`, 1], ['floors', 'Stories', option.floors ?? housingSpec(option).floors, 1]].map(([key, label, value, step]) => <div key={key} className="stepper"><span>{label}</span><button aria-label={`Decrease ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, -step)} onClick={() => resize(key, -step)}>−</button><output aria-live="polite" aria-label={label}>{value}</output><button aria-label={`Increase ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, step)} onClick={() => resize(key, step)}>+</button></div>)}</div>
               <div className="quick-rotate"><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button><button disabled={!option.placement} onClick={() => { setOption('placement', null); setPlacing(false) }}>Reset alignment</button></div>
@@ -828,7 +855,7 @@ function Studio({ data }) {
 
             {!evaluation.pending && evaluated && <TitleNineChecks result={evaluated.titleNine}/>}
             </>}
-            <div className="build-actions"><button className="primary-build" aria-disabled={!paused && !draftState.canPlace} onClick={() => { if (paused) setJustAdded(null); else if (draftState.canPlace) addBuilding(placing && hoverMassing ? hoverMassing : undefined) }}>{paused ? 'Preview another building' : placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
+            <div className="build-actions">{buildingEdit && <button onClick={cancelBuildingEdit}>Cancel building edit</button>}<button className="primary-build" aria-disabled={!paused && !draftState.canPlace} onClick={() => { if (paused) setJustAdded(null); else if (draftState.canPlace) addBuilding(placing && hoverMassing ? hoverMassing : undefined) }}>{buildingEdit ? 'Save building changes' : paused ? 'Preview another building' : placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
             <RedevelopmentImpact impact={siteImpact(siteDemolished)}/>
             <PermitPathway pathway={pathway}/>
             <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Advanced · income, costs & evidence →</button>
@@ -887,7 +914,7 @@ function Studio({ data }) {
           </>}
           {inspectorTab === 'assumptions' && <details className="evidence-panel"><summary>Public sources & limits</summary><p><strong>Infrastructure:</strong> Paths reserve 3 m, streets 12 m, parks 20 × 20 m. Only endpoints form junctions. River crossings, grades, safe access, land rights and engineering are unreviewed. Park access uses mapped paths and an assumed connector; wheelchair suitability is unknown. Transit preference uses a 30-minute anchor and parks a 15-minute anchor. Park priority is a value judgment, not an estimate of cooling or price change.</p><p><strong>Observed:</strong> OSM walking graph and mapped parks; County parcels/assessments, ACS 2020–2024, CHAS 2018–2022, PRT stop aggregates, mapped hazards. Snapshot {summary.pulled_at}.</p><p><strong>Existing buildings:</strong> County roof outlines in their recorded positions. {context ? buildingHeightCoverage(context.manifest.height_methods) : 'Building evidence is loading or unavailable.'} Click a building to inspect its height method. Colours show matched parcel assessment use, not recommended housing or verified occupancy. Neutral footprints have unknown use. Heights retain their separate evidence methods. These display estimates do not affect recommendations. No independently verified heights or terrain model; source dates and coverage vary. Nonresidential buildings are included.</p><p><strong>Proposed:</strong> dimensions, rents, utilities, target income, additional departures, service span and optional capacity. No LiDAR-derived heights have been added.</p><p><strong>Calculated:</strong> sampled outline fit, cost burden, aggregate walk/wait, conditional boarding capacity and weighted comparison.</p><p><strong>Not evaluated:</strong> zoning rules marked not assessed, contextual exceptions, utility capacity, negotiated acquisition prices (the pro forma uses sales or neighborhood ranges), engineering, travel destinations, displacement caused by development, or marginal tonnes of CO₂.</p><p>Hazard context: {floodStatus(props).label}; steep slope {fmt(typeof props.steep_slope_overlap === 'number' ? props.steep_slope_overlap * 100 : null, '%')}; mine overlap {fmt(typeof props.undermined_overlap === 'number' ? props.undermined_overlap * 100 : null, '%')}. Missing data is not a clean site finding.</p><a href="/data/walking-network.sources.json" target="_blank" rel="noreferrer">Walking network & park assumptions ↗</a><a href="/data/existing-buildings.sources.json" target="_blank" rel="noreferrer">Building evidence & height assumptions ↗</a><a href="/data/sources.json" target="_blank" rel="noreferrer">Source manifest ↗</a><a href="/data/score_model.json" target="_blank" rel="noreferrer">Archived source-model specification ↗</a><a href="https://ecode360.com/45476524#45476524" target="_blank" rel="noreferrer">Zoning use table ↗</a></details>}
         </div>
-        <footer className="inspector-footer"><div role="status">{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving on this device…' : autosave.kind === 'error' ? autosave.message : 'Your edits will save on this device.'}</div><a href="/accessibility">Accessibility & contact</a><div className="plan-storage-actions">{autosave.kind === 'error' && <><button onClick={autosave.retry}>{autosave.blocked ? 'Save this plan instead' : 'Retry saving'}</button>{autosave.raw && <button onClick={() => downloadRaw(autosave.raw, 'playhouse-saved-recovery.json')}>Download saved copy</button>}</>}<button onClick={() => setConfirmation({ kind: 'new' })}>New plan</button></div></footer>
+        <footer className="inspector-footer"><div role="status">{autosave.kind === 'saved' ? 'Saved on this device' : autosave.kind === 'pending' ? 'Saving on this device…' : autosave.kind === 'error' ? autosave.message : 'Your edits will save on this device.'}</div><a href="/accessibility">Accessibility & contact</a><div className="plan-storage-actions">{autosave.kind === 'error' && <><button onClick={autosave.retry}>{autosave.blocked ? 'Save this plan instead' : 'Retry saving'}</button>{autosave.raw && <button onClick={() => downloadRaw(autosave.raw, 'playhouse-saved-recovery.json')}>Download saved copy</button>}</>}<button disabled={!!buildingEdit} onClick={() => setConfirmation({ kind: 'new' })}>New plan</button></div></footer>
       </aside>
     </StudioWorkspace>
     {confirmation && <ConfirmDialog title={confirmation.kind === 'new' ? 'Start a new plan?' : 'Import this scenario?'} actionLabel={confirmation.kind === 'new' ? 'Start new plan' : 'Import & recalculate'} busy={importBusy} onClose={() => setConfirmation(null)} onConfirm={confirmation.kind === 'new' ? newPlan : applyImport}><p>{confirmation.kind === 'new' ? 'This resets buildings, demolitions, infrastructure and priorities on this parcel. Undo can restore the current plan.' : `Parcel ${confirmation.saved.scenario.pin} · ${confirmation.saved.scenario.buildings.length} planned buildings · ${confirmation.saved.scenario.demolitions.length} demolitions. The current plan will be replaced after its data has loaded; Undo can restore it.`}</p>{confirmation.notices?.map(note => <p key={note}>{note}</p>)}</ConfirmDialog>}
