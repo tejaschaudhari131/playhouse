@@ -55,7 +55,7 @@ Your priorities are value judgments. The sliders show each factor's share of the
 
 ![Adjustable priorities beside the 3D map, including market fit, affordability and displacement risk](docs/images/studio-priorities.jpg)
 
-Adding 60 assumed departures to this stop's 88 scheduled departures reduces estimated walk-plus-wait from 12.9 to 10.8 minutes. This is a scenario calculation, not a reliability forecast.
+In this earlier screenshot, adding 60 assumed departures to a stop's 88 scheduled departures reduced estimated walk-plus-wait from 12.9 to 10.8 minutes. Current values depend on the selected stop and saved schedule snapshot. This is a scenario calculation, not a reliability forecast.
 
 ![A transit scenario showing recorded stop service, proposed extra departures and before-and-after access estimates](docs/images/studio-transit.jpg)
 
