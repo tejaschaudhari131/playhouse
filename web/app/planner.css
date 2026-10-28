@@ -1007,15 +1007,16 @@
 /* Browser zoom reduces CSS viewport height. Never collapse the map into a hidden grid track. */
 @media (max-width: 760px) and (max-height: 600px) {
   .studio { height: auto; min-height: 100dvh; overflow: visible; }
-  .studio-workspace, .studio-workspace.is-comparing { flex: none; grid-template-rows: 240px 520px; overflow: visible; }
-  .studio-workspace.sidebar-collapsed { grid-template-rows: 240px; }
-  .studio-canvas { height: 240px; min-height: 240px; }
+  .studio-workspace, .studio-workspace.is-comparing { flex: none; grid-template-rows: 320px 520px; overflow: visible; }
+  .studio-workspace.sidebar-collapsed { grid-template-rows: 320px; }
+  .studio-canvas { height: 320px; min-height: 320px; }
   .studio-inspector { height: 520px; min-height: 0; }
   .studio-header-actions { flex-wrap: wrap; }
   .canvas-mode { top: 58px; right: 10px; max-width: calc(100% - 68px); }
   .studio-canvas .maplibregl-ctrl-top-right { top: 58px; right: auto; left: 10px; }
   .studio-canvas .maplibregl-ctrl-top-right .maplibregl-ctrl { float: none; margin: 0; }
   .map-detail-status { top: 10px; left: auto; right: 10px; max-width: calc(100% - 170px); }
+  .canvas-legend, .map-view-toggle, .map-overlays { bottom: 64px; }
 }
 .plan-confirm { width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; margin: auto; padding: 24px; border: 1px solid #9db6a4; border-radius: 12px; color: #263e30; background: #fffefa; box-shadow: 0 12px 48px #172d2a55; font-size: 15px; line-height: 1.5; }
 .plan-confirm::backdrop { background: #10261ccc; }
