@@ -30,7 +30,7 @@ Open the link, click any Pittsburgh lot (or search a parcel ID such as 0056F0033
 
 ## Try it
 
-1. **Pick a place.** Choose a neighborhood, then a parcel. Use **Find sites** to filter records and sort by lot size, vacancy, City ownership, tax delinquency or transit walk. Every match is reachable through pages. Turn on **Highlight empty sites** to find screened vacant candidates that also pass your current filters; click one to try a fitting template.
+1. **Pick a place.** Choose a neighborhood, then a parcel. Use **Find sites** to filter records and sort by lot size, vacancy, City ownership, tax delinquency or transit walk. Every match is reachable through pages. Use the **Empty sites** button on the map to highlight screened vacant candidates that also pass your current filters, even with the sidebar hidden. It shows the matching count in view; **ⓘ** explains the screen. Click a highlight to try a fitting template.
 2. **Try housing types.** Preview houses, duplexes, triplexes and apartments. Place several to form a plan.
 3. **Compare options.** Open **Compare → Compare to**. See scores, factor differences and zoning checks side by side.
 4. **Set your priorities.** Use **Priorities** to change what matters. Relative weights matter: all 1s and all 100s produce the same ranking.
