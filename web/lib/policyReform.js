@@ -2,7 +2,7 @@ import { districtStandards, codeLink } from './titleNineRules.js'
 
 const FT = 1 / 0.3048
 const LEGISTAR_1545 = 'https://pittsburgh.legistar.com/LegislationDetail.aspx?ID=7147499&GUID=C15553FF-85B6-480E-ACFF-53F40EF99EA9'
-const BONUS_DISTRICTS = /^(RM-(VL|L|M|H|VH)|NDO|LNC|NDI|UNC|UI)$/
+export const BONUS_DISTRICTS = /^(RM-(VL|L|M|H|VH)|NDO|LNC|NDI|UNC|UI)$/
 /** Affordable Housing Bonus, June 2026 draft: base 2 points for 10% of rental homes at or below 50% AMI; 1 point = 15 ft. */
 export const AFFORDABLE_BONUS = { points: 2, feetPerPoint: 15, storiesPerPoint: 1, minUnits: 4 }
 export const STARTER_LOT_SQFT = 1800

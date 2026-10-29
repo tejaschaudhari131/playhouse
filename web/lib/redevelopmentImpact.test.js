@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { recordedHomes, homesText, homesReplaced, netHomes, combinedHomes, redevelopmentImpact, planTaxLedger, constructionCost, IMPACT_ASSUMPTIONS } from './redevelopmentImpact.js'
 import { optionFor } from './plannerState.js'
 import { rectangleAt, geometryArea } from './plannerGeometry.js'
+import { fitToLot } from './lotFit.js'
 
 test('recorded homes follow County land use, with apartment bands as minimums and unclear housing as unknown', () => {
   const cases = [
@@ -65,8 +66,10 @@ test('feasibility screen reports observed context, assumed cost ranges, capitali
   assert.ok(Math.abs(impact.existing.demolishedSqft - area * 2 * 10.7639) < 1e-6, 'with no living area, a 7 m outline counts two assumed stories')
   assert.equal(impact.existing.area.basis, 'calculated')
   assert.deepEqual(impact.cost.demolition.map(Math.round), IMPACT_ASSUMPTIONS.demolitionPerSqft.map(rate => Math.round(rate * impact.existing.demolishedSqft)))
-  const newSqft = 10 * 16 * 3 * 10.7639
-  assert.deepEqual(impact.cost.construction.map(Math.round), [215, 285].map(rate => Math.round(rate * newSqft)))
+  assert.equal(impact.replacement.drawnSqft, 10 * 16 * 3 * 10.7639)
+  assert.equal(impact.replacement.sqft, 3600, 'a triplex is costed at 1,200 sq ft per home, not its 5,167 sq ft envelope')
+  assert.equal(impact.replacement.capped, true)
+  assert.deepEqual(impact.cost.construction, [170 * 3600, 250 * 3600])
   assert.deepEqual(impact.cost.acquisition.parcels.map(p => [p.basis, p.range]), [['old_sale', [85000, 85000]]])
   assert.equal(impact.replacement.netUnits, 1)
   const value = 1200 * 3 * 12 * 0.945 * 0.6 / 0.0725
@@ -77,7 +80,7 @@ test('feasibility screen reports observed context, assumed cost ranges, capitali
   assert.equal(impact.affordability.band, null, 'no HUD limits supplied')
   assert.equal(impact.displacement.renterHouseholds, 1)
   assert.equal(impact.displacement.screen, 62)
-  assert.deepEqual(impact.carbon.newTonnes.map(Math.round), [144, 288])
+  assert.deepEqual(impact.carbon.newTonnes.map(Math.round), [100, 201])
   assert.deepEqual(impact.vacant.savedDemolition, impact.cost.demolition)
 })
 
@@ -89,7 +92,7 @@ test('pro forma: observed living area, acquisition, hard vs total cost, break-ev
   const impact = redevelopmentImpact({ parcel, demolished: [house], draft, targetIncome: 60000, householdSize: 2, limits, benchmarks, asOfYear: 2026 })
   assert.equal(impact.existing.demolishedSqft, 1860)
   assert.equal(impact.existing.area.basis, 'observed')
-  const demolition = [8 * 1860, 15 * 1860], construction = [215, 285].map(r => r * 10 * 16 * 3 * 10.7639)
+  const demolition = [8 * 1860, 15 * 1860], construction = [170 * 3600, 250 * 3600]
   const hard = [demolition[0] + construction[0] * 1.1, demolition[1] + construction[1] * 1.1]
   closeRange(impact.cost.hard, hard, 'hard cost = demolition + construction + 10% site work')
   closeRange(impact.cost.soft, [hard[0] * 0.12, hard[1] * 0.12], 'design/permits/legal 12% of hard')
@@ -138,6 +141,24 @@ test('plan tax ledger sums placed buildings against parcels with demolished prin
   closeRange(ledger.newValue, hard.map(v => (v*1.17*1.1+4*3000+100000)*(1+.65*.5*.075*1.5)), 'plan cost proxy includes allowances and acquisition once')
   assert.deepEqual(ledger.replacedValue, [100000, 100000], 'parcel a counted once; garage-only parcel b keeps its tax')
   assert.deepEqual(planTaxLedger({}).net, [0, 0])
+})
+
+test('a fitted narrow-lot duplex is costed as 1–3 home infill, not as its stretched zoning envelope', () => {
+  const read = name => JSON.parse(readFileSync(new URL(`../testdata/study/${name}`, import.meta.url)))
+  const parcel = read('parcels.geojson').features.find(f => f.properties.pin === '0056F00332000000')
+  const duplex = optionFor('townhouse_duplex', 1000)
+  const fit = fitToLot({ option: duplex, geometry: parcel.geometry })
+  const draft = { ...duplex, width: fit.width, depth: fit.depth }
+  const benchmarks = { living: { q1: 45, median: 70, q3: 100, n: 20 }, livingScope: 'Hazelwood', lot: null, lotScope: null }
+  const impact = redevelopmentImpact({ parcel: parcel.properties, demolished: [], draft, targetIncome: 46380, benchmarks, asOfYear: 2026 })
+  assert.ok(impact.replacement.drawnSqft > 4000, '4822 Chatsworth Ave: 6 × 21 m × 3 stories drawn')
+  assert.equal(impact.replacement.sqft, 2600)
+  assert.deepEqual(impact.cost.construction, [170 * 2600, 240 * 2600])
+  assert.ok(impact.cost.development[0] > 600000 && impact.cost.development[1] < 1150000, `TDC ${impact.cost.development}`)
+  assert.ok(impact.value.breakEvenRent[1] < 6000, `break-even ${impact.value.breakEvenRent}`)
+  const apartment = constructionCost(optionFor('small_apartment', 1200))
+  assert.equal(apartment.capped, false, 'apartments are costed at their full drawn floor area')
+  assert.equal(apartment.sqftCap, null)
 })
 
 test('vacant or unknown context never invents demolition cost, homes or displacement', () => {

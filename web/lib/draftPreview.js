@@ -15,7 +15,7 @@ export function draftPreview(option, pending = false) {
   if (!option?.massing?.geometry) return null
   const valid = option.massing.fits && option.massing.collisions === 0 && (option.titleNine ? !option.titleNine.conflict : option.permission?.category === 'permitted')
   return { type: 'Feature', geometry: option.massing.geometry, properties: {
-    height: option.height,
+    height: option.height, typeId: option.typeId ?? null, floors: option.floors ?? null, state: pending ? 'pending' : valid ? 'valid' : 'invalid',
     color: pending ? '#94a3b8' : valid ? PLACEMENT_COLORS.valid : PLACEMENT_COLORS.invalid,
     status: pending ? 'Checking placement…' : option.titleNine?.conflict ? 'Zoning conflict · no housing score' : valid ? (option.titleNine?.excluded.length ? 'No supported conflict · some checks not assessed' : 'Placement screen passed') : 'Placement needs review',
   } }

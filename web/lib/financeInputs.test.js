@@ -26,7 +26,8 @@ test('budget includes each cost exactly once and exposes financing assumptions',
   close(budget.beforeLand[0], budget.development[0]-100000)
 })
 test('cost bands differentiate low-rise construction without giving an eight-story building walk-up prices', () => {
-  assert.deepEqual(constructionRates({typeId:'triplex',floors:3}),[215,285])
+  assert.deepEqual(constructionRates({typeId:'triplex',floors:3}),[170,250])
+  assert.deepEqual(constructionRates({typeId:'townhouse_duplex',floors:3}),[170,240], 'small infill ignores the story band')
   assert.deepEqual(constructionRates({typeId:'small_apartment',floors:2}),[185,230])
   assert.deepEqual(constructionRates({typeId:'large_apartment',floors:8}),[340,485])
 })

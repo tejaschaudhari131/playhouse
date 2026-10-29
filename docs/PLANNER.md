@@ -151,9 +151,32 @@ Position on map stays active when cycling housing types. The colored preview and
 
 Inspect a proposed building and choose **Edit shape & position**. Change the shape at its existing location, then Save or Cancel. The saved plan is unchanged until Save, which is one undoable action and keeps the building's ID and list position. Changing sites requires saving or cancelling first. Scenario export is explicit; autosave writes only to this device's local storage and does not download files.
 
+## 3D buildings, block and shadows
+
+The angled view draws proposed buildings as procedural architecture rather than plain boxes. Every part stays inside the checked footprint and at or below the modelled height. Fit, overlap and zoning screens therefore still describe exactly what is drawn. Each story is a floor plate with a darker 0.35 m recessed band. The parts by type are:
+
+- **Single-family and ADU:** a 1-story front porch, 1.8–2.2 m deep, and a stepped pitched-look roof.
+- **Duplex:** side-by-side bays in alternating tones, party-wall trim, stoops and a cornice cap.
+- **Triplex:** a masonry base, front balcony ledges and a capped roof.
+- **Apartments:** a 3.8 m podium, recessed upper stories, a parapet, a rooftop penthouse and a solar array.
+
+A pending, invalid or review preview keeps its warning color on every part, with a ground rim in the same color. Placed buildings use material tones.
+
+The front is a display guess; Playhouse has no legal frontage data. With nearby parcels loaded, the front faces the wider open gap beyond the lot line: a street right-of-way rather than an alley or a back-to-back neighbour. Otherwise it is the width edge nearer a lot line. Porches, stoops, balconies, the paved front walk and **Street** view all use that guess.
+
+Existing footprints keep their recorded-use colors as warmed facades with a charcoal roof cap on the top 0.45 m. Lighting follows the selected sun. The selected lot and lots with placed buildings get raised yard turf, a curb and a paved walk. Procedural trees grow in proposed parks, along newly drawn paths, and as up to three yard trees on placed-building lots, kept clear of footprints. They are scenery, not a canopy or stormwater estimate.
+
+**Build** and **Compare** show the selected lot's zoning envelope as an inset buildable pad plus height-limit corner posts and a top frame. The pad is an estimate. Its narrow ends are inset by the larger of the district's front and rear yards, and its long sides by the interior side yard. Corner-lot and legal-frontage yards are not classified. The height follows the **Policy Reform Simulator** preset. Only Council Bill 2025-1545's conditional Affordable Housing Bonus changes it: +30 ft for 4+ homes in eligible districts. A grey ghost frame then marks the current-code height, and the map note states the condition and that the bill is not law. Other presets leave height unchanged.
+
+**Morning / Noon / Afternoon** cast semi-transparent ground shadows from existing and proposed buildings. They use an equinox sun at 9:00, 12:00 and 15:00 solar time at Pittsburgh's latitude. Each shadow is the convex outline of the footprint and its cast roof: exact for rectangles and slightly generous for L-shapes. It is not a dated shadow study and ignores terrain and trees. **Street** pitches the camera to about 72°, close to the parcel, facing the guessed front facade. Press it again to return to the 55° aerial view.
+
+Code: `web/lib/architecture3d.js`, `streetscape3d.js`, `zoningEnvelope.js`, `sunShadows.js` and `localFrame.js`.
+
 ## Financial assumptions
 
 The editable `pro-forma-2.0` screen separates vertical construction, site work, demolition, contingency, design/permits/legal, developer fee, construction interest, initial reserves and acquisition. Inputs are saved under `scenario.proForma` and validated on import. Low/high construction overrides belong to each housing type; other assumptions apply across the plan. Finance-only edits do not recompute geometry or preference factors.
+
+**Small infill costing.** Single-family, duplex and triplex drafts use one Pittsburgh wood-frame band per type, whatever the story count: $190–265, $170–240 and $170–250 per sq ft. Gross floor area is costed up to 2,200, 1,300 and 1,200 sq ft per home. The drawn box is a zoning envelope, so a slim, deep footprint from **Fit dimensions to lot** keeps its full massing on the map, but area above the cap is not priced. The panel says when the cap applies. On 4822 Chatsworth Ave the fitted 6 × 21 m, 3-story duplex draws about 4,070 sq ft and is costed at 2,600 sq ft: $442k–$624k to build and $736k–$1.10M total with acquisition at Hazelwood sale prices. Apartments keep the story-based national bands at their full drawn area. Code: `SMALL_INFILL` in `web/lib/financeInputs.js`.
 
 NOI = annual scheduled rent × (1 − vacancy) × (1 − operating-expense share). Expenses include taxes but exclude debt service. Capitalized income = NOI ÷ cap rate. Break-even rent reverses that same equation against total development cost; it is not a financing or debt-service test. Reserves here are an upfront allowance. Construction interest uses a financed-cost share, annual rate, term and average drawn balance; it is not a lender draw schedule.
 
