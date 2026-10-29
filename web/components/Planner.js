@@ -63,7 +63,7 @@ import HudIncomeReference from './HudIncomeReference.js'
 import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
 import { envelopeHeight } from '../lib/zoningEnvelope.js'
-import { SUN_TIMES } from '../lib/sunShadows.js'
+import SunTimeControl from './SunTimeControl.js'
 import PolicyReformSimulator from './PolicyReformSimulator.js'
 import PermitPathway from './PermitPathway.js'
 import SiteBrief from './SiteBrief.js'
@@ -796,12 +796,12 @@ function Studio({ data }) {
           </div>
           <EmptySitesControl enabled={highlightEmpty} onChange={setHighlightEmpty} count={emptyPins.length} pending={emptySites.pending} loading={loaded.pending} error={emptySites.error || loaded.error} zoomedOut={!!viewport && !hasMapDetail(viewport)}/>
           <div className="map-context-notes">
-        <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
-        {(tool === 'housing' || tool === 'compare') && zoningEnvelope && <div className="map-envelope-key" role="note"><i aria-hidden="true"/>{zoningEnvelope.text}</div>}
+            <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
+            {(tool === 'housing' || tool === 'compare') && zoningEnvelope && <div className="map-envelope-key" role="note"><i aria-hidden="true"/>{zoningEnvelope.text}</div>}
           </div>
         </div>
         <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => { setView3d(!view3d); if (view3d) setStreetView(false) }} aria-pressed={view3d} aria-label={view3d ? '3D view. Switch to 2D' : '2D view. Switch to 3D'}>{view3d ? '3D' : '2D'}</button><button className="street-view-toggle" onClick={() => { setStreetView(!streetView); setView3d(true) }} aria-pressed={streetView && view3d} aria-label="Street view" title={streetView && view3d ? 'Street view on. Press to return to the aerial view' : 'Eye-level view of the selected block'}>Street</button></div>
-        <div className="map-sun-toggle" role="radiogroup" aria-label="Sun position for shadows (equinox)">{SUN_TIMES.map(time => <button key={time.id} role="radio" aria-checked={sunTime === time.id} onClick={() => setSunTime(time.id)}>{time.label}</button>)}</div>
+        <SunTimeControl value={sunTime} onChange={setSunTime}/>
         <div className="canvas-mode">{(tool === 'service' || tool === 'network' || inspectorTab === 'rankings' || scenario.additionalDepartures > 0 || scenario.connections.length > 0 || scenario.parks.length > 0) && <div className="segmented" aria-label="Infrastructure view"><button className={!proposed ? 'active' : ''} aria-pressed={!proposed} onClick={() => setProposed(false)}>Current infrastructure</button><button className={proposed ? 'active' : ''} aria-pressed={proposed} onClick={() => setProposed(true)}>With changes</button></div>}<div className="history-controls"><button aria-label="Undo scenario edit" title="Undo" disabled={!history.past.length || !!pendingHistory} onClick={() => restoreHistory('undo')}>↶</button><button aria-label="Redo scenario edit" title="Redo" disabled={!history.future.length || !!pendingHistory} onClick={() => restoreHistory('redo')}>↷</button></div></div>
         <div className="map-overlays">
           {(tool === 'housing' || tool === 'compare') && !selectedBuilding && paused && <div className="draft-dock"><div><span className="eyebrow">ADDED TO PLAN</span><strong>{justAdded.label}</strong></div><span>Preview paused so it does not cover the new building.</span><button className="dock-action next" onClick={() => setJustAdded(null)}>Preview another building</button></div>}

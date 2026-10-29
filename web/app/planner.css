@@ -518,6 +518,9 @@
 .map-sun-toggle { position: absolute; right: 14px; bottom: 88px; display: flex; padding: 3px; gap: 2px; border: 1px solid #d4dfd2; border-radius: 9px; background: #fafcf8f2; box-shadow: 0 2px 8px #1f3d2810; }
 .studio .map-sun-toggle button { min-height: 30px; padding: 5px 9px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #4d6656; font-size: 11px; }
 .studio .map-sun-toggle button[aria-checked=true] { border-color: #e2c27a; background: #fff3d6; color: #6b4a0f; font-weight: 650; }
+.studio .map-sun-toggle button { display: grid; place-items: center; min-width: 34px; min-height: 34px; padding: 6px; }
+.studio .map-sun-toggle button:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
+.map-sun-toggle svg { display: block; }
 .map-envelope-key { position: absolute; top: 100px; left: 92px; display: flex; align-items: center; gap: 7px; max-width: min(430px, calc(100% - 260px)); padding: 6px 9px; border: 1px solid #c9d8ea; border-radius: 7px; background: #f7fafef0; box-shadow: 0 2px 8px #1f3d2810; color: #2f4c69; font-size: 11px; line-height: 1.35; pointer-events: none; }
 .map-envelope-key i { flex: none; width: 14px; height: 10px; border: 2px solid #3b82f6; border-radius: 2px; background: #3b82f633; }
 .studio-canvas .maplibregl-ctrl-bottom-left { left: 10px; }
