@@ -62,6 +62,8 @@ import { housingCostInputs, housingCostConfirmed } from '../lib/housingCosts.js'
 import HudIncomeReference from './HudIncomeReference.js'
 import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
+import { envelopeHeight } from '../lib/zoningEnvelope.js'
+import { SUN_TIMES } from '../lib/sunShadows.js'
 import PolicyReformSimulator from './PolicyReformSimulator.js'
 import PermitPathway from './PermitPathway.js'
 import SiteBrief from './SiteBrief.js'
@@ -291,7 +293,7 @@ function Studio({ data }) {
     window.history.replaceState(null, '', url)
   }, [scenario.pin, tourStep])
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [tool, setActiveTool] = useState('housing'), [proposed, setProposed] = useState(true), [view3d, setView3d] = useState(true)
+  const [tool, setActiveTool] = useState('housing'), [proposed, setProposed] = useState(true), [view3d, setView3d] = useState(true), [streetView, setStreetView] = useState(false), [sunTime, setSunTime] = useState('noon')
   const scenarioPins = plan => [plan.pin, ...(plan.buildings || []).map(b => b.pin), ...(plan.demolitions || []).map(demolitionSite)]
   const scenarioNeighborhoods = plan => [...new Set([...scenarioPins(plan).map(pin => catalogue.get(pin).id), ...[...(plan.connections || []), ...(plan.parks || [])].flatMap(edit => edit.neighborhoodIds || [])])].sort()
   const requiredIds = scenarioNeighborhoods(scenario)
@@ -391,7 +393,7 @@ function Studio({ data }) {
     const feature = byPin.get(TOUR_PIN), stop = preferredStop(nearbyStops(feature, stops))
     dispatch({ type: 'restoreHistory', history: historyFor(tourScenario(tourStep.id, feature, stop)) })
     setTourApplied(tourStep.id)
-    setSidebarOpen(true); setActiveTool(tourStep.tool); setInspectorTab(tourStep.tab); setView3d(tourStep.tool !== 'service'); setProposed(true); setQuery('')
+    setSidebarOpen(true); setActiveTool(tourStep.tool); setInspectorTab(tourStep.tab); setView3d(tourStep.tool !== 'service'); setStreetView(false); setProposed(true); setQuery('')
   }, [tourStep, tourApplied, byPin, stops])
   const finishTour = useCallback(() => {
     const previous = tourReturn.current
@@ -461,6 +463,10 @@ function Studio({ data }) {
   }, [result?.committed, proposed, scenario.buildings])
   const options = result ? (proposed ? result.proposal : result.baseline) : null
   const option = scenario.draft, evaluated = options?.[option.typeId]
+  const zoningEnvelope = useMemo(() => {
+    const height = envelopeHeight(props.zoning_code ?? null, reformPreset, option.typeId), district = districtStandards(props.zoning_code ?? null)
+    return height && district?.yards ? { ...height, yards: district.yards, ghostHeightM: height.bonusFt ? height.baseM : null } : null
+  }, [props.zoning_code, reformPreset, option.typeId])
   const pathway = !evaluation.pending && evaluated ? permitPathway({ props, checks: evaluated.titleNine?.checks ?? null, permission: evaluated.permission, option: { ...option, floors: option.floors ?? housingSpec(option).floors }, label: housingSpec(option).label, geometry: selected.geometry, options: Object.values(options) }) : null
 
   const paused = previewPaused(justAdded, scenario) && !placing
@@ -779,11 +785,13 @@ function Studio({ data }) {
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
-        <PlannerMap buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding || paused ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest}/>
+        <PlannerMap buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding || paused ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest} streetView={streetView} sunTime={sunTime} zoningEnvelope={zoningEnvelope}/>
         <div className="map-detail-status" role="status">{loaded.error ? <button onClick={loaded.retry}>Neighborhood data unavailable · Retry</button> : pendingPin || pendingHistory || loaded.pending ? 'Loading neighborhood…' : viewport && !hasMapDetail(viewport) ? 'Zoom in for buildings and parcels' : null}</div>
         {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates. Arrow keys move 1 m; Shift moves 5 m.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
-        <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => setView3d(!view3d)} aria-pressed={view3d} aria-label={view3d ? '3D view. Switch to 2D' : '2D view. Switch to 3D'}>{view3d ? '3D' : '2D'}</button></div>
+        <div className="map-view-toggle"><button onClick={() => setFocusRequest(n => n + 1)} aria-label="Center selected site" title="Center selected site"><Icon name="pin" size={18}/></button><button onClick={() => { setView3d(!view3d); if (view3d) setStreetView(false) }} aria-pressed={view3d} aria-label={view3d ? '3D view. Switch to 2D' : '2D view. Switch to 3D'}>{view3d ? '3D' : '2D'}</button><button className="street-view-toggle" onClick={() => { setStreetView(!streetView); setView3d(true) }} aria-pressed={streetView && view3d} aria-label="Street view" title={streetView && view3d ? 'Street view on. Press to return to the aerial view' : 'Eye-level view of the selected block'}>Street</button></div>
+        <div className="map-sun-toggle" role="radiogroup" aria-label="Sun position for shadows (equinox)">{SUN_TIMES.map(time => <button key={time.id} role="radio" aria-checked={sunTime === time.id} onClick={() => setSunTime(time.id)}>{time.label}</button>)}</div>
+        {(tool === 'housing' || tool === 'compare') && zoningEnvelope && <div className="map-envelope-key" role="note"><i aria-hidden="true"/>{zoningEnvelope.text}</div>}
         <div className="canvas-heading"><span className="eyebrow">PITTSBURGH / {props.area?.toUpperCase()}</span></div>
         <div className="canvas-mode">{(tool === 'service' || tool === 'network' || inspectorTab === 'rankings' || scenario.additionalDepartures > 0 || scenario.connections.length > 0 || scenario.parks.length > 0) && <div className="segmented" aria-label="Infrastructure view"><button className={!proposed ? 'active' : ''} aria-pressed={!proposed} onClick={() => setProposed(false)}>Current infrastructure</button><button className={proposed ? 'active' : ''} aria-pressed={proposed} onClick={() => setProposed(true)}>With changes</button></div>}<div className="history-controls"><button aria-label="Undo scenario edit" title="Undo" disabled={!history.past.length || !!pendingHistory} onClick={() => restoreHistory('undo')}>↶</button><button aria-label="Redo scenario edit" title="Redo" disabled={!history.future.length || !!pendingHistory} onClick={() => restoreHistory('redo')}>↷</button></div></div>
         <div className="map-overlays">

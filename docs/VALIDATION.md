@@ -255,3 +255,28 @@ Program eligibility, actual restricted units/eligible basis, financing commitmen
 ## Compact housing cards — October 27, 2026
 
 Four targeted test files pass: build controls, Studio presentation, draft status and Title Nine. New cases preserve blocked scores, distinguish unknown fit from failure, count conditional checks as unassessed and retain aggregate plan scope. The Next.js production build passes. Browser checks on Hazelwood confirmed equal 129 px card heights without horizontal overflow at 420 px and 600 px sidebar widths, arrow-key selection/focus, the information disclosure and Escape dismissal, and selected-type conflict details with code links. No browser warnings/errors were captured. This is presentation only: scoring, source data and eligibility rules are unchanged.
+
+## Procedural 3D architecture and block streetscape — October 29, 2026
+
+All 364 web tests pass, including 24 new 3D cases. They cover:
+
+- footprint frames and the front guess from nearest lot line and street gap;
+- every typology staying inside its footprint and under its height, with one plate per story;
+- typology features and preview warning hues;
+- existing-building tones;
+- equinox sun angles and shadow direction and length;
+- yard pads, inset refusal, the front walk, park, path and yard trees;
+- envelope height per reform preset, the setback pad and envelope posts.
+
+The Next.js production build passes.
+
+Headless Chrome (SwiftShader WebGL) on Hazelwood PIN `0056F00338000000` checked:
+
+- the duplex, single-family, triplex and red small-apartment previews;
+- Add to plan with material tones and yard trees;
+- Morning, Noon and Afternoon shadow direction;
+- Street view toward the guessed front facade, and back to aerial;
+- the Bill 2025-1545 envelope at 45 → 75 ft with the current-code ghost frame;
+- 390 px and 900 px layouts.
+
+No browser warnings or errors were captured. Park and path trees are covered by unit tests, not by a browser check. Scores, eligibility, source data and plan schema are unchanged. The draft preview adds display-only `typeId`, `floors` and `state` properties.

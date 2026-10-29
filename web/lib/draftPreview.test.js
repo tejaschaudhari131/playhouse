@@ -24,6 +24,8 @@ test('preview distinguishes passed checks, unknown context, nonpermitted use, an
   assert.equal(draftPreview({ ...option, massing: { ...massing, collisions: null } }).properties.color, PLACEMENT_COLORS.invalid)
   assert.equal(draftPreview({ ...option, permission: { category: 'not_permitted' } }).properties.color, PLACEMENT_COLORS.invalid)
   assert.equal(draftPreview(option, true).properties.status, 'Checking placement…')
+  assert.deepEqual(['valid', 'invalid', 'pending'], [draftPreview(option), draftPreview({ ...option, permission: { category: 'not_permitted' } }), draftPreview(option, true)].map(p => p.properties.state), '3D massing keeps the placement state')
+  assert.deepEqual([draftPreview({ ...option, typeId: 'triplex', floors: 3 }).properties.typeId, draftPreview({ ...option, typeId: 'triplex', floors: 3 }).properties.floors], ['triplex', 3])
   assert.equal(draftPreview(null), null)
   assert.equal(draftPreview({ massing: { geometry: null } }), null)
 })
