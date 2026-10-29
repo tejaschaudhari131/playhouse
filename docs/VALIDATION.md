@@ -280,3 +280,34 @@ Headless Chrome (SwiftShader WebGL) on Hazelwood PIN `0056F00338000000` checked:
 - 390 px and 900 px layouts.
 
 No browser warnings or errors were captured. Park and path trees are covered by unit tests, not by a browser check. Scores, eligibility, source data and plan schema are unchanged. The draft preview adds display-only `typeId`, `floors` and `state` properties.
+
+## Three.js real-world building layer — October 29, 2026
+
+All 384 web tests pass, including 20 new cases in `threeBuildingMeshes.test.js` and `threeBuildingsLayer.test.js`. They cover:
+
+- Web Mercator helpers against haversine distances;
+- gable and hip roof vertices (ridge, eaves, gable-end triangles, wall top);
+- the minimum-area oriented box on rotated rectangles and L-shapes, with neighbour ridges parallel to the long axis;
+- flat roofs for commercial and tall buildings;
+- nearest-building selection with demolished footprints excluded;
+- every typology inside its footprint and height with its entrance on the front, its real-world parts, and solar facing south;
+- preview state tints;
+- per-material merging, caching, the inspected highlight and geometry disposal;
+- the no-WebGL2 fallback;
+- the layer's MapLibre matrix and cleanup on remove.
+
+The Next.js production build passes.
+
+Headless Chrome (SwiftShader WebGL2, 2× device pixel ratio) checked two parcels. Each had Single-family, Duplex and Large apartment previews at 55° (3D) and 72° (Street) pitch:
+
+- **Hazelwood Ave** (PIN `0056F00338000000`, 5,100 sq ft).
+- **4822 Chatsworth Ave** (PIN `0056F00332000000`, 2,441 sq ft), after "Fit dimensions to lot" and "Demolish & replace existing". The demolished house drops out of the mesh set.
+
+Further browser checks:
+
+- Add to plan, with the preview hidden during construction, under afternoon light;
+- clicking a meshed neighbour through the invisible hit layer, which opened its building inspector and turned it teal;
+- the 2D toggle falling back to extrusions;
+- about 140 meshed neighbours at street zoom.
+
+No browser warnings or errors were captured. The 40-unit apartment does not fit either lot and is shown with its red rim. On Chatsworth, the existing front guess puts its storefront away from the street, because the footprint spills past the lot. Scores, eligibility, source data and plan schema are unchanged.

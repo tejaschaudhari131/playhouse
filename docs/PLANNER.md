@@ -153,7 +153,33 @@ Inspect a proposed building and choose **Edit shape & position**. Change the sha
 
 ## 3D buildings, block and shadows
 
-The angled view draws proposed buildings as procedural architecture rather than plain boxes. Every part stays inside the checked footprint and at or below the modelled height. Fit, overlap and zoning screens therefore still describe exactly what is drawn. Each story is a floor plate with a darker 0.35 m recessed band. The parts by type are:
+### Real-world building meshes
+
+When **3D** is on and the map is at zoom 16 or closer, a Three.js layer draws buildings as textured meshes rather than extrusions. It runs inside MapLibre as a custom WebGL layer (`CustomLayerInterface`), sharing the map's WebGL context and depth buffer. Every mesh stays inside its footprint and at or below its modelled or recorded height, so fit, overlap and zoning screens still describe exactly what is drawn.
+
+Proposed buildings (the live preview and every placed building) follow the exact footprint, rotation and guessed front:
+
+- **Single-family and ADU:** a gable or hip shingle roof with eaves, a ridge cap and a chimney. Gable ends get an attic vent or window. Walls are clapboard or brick over a stone foundation, with corner trim. Windows have frames, sills and shutters. The door has a warm transom and a porch light, under a porch with columns, a railing and its own roof.
+- **Duplex:** a Pittsburgh double house, with either twin front gables or an Italianate cornice (always the cornice above 11.6 m). It has a brick party wall, twin stoops with railings, paired doors, bay windows and windows on all four sides.
+- **Triplex:** a brick walk-up on a rusticated stone base, with limestone lintels and sills, front balconies and a bracketed cornice.
+- **Apartments:** a storefront or lobby podium with mullions, canopies and piers. Above it are articulated window bays with warm recessed windows and balconies, then a parapet, a penthouse and a solar array tilted toward the south.
+
+Variation in siding colour, roof form and door tone comes from a stable seed and never feeds a score. A blocked preview gets a red roof and trim; a pending one gets a grey roof. Every preview gets a red, grey or green ground rim. Placed buildings take their legend colour on the roof.
+
+The nearest 140 recorded buildings within 260 m of the view centre are also meshed. Demolished footprints are excluded. Their walls follow the recorded outline:
+
+- **Residential, up to about 13.5 m and 16 m wide, and close to rectangular:** brick or siding with window grids, under a gable or hip roof laid along the outline's minimum-area oriented box. Roofs and eaves may overhang a notch in an L-shaped outline.
+- **Commercial and larger buildings:** window or storefront facades, a cornice band, a parapet with flat roof, and rooftop units.
+
+Buildings further out stay as extrusions. Meshes are cached per building, merged into one draw per material, and disposed when replaced.
+
+Directional and sky lights follow **Morning / Noon / Afternoon**. Clicks still hit-test the existing map layers: proposed and placed extrusions turn invisible but stay queryable, and an invisible hit layer covers the meshed neighbours. An inspected neighbour turns teal. Without WebGL2, in 2D or when zoomed out, the procedural extrusion massing below is drawn instead.
+
+Code: `web/lib/threeBuildingMeshes.js` (geometry, no Three.js dependency), `threeMaterials.js` (procedural canvas textures) and `threeBuildingsLayer.js` (the custom layer and scene).
+
+### Extrusion massing
+
+Without the mesh layer, the angled view draws proposed buildings as procedural extrusions rather than plain boxes. They obey the same footprint and height limits. Each story is a floor plate with a darker 0.35 m recessed band. The parts by type are:
 
 - **Single-family and ADU:** a 1-story front porch, 1.8–2.2 m deep, and a stepped pitched-look roof.
 - **Duplex:** side-by-side bays in alternating tones, party-wall trim, stoops and a cornice cap.
@@ -162,7 +188,7 @@ The angled view draws proposed buildings as procedural architecture rather than 
 
 A pending, invalid or review preview keeps its warning color on every part, with a ground rim in the same color. Placed buildings use material tones.
 
-The front is a display guess; Playhouse has no legal frontage data. With nearby parcels loaded, the front faces the wider open gap beyond the lot line: a street right-of-way rather than an alley or a back-to-back neighbour. Otherwise it is the width edge nearer a lot line. Porches, stoops, balconies, the paved front walk and **Street** view all use that guess.
+The front is a display guess; Playhouse has no legal frontage data. With nearby parcels loaded, the front faces the wider open gap beyond the lot line: a street right-of-way rather than an alley or a back-to-back neighbour. Otherwise it is the width edge nearer a lot line. Porches, stoops, doors, balconies, storefronts, the paved front walk and **Street** view all use that guess. A footprint that spills past its lot can get its front on the wrong side.
 
 Existing footprints keep their recorded-use colors as warmed facades with a charcoal roof cap on the top 0.45 m. Lighting follows the selected sun. The selected lot and lots with placed buildings get raised yard turf, a curb and a paved walk. Procedural trees grow in proposed parks, along newly drawn paths, and as up to three yard trees on placed-building lots, kept clear of footprints. They are scenery, not a canopy or stormwater estimate.
 

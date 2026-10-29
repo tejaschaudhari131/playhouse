@@ -19,7 +19,8 @@ import { recordedBuildingRef, retainedBuildings, demolitionKey, demolitionSite, 
 import { playDemolitionEffect } from '../lib/demolitionEffect.js'
 import { playConstructionEffect } from '../lib/constructionEffect.js'
 import { basemapStyle } from '../lib/basemap.js'
-import { architecturalMassing, facadeBearing, EXISTING_FACADE_COLOR, EXISTING_ROOF_COLOR, ROOF_CAP_M } from '../lib/architecture3d.js'
+import { architecturalMassing, facadeBearing, footprintBox, withFront, EXISTING_FACADE_COLOR, EXISTING_ROOF_COLOR, ROOF_CAP_M } from '../lib/architecture3d.js'
+import { neighborhoodSelection } from '../lib/threeBuildingMeshes.js'
 import { yardPad, frontWalk, streetscapeTrees } from '../lib/streetscape3d.js'
 import { buildingShadows, sunFor, sunLight } from '../lib/sunShadows.js'
 import { envelopeFeatures } from '../lib/zoningEnvelope.js'
@@ -71,6 +72,16 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   const inspectedSourceId = useRef(null), consumedBuildingFocus = useRef(null)
   const consumedDemolition = useRef(null)
   const constructionRun = useRef(null), constructionRequest = useRef(null), consumedConstruction = useRef(null)
+  // Real-world Three.js buildings: loaded on first 3D detail view, one controller per map instance.
+  const three = useRef(null), threeLoad = useRef(null)
+  const [threeStatus, setThreeStatus] = useState('idle'), [meshFocus, setMeshFocus] = useState(null), [constructing, setConstructing] = useState(null)
+  const threeWanted = !!view3d && detail && viewport.zoom >= 16, threeActive = threeWanted && threeStatus === 'ready'
+  const threeController = threeStatus === 'ready' ? three.current?.controller ?? null : null
+  const demolishedKeys = useMemo(() => new Set(demolitions.map(demolitionKey).filter(Boolean)), [demolitions])
+  const meshCandidates = useMemo(() => threeActive && showExisting && meshFocus ? neighborhoodSelection(visibleBuildings, meshFocus, { exclude: demolishedKeys }) : [], [threeActive, showExisting, meshFocus, visibleBuildings, demolishedKeys])
+  const meshKey = meshCandidates.map(f => String(f.properties.id ?? f.id)).join('|')
+  const meshedIds = useMemo(() => meshKey ? meshKey.split('|') : [], [meshKey])
+  const inspectedKey = selectedBuilding?.kind === 'existing' ? demolitionKey(selectedBuilding) : null
   const roadIndex = useMemo(() => tool === 'network' && network ? networkDisplayIndex(network, neighborhoods) : null, [tool, network, neighborhoods])
   const visibleKey = visibleNeighborhoodIds.join('|')
   const visibleRoads = useMemo(() => detail && roadIndex ? roadIndex.query(renderBounds, visibleKey.split('|').filter(Boolean)) : [], [roadIndex, detail, renderBounds, visibleKey])
@@ -103,6 +114,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     lastPin.current = null
     lastStreet.current = null
     inspectedSourceId.current = null
+    three.current = null; threeLoad.current = null
+    setThreeStatus('idle')
     const benchmark = process.env.NEXT_PUBLIC_MAP_BENCHMARK === '1' && new URLSearchParams(window.location.search).has('renderBenchmark')
     try {
       configureMapWorkers()
@@ -153,6 +166,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       const inspected = ['boolean', ['feature-state', 'inspected'], false]
       map.addLayer({ id: 'existing-buildings-fill', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-height': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-color': ['case', inspected, '#35b6bb', EXISTING_FACADE_COLOR], 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
       map.addLayer({ id: 'existing-buildings-roof', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-base': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-height': ['get', 'height_m'], 'fill-extrusion-color': ['case', inspected, '#1f7f84', EXISTING_ROOF_COLOR], 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
+      // Buildings drawn by the Three.js layer stay clickable through this invisible copy (opacity 0 skips drawing, not queries).
+      map.addLayer({ id: 'existing-buildings-hit', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, filter: ['in', ['to-string', ['get', 'id']], ['literal', []]], paint: { 'fill-extrusion-height': ['get', 'height_m'], 'fill-extrusion-color': '#000000', 'fill-extrusion-opacity': 0 } })
       map.addLayer({ id: 'service-link', type: 'line', source: 'service', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': '#386da3', 'line-width': 3 } })
       map.addLayer({ id: 'stops-points', type: 'circle', source: 'stops', minzoom: DETAIL_EXIT_ZOOM, paint: { 'circle-radius': 4, 'circle-color': '#fff', 'circle-stroke-color': '#587693', 'circle-stroke-width': 1.5 } })
       map.addLayer({ id: 'service-zone', type: 'fill-extrusion', source: 'service', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-extrusion-height': 1.5, 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-opacity': .95 } })
@@ -206,7 +221,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
           else if (p.pin) callbacks.current.onSelect(p.pin)
           return
         }
-        const buildingHit = map.queryRenderedFeatures(event.point, { layers: ['existing-buildings-fill', 'existing-buildings-roof', 'existing-buildings-overview'] })[0]
+        const buildingHit = map.queryRenderedFeatures(event.point, { layers: ['existing-buildings-fill', 'existing-buildings-roof', 'existing-buildings-hit', 'existing-buildings-overview'] })[0]
         if (buildingHit) {
           const ref = recordedBuildingRef(buildingHit)
           const outlineId = buildingHit.properties?.id ?? buildingHit.id
@@ -263,6 +278,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     observer.observe(container.current)
     return () => {
       disposeBenchmark?.(); clearTimeout(viewportTimer); cancelAnimationFrame(hoverFrame)
+      if (three.current?.map === map) three.current.controller.dispose()
+      three.current = null
       observer.disconnect(); marker.current?.remove(); marker.current = null; popup.current?.remove()
       loadedMap.current = null; mapRef.current = null; uploaded.current.clear()
       map.remove()
@@ -299,6 +316,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     map.setLayoutProperty('existing-buildings-fill', 'visibility', showExisting ? 'visible' : 'none')
     map.setLayoutProperty('existing-buildings-roof', 'visibility', showExisting ? 'visible' : 'none')
     map.setLayoutProperty('existing-buildings-overview', 'visibility', showExisting ? 'visible' : 'none')
+    map.setLayoutProperty('existing-buildings-hit', 'visibility', showExisting ? 'visible' : 'none')
     if (!showExisting) popup.current?.remove()
   }, [ready, showExisting])
   useEffect(() => {
@@ -431,14 +449,75 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     // the handoff. Score/chunk updates may replace this array during animation.
     if (!placedBuildings.some(b => b.id === constructionEffect.id && b.pin === constructionEffect.pin)) return
     consumedConstruction.current = constructionEffect.id
-    const run = { id: constructionEffect.id, map, stop: () => {} }
+    const run = { id: constructionEffect.id, map, stop: () => {} }, key = `${constructionEffect.id}:${constructionEffect.pin}`
     constructionRun.current = run
-    const done = () => { if (constructionRun.current === run) constructionRun.current = null }
+    setConstructing(key)
+    const done = () => {
+      if (constructionRun.current === run) constructionRun.current = null
+      setConstructing(current => current === key ? null : current)
+    }
     const stop = playConstructionEffect(map, constructionEffect, done)
     if (stop) run.stop = stop
     else done()
   }, [ready, constructionEffect, placedBuildings, detail, selected?.properties.pin])
   useEffect(() => () => { constructionRun.current?.stop(); constructionRun.current = null }, [])
+
+  useEffect(() => {
+    const map = readyMap()
+    if (!map || !threeWanted || three.current?.map === map || threeLoad.current === map) return
+    threeLoad.current = map
+    import('../lib/threeBuildingsLayer.js').then(({ createThreeBuildingsLayer }) => {
+      if (mapRef.current !== map || loadedMap.current !== map) return
+      const controller = createThreeBuildingsLayer({ onStatus: status => { if (three.current?.controller === controller) setThreeStatus(status) } })
+      three.current = { map, controller }
+      map.addLayer(controller.layer, 'trees')
+      setThreeStatus(controller.status)
+    }).catch(() => { if (mapRef.current === map) setThreeStatus('unavailable') })
+  }, [ready, threeWanted])
+  useEffect(() => {
+    // One building, one renderer: while the mesh layer draws, the duplicate extrusions go transparent (still
+    // queryable) and meshed footprints move from the coloured extrusion to the invisible hit layer.
+    const map = readyMap()
+    if (!map) return
+    const active = threeActive && three.current?.map === map
+    if (map.getLayer('three-buildings')) map.setLayoutProperty('three-buildings', 'visibility', active ? 'visible' : 'none')
+    map.setPaintProperty('placed-buildings-fill', 'fill-extrusion-opacity', active ? 0 : .97)
+    map.setPaintProperty('building-fill', 'fill-extrusion-opacity', active ? 0 : .8)
+    const ids = active ? meshedIds : [], meshed = ['in', ['to-string', ['get', 'id']], ['literal', ids]]
+    map.setFilter('existing-buildings-fill', ids.length ? ['!', meshed] : null)
+    map.setFilter('existing-buildings-roof', ids.length ? ['!', meshed] : null)
+    map.setFilter('existing-buildings-hit', meshed)
+  }, [ready, threeActive, meshedIds])
+  useEffect(() => {
+    const map = readyMap()
+    if (!map || !threeWanted) return
+    const { lng, lat } = map.getCenter()
+    setMeshFocus(focus => focus && haversineMeters(focus[0], focus[1], lng, lat) < 120 ? focus : [lng, lat])
+  }, [ready, viewport, threeWanted])
+  useEffect(() => { threeController?.setSun(sun) }, [threeController, sun])
+  useEffect(() => {
+    if (!threeController) return
+    const origin = meshFocus ?? (selected ? geometryCenter(selected.geometry) : null)
+    if (origin) threeController.setOrigin(origin)
+    threeController.setNeighborhood(meshCandidates, { inspectedKey })
+  }, [threeController, meshKey, meshFocus, inspectedKey, selected])
+  useEffect(() => {
+    if (!threeController) return
+    const item = (key, geometry, pin, props) => {
+      const lot = lotContext(pin, geometry), box = withFront(footprintBox(geometry), lot.parcel, lot.neighbors)
+      return { key, geometry, front: box ? [box.v[0] * box.front, box.v[1] * box.front] : null, ...props }
+    }
+    const items = []
+    if (showDraft && buildingPreview && selected) {
+      const p = buildingPreview.properties
+      items.push(item('preview', buildingPreview.geometry, selected.properties.pin, { typeId: p.typeId, height: p.height, floors: p.floors, state: p.state || 'valid', hidden: !!constructing }))
+    }
+    for (const b of placedBuildings) if (b.massing.geometry) {
+      const key = `${b.id}:${b.pin}`
+      items.push(item(key, b.massing.geometry, b.pin, { typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, state: 'placed', flagged: !b.eligible, hidden: constructing === key }))
+    }
+    threeController.setProposed(items)
+  }, [threeController, buildingPreview, placedBuildings, showDraft, selected, lotContext, constructing])
 
   useEffect(() => {
     const map = readyMap()
@@ -515,5 +594,5 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     focus()
   }, [ready, buildingFocusRequest, buildingRows, selected?.properties.pin])
 
-  return <><div ref={container} className="planner-map" data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
+  return <><div ref={container} className="planner-map" data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
 }
