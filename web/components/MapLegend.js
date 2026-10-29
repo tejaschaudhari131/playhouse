@@ -6,7 +6,7 @@ const SHORT_LABELS = {
   large_apartment: 'Apartments 20+', other_residential: 'Other homes', nonresidential: 'Non-residential', unknown: 'Unknown use',
 }
 
-export default function MapLegend({ showExisting, onShowExisting, error, onRetry }) {
+export default function MapLegend({ showExisting, onShowExisting, error, onRetry, buildingStyle = 'types' }) {
   const container = useRef(null), [open, setOpen] = useState(false)
   useEffect(() => {
     if (!open) return
@@ -28,6 +28,7 @@ export default function MapLegend({ showExisting, onShowExisting, error, onRetry
     </summary>
     <div className="legend-details">
       <label className="existing-toggle"><input type="checkbox" checked={showExisting} onChange={e => onShowExisting(e.target.checked)}/>Existing buildings</label>
+      {buildingStyle === 'realistic' && <p>Switch to Type colours to see these use colours on buildings.</p>}
       <table className="legend-colours" aria-label="Existing and planned building colours">
         <thead><tr><th scope="col">Housing / use</th><th scope="col">Existing</th><th scope="col">Planned</th></tr></thead>
         <tbody>{USE_LEGEND.map(use => <tr key={use.id}><th scope="row" title={use.label}>{SHORT_LABELS[use.id]}</th><td><i style={{ background: use.color }} aria-hidden="true"/></td><td>{use.simulated ? <i className="legend-planned" style={{ background: placedBuildingColor(use.id) }} aria-hidden="true"/> : '—'}</td></tr>)}</tbody>

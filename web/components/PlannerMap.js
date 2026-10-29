@@ -19,7 +19,8 @@ import { recordedBuildingRef, retainedBuildings, demolitionKey, demolitionSite, 
 import { playDemolitionEffect } from '../lib/demolitionEffect.js'
 import { playConstructionEffect } from '../lib/constructionEffect.js'
 import { basemapStyle } from '../lib/basemap.js'
-import { architecturalMassing, facadeBearing, footprintBox, withFront, EXISTING_FACADE_COLOR, EXISTING_ROOF_COLOR, ROOF_CAP_M } from '../lib/architecture3d.js'
+import { facadeBearing, footprintBox, withFront, ROOF_CAP_M } from '../lib/architecture3d.js'
+import { buildingMassing, existingBuildingColors } from '../lib/buildingRenderStyle.js'
 import { neighborhoodSelection } from '../lib/threeBuildingMeshes.js'
 import { yardPad, frontWalk, streetscapeTrees } from '../lib/streetscape3d.js'
 import { buildingShadows, sunFor, sunLight } from '../lib/sunShadows.js'
@@ -42,7 +43,7 @@ function rimFeature(geometry, color, width = .35) {
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null }) {
+export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types' }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -75,8 +76,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   // Real-world Three.js buildings: loaded on first 3D detail view, one controller per map instance.
   const three = useRef(null), threeLoad = useRef(null)
   const [threeStatus, setThreeStatus] = useState('idle'), [meshFocus, setMeshFocus] = useState(null), [constructing, setConstructing] = useState(null)
-  const threeWanted = !!view3d && detail && viewport.zoom >= 16, threeActive = threeWanted && threeStatus === 'ready'
-  const threeController = threeStatus === 'ready' ? three.current?.controller ?? null : null
+  const threeWanted = buildingStyle === 'realistic' && !!view3d && detail && viewport.zoom >= 16, threeActive = threeWanted && threeStatus === 'ready'
+  const threeController = threeActive ? three.current?.controller ?? null : null
   const demolishedKeys = useMemo(() => new Set(demolitions.map(demolitionKey).filter(Boolean)), [demolitions])
   const meshCandidates = useMemo(() => threeActive && showExisting && meshFocus ? neighborhoodSelection(visibleBuildings, meshFocus, { exclude: demolishedKeys }) : [], [threeActive, showExisting, meshFocus, visibleBuildings, demolishedKeys])
   const meshKey = meshCandidates.map(f => String(f.properties.id ?? f.id)).join('|')
@@ -161,11 +162,11 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addLayer({ id: 'shadows', type: 'fill', source: 'shadows', paint: { 'fill-color': '#1d2733', 'fill-opacity': ['case', ['==', ['get', 'kind'], 'existing'], .14, .22], 'fill-antialias': false } }, 'connection-line')
       map.addLayer({ id: 'draft-point', type: 'circle', source: 'draft-node', paint: { 'circle-color': '#f3b45b', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
       map.addLayer({ id: 'site-ground', type: 'fill-extrusion', source: 'site-ground', paint: { ...extrusion, 'fill-extrusion-vertical-gradient': false, 'fill-extrusion-opacity': 1 } })
-      map.addLayer({ id: 'existing-buildings-overview', type: 'fill', source: 'existing-buildings', minzoom: DETAIL_EXIT_ZOOM, maxzoom: 16, paint: { 'fill-color': ['case', ['boolean', ['feature-state', 'inspected'], false], '#35b6bb', ['coalesce', ['get', 'use_color'], '#cbd5e1']], 'fill-opacity': .8 } })
-      // Two tones: facade in the recorded-use hue (warmed), then a charcoal roof cap on the top 0.45 m.
-      const inspected = ['boolean', ['feature-state', 'inspected'], false]
-      map.addLayer({ id: 'existing-buildings-fill', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-height': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-color': ['case', inspected, '#35b6bb', EXISTING_FACADE_COLOR], 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
-      map.addLayer({ id: 'existing-buildings-roof', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-base': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-height': ['get', 'height_m'], 'fill-extrusion-color': ['case', inspected, '#1f7f84', EXISTING_ROOF_COLOR], 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
+      const colors = existingBuildingColors(buildingStyle)
+      map.addLayer({ id: 'existing-buildings-overview', type: 'fill', source: 'existing-buildings', minzoom: DETAIL_EXIT_ZOOM, maxzoom: 16, paint: { 'fill-color': colors.overview, 'fill-opacity': .8 } })
+      // Realistic fallback uses a warm facade and charcoal roof; the type view keeps both in the legend hue.
+      map.addLayer({ id: 'existing-buildings-fill', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-height': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-color': colors.facade, 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
+      map.addLayer({ id: 'existing-buildings-roof', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-base': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-height': ['get', 'height_m'], 'fill-extrusion-color': colors.roof, 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
       // Buildings drawn by the Three.js layer stay clickable through this invisible copy (opacity 0 skips drawing, not queries).
       map.addLayer({ id: 'existing-buildings-hit', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, filter: ['in', ['to-string', ['get', 'id']], ['literal', []]], paint: { 'fill-extrusion-height': ['get', 'height_m'], 'fill-extrusion-color': '#000000', 'fill-extrusion-opacity': 0 } })
       map.addLayer({ id: 'service-link', type: 'line', source: 'service', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': '#386da3', 'line-width': 3 } })
@@ -321,6 +322,13 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   }, [ready, showExisting])
   useEffect(() => {
     const map = readyMap()
+    if (!map) return
+    const colors = existingBuildingColors(buildingStyle)
+    map.setPaintProperty('existing-buildings-fill', 'fill-extrusion-color', colors.facade)
+    map.setPaintProperty('existing-buildings-roof', 'fill-extrusion-color', colors.roof)
+  }, [ready, buildingStyle])
+  useEffect(() => {
+    const map = readyMap()
     if (map) map.getCanvas().style.cursor = placing || drawing ? 'crosshair' : ''
   }, [ready, placing, drawing])
 
@@ -368,8 +376,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     map.getSource('building').setData(fc(building))
     const lot = selected ? lotContext(selected.properties.pin, selected.geometry) : {}
     streetBearing.current = building[0] ? facadeBearing(building[0].geometry, lot.parcel, lot.neighbors) : null
-    map.getSource('building-massing').setData(fc(building.flatMap(b => parts(architecturalMassing({ geometry: b.geometry, typeId: b.properties.typeId, height: b.properties.height, floors: b.properties.floors, color: b.properties.color, state: b.properties.state || 'valid', ...lot })))))
-  }, [ready, buildingPreview, tool, selected, lotContext])
+    map.getSource('building-massing').setData(fc(building.flatMap(b => parts(buildingMassing({ buildingStyle, geometry: b.geometry, typeId: b.properties.typeId, height: b.properties.height, floors: b.properties.floors, color: b.properties.color, state: b.properties.state || 'valid', ...lot })))))
+  }, [ready, buildingStyle, buildingPreview, tool, selected, lotContext])
 
   useEffect(() => {
     const map = readyMap()
@@ -384,10 +392,10 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const massing = drawn.flatMap(b => {
       const lot = lotContext(b.pin, b.massing.geometry), bearing = facadeBearing(b.massing.geometry, lot.parcel, lot.neighbors)
       if (bearing !== null) placedBearings.current.set(b.pin, bearing)
-      return parts(architecturalMassing({ geometry: b.massing.geometry, typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, color: placedBuildingColor(b.typeId), ...lot }), { id: b.id, pin: b.pin })
+      return parts(buildingMassing({ buildingStyle, geometry: b.massing.geometry, typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, color: placedBuildingColor(b.typeId), ...lot }), { id: b.id, pin: b.pin })
     })
     map.getSource('placed-massing').setData(fc([...massing, ...rims]))
-  }, [ready, placedBuildings, lotContext])
+  }, [ready, buildingStyle, placedBuildings, lotContext])
 
   const showDraft = ['housing', 'compare'].includes(tool)
   const envelope = useMemo(() => showDraft && selected && zoningEnvelope
@@ -468,7 +476,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     threeLoad.current = map
     import('../lib/threeBuildingsLayer.js').then(({ createThreeBuildingsLayer }) => {
       if (mapRef.current !== map || loadedMap.current !== map) return
-      const controller = createThreeBuildingsLayer({ onStatus: status => { if (three.current?.controller === controller) setThreeStatus(status) } })
+      // Loading may finish after the user switches styles. Only the activation effect may enable rendering.
+      const controller = createThreeBuildingsLayer({ enabled: false, onStatus: status => { if (three.current?.controller === controller) setThreeStatus(status) } })
       three.current = { map, controller }
       map.addLayer(controller.layer, 'trees')
       setThreeStatus(controller.status)
@@ -480,6 +489,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const map = readyMap()
     if (!map) return
     const active = threeActive && three.current?.map === map
+    if (three.current?.map === map) three.current.controller.setEnabled(active)
     if (map.getLayer('three-buildings')) map.setLayoutProperty('three-buildings', 'visibility', active ? 'visible' : 'none')
     map.setPaintProperty('placed-buildings-fill', 'fill-extrusion-opacity', active ? 0 : .97)
     map.setPaintProperty('building-fill', 'fill-extrusion-opacity', active ? 0 : .8)
@@ -487,7 +497,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     map.setFilter('existing-buildings-fill', ids.length ? ['!', meshed] : null)
     map.setFilter('existing-buildings-roof', ids.length ? ['!', meshed] : null)
     map.setFilter('existing-buildings-hit', meshed)
-  }, [ready, threeActive, meshedIds])
+  }, [ready, threeActive, threeStatus, meshedIds])
   useEffect(() => {
     const map = readyMap()
     if (!map || !threeWanted) return
@@ -594,5 +604,5 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     focus()
   }, [ready, buildingFocusRequest, buildingRows, selected?.properties.pin])
 
-  return <><div ref={container} className="planner-map" data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
+  return <><div ref={container} className="planner-map" data-building-style={buildingStyle} data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-active={threeActive} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
 }
