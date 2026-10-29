@@ -26,9 +26,20 @@ export function financeInputs(input = {}) {
   return { ...FINANCE_DEFAULTS, ...input }
 }
 
-/** National contractor examples; story bands are assumptions, not an IBC design classification. */
+/**
+ * Pittsburgh wood-frame infill of 1–3 homes: 2026 regional $/sq ft benchmarks (entry-level house $190–265, duplex and
+ * triplex from $170) and the gross floor area costed per home. Taller drafts of these types draw a zoning envelope,
+ * not a floor plan, so area above the cap is not priced.
+ */
+export const SMALL_INFILL = {
+  single_family: { rate: [190, 265], sqftPerHome: 2200 },
+  townhouse_duplex: { rate: [170, 240], sqftPerHome: 1300 },
+  triplex: { rate: [170, 250], sqftPerHome: 1200 },
+}
+
+/** Small infill uses one wood-frame band per type; apartment story bands are national contractor examples, not an IBC classification. */
 export function constructionRates(option) {
-  if (option.typeId === 'single_family') return [225, 325]
+  if (SMALL_INFILL[option.typeId]) return SMALL_INFILL[option.typeId].rate
   const floors = option.floors || 3
   return floors <= 2 ? [185, 230] : floors <= 3 ? [215, 285] : floors <= 5 ? [285, 385] : floors <= 7 ? [315, 425] : [340, 485]
 }

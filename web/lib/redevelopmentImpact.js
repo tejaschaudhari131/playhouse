@@ -1,4 +1,4 @@
-import { financeInputs, FINANCE_DEFAULTS, FINANCE_VERSION, constructionRates, operatingStatement, developmentBudget } from './financeInputs.js'
+import { financeInputs, FINANCE_DEFAULTS, FINANCE_VERSION, SMALL_INFILL, constructionRates, operatingStatement, developmentBudget } from './financeInputs.js'
 import { geometryArea } from './plannerGeometry.js'
 import { housingSpec } from './titleNine.js'
 import { PRO_FORMA_ASSUMPTIONS, demolishedArea, siteAcquisition, parcelAcquisition, amiBand, breakEvenRent, capitalStack, taxLedger } from './proForma.js'
@@ -78,7 +78,7 @@ export function netHomes(proposed, replacement) {
 /** Screening ranges, not bids or appraisals. Each is shown beside its result. */
 export const IMPACT_ASSUMPTIONS = {
   demolitionPerSqft: [8, 15],
-  constructionPerSqft: { single_family: [225, 325], townhouse_duplex: [215, 285], triplex: [215, 285], small_apartment: [285, 385], large_apartment: [340, 485] },
+  constructionPerSqft: { single_family: SMALL_INFILL.single_family.rate, townhouse_duplex: SMALL_INFILL.townhouse_duplex.rate, triplex: SMALL_INFILL.triplex.rate, small_apartment: [285, 385], large_apartment: [340, 485] },
   operatingShare: FINANCE_DEFAULTS.operatingShare,
   vacancyShare: FINANCE_DEFAULTS.vacancyShare,
   capRate: FINANCE_DEFAULTS.capRate,
@@ -91,11 +91,13 @@ const range = ([lo, hi], factor) => [lo * factor, hi * factor]
 const add = (a, b) => [a[0] + b[0], a[1] + b[1]]
 const minus = (value, cost) => [value - cost[1], value - cost[0]]
 
-/** Construction cost range for one housing option: gross floor area × the type's $/sq ft range. */
+/** Construction cost range for one housing option: costed gross floor area × the type's $/sq ft range. */
 export function constructionCost(option, assumptions = IMPACT_ASSUMPTIONS) {
-  const spec = housingSpec(option), sqft = option.width * option.depth * (option.floors ?? spec.floors) * SQFT
+  const spec = housingSpec(option), drawnSqft = option.width * option.depth * (option.floors ?? spec.floors) * SQFT
+  const sqftCap = SMALL_INFILL[option.typeId] ? SMALL_INFILL[option.typeId].sqftPerHome * spec.units : null
+  const sqft = sqftCap === null ? drawnSqft : Math.min(drawnSqft, sqftCap)
   const rate = assumptions.constructionByType?.[option.typeId] || (assumptions !== IMPACT_ASSUMPTIONS ? assumptions.constructionPerSqft?.[option.typeId] : null) || constructionRates(option)
-  return { sqft, rate, cost: range(rate, sqft) }
+  return { sqft, drawnSqft, sqftCap, capped: sqft < drawnSqft, rate, cost: range(rate, sqft) }
 }
 
 /** Parcels whose principal (non-accessory) building is demolished; their current tax is replaced. */
@@ -139,7 +141,7 @@ export function redevelopmentImpact({ parcel = {}, demolished = [], draft, targe
       sale: Number.isFinite(parcel.last_valid_sale_price) ? { price: parcel.last_valid_sale_price, year: parcel.last_valid_sale_year ?? null } : null,
       homes: existingHomes, buildings: demolished.length, footprintSqft: footprintM2 * SQFT, demolishedSqft: area.sqft, area,
     },
-    replacement: { label: spec.label, units, sqft: built.sqft, netUnits: homes === null ? null : units - homes },
+    replacement: { label: spec.label, units, sqft: built.sqft, drawnSqft: built.drawnSqft, sqftCap: built.sqftCap, capped: built.capped, netUnits: homes === null ? null : units - homes },
     cost: { ...budget, demolition, construction, constructionRate: built.rate, hard, soft, softShare: financial.softShare, acquisition, development,
       perHome: range(development, 1 / units), hardPerHome: range(hard, 1 / units) },
     value: { rent: draft.rent, capitalized: value, gap: marketGap, residualLand: minus(value, beforeLand), breakEvenRent: breakEvenRent(development, units, financial) },
