@@ -169,15 +169,16 @@ const createRenderer = ({ canvas, context }) => new WebGLRenderer({ canvas, cont
  * MapLibre `CustomLayerInterface` that draws `BuildingScene` into the map's own WebGL2 context, sharing its depth
  * buffer (`renderingMode: '3d'`) so meshes and fill-extrusions occlude each other. The camera is MapLibre's
  * mercator matrix composed with the scene origin, scaled by `meterInMercatorCoordinateUnits`.
- * Inputs set before `onAdd` are replayed; without WebGL2 the status is 'unavailable' and render is a no-op.
+ * Inputs set before `onAdd` or while disabled are replayed on activation. Explicit activation suspends both
+ * scene updates and drawing, independently of map layout visibility. Without WebGL2 render is a no-op.
  */
-export function createThreeBuildingsLayer({ id = 'three-buildings', onStatus = () => {}, renderer: makeRenderer = createRenderer, materials: makeMaterials = createBuildingMaterials, supports = isWebGL2 } = {}) {
-  let map = null, renderer = null, scene = null, status = 'idle'
+export function createThreeBuildingsLayer({ id = 'three-buildings', enabled: initiallyEnabled = true, onStatus = () => {}, renderer: makeRenderer = createRenderer, materials: makeMaterials = createBuildingMaterials, supports = isWebGL2 } = {}) {
+  let map = null, renderer = null, scene = null, status = 'idle', enabled = initiallyEnabled
   const camera = new Camera(), pending = {}
   const setStatus = next => { if (status !== next) { status = next; onStatus(next) } }
   const repaint = () => { if (scene && map) map.triggerRepaint() }
   const apply = () => {
-    if (!scene) return
+    if (!scene || !enabled) return
     if (pending.origin) scene.setOrigin(pending.origin)
     if (pending.sun) scene.setSun(pending.sun)
     if (pending.neighborhood) scene.setNeighborhood(...pending.neighborhood)
@@ -205,7 +206,7 @@ export function createThreeBuildingsLayer({ id = 'three-buildings', onStatus = (
       }
     },
     render(gl, options) {
-      if (!scene || !renderer || !scene.origin) return
+      if (!enabled || !scene || !renderer || !scene.origin) return
       const matrix = options?.defaultProjectionData?.mainMatrix ?? options
       camera.projectionMatrix.fromArray(matrix).multiply(scene.originMatrix)
       camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert()
@@ -215,14 +216,23 @@ export function createThreeBuildingsLayer({ id = 'three-buildings', onStatus = (
     },
     onRemove() { cleanup(); setStatus('idle') },
   }
-  const set = (name, value, run) => { pending[name] = value; if (scene) { run(); repaint() } }
+  const set = (name, value, run) => { pending[name] = value; if (scene && enabled) { run(); repaint() } }
   return {
     layer,
+    setEnabled(next) {
+      next = !!next
+      if (enabled === next) return
+      enabled = next
+      if (enabled) apply()
+      // Repaint once on either transition, including clearing the last mesh frame when disabled.
+      repaint()
+    },
     setOrigin: origin => set('origin', origin, () => scene.setOrigin(origin)),
     setSun: sun => set('sun', sun, () => scene.setSun(sun)),
     setNeighborhood: (features, options) => set('neighborhood', [features, options], () => scene.setNeighborhood(features, options)),
     setProposed: items => set('proposed', items, () => scene.setProposed(items)),
     get status() { return status },
+    get enabled() { return enabled },
     get meshed() { return scene?.meshed ?? 0 },
     get scene() { return scene },
     dispose: cleanup,

@@ -1064,3 +1064,23 @@
 
 .print-hint { display: block; font-size: 12px; color: #465b4b; margin-top: 3px; }
 @media print { .site-brief { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+
+/* Appearance and discovery actions remain on the map, outside the inspector. */
+.map-quick-actions { position: absolute; top: 14px; left: 90px; right: 100px; display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; pointer-events: none; z-index: 3; }
+.map-quick-actions > * { pointer-events: auto; }
+.map-building-style { display: flex; gap: 2px; padding: 3px; width: max-content; max-width: 100%; border: 1px solid #b5c7b9; border-radius: 9px; background: #fafcf8f5; box-shadow: 0 2px 8px #1f3d2815; }
+.studio .map-building-style button { min-height: 34px; padding: 6px 9px; border: 1px solid transparent; background: transparent; color: #315340; font-size: 12px; white-space: nowrap; }
+.studio .map-building-style button[aria-pressed=true] { border-color: #789a84; background: #e1eddf; font-weight: 650; }
+.studio .map-building-style button:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
+.studio-canvas .canvas-heading { top: 64px; }
+@container (max-width: 540px) {
+  .map-quick-actions { top: 56px; left: 84px; right: 50px; gap: 6px; }
+  .studio-canvas:has([aria-label="Infrastructure view"]) .map-quick-actions { top: 110px; }
+  .studio .map-building-style button { padding: 6px 7px; }
+  .studio-canvas .canvas-heading { display: none; }
+  .map-envelope-key { top: 156px; left: 84px; max-width: calc(100% - 134px); }
+}
+@media (max-width: 760px) and (max-height: 600px) {
+  .map-quick-actions { top: 104px; left: 52px; right: 10px; }
+  .map-envelope-key { display: none; }
+}

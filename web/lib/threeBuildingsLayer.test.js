@@ -142,3 +142,54 @@ test('layer replays inputs on add, renders with MapLibre matrix × origin and cl
   assert.equal(materials.disposed, 1)
   assert.equal(controller.status, 'idle')
 })
+
+test('disabled layer skips rendering and scene updates, then resumes with the latest inputs', () => {
+  const renderer = fakeRenderer(), map = fakeMap(), materials = stubMaterials()
+  const controller = createThreeBuildingsLayer({ enabled: false, renderer: () => renderer, materials: () => materials, supports: () => true })
+  const proposal = { key: 'p', geometry: footprint(ORIGIN, 8, 12), front: [0, 1], typeId: 'single_family', height: 8, floors: 2 }
+  const gl = { drawingBufferWidth: 800, drawingBufferHeight: 600 }
+  const matrix = { defaultProjectionData: { mainMatrix: Array.from({ length: 16 }, (_, i) => i % 5 === 0 ? 1 : 0) } }
+  controller.setOrigin(ORIGIN)
+  controller.setNeighborhood([house('a')])
+  controller.setProposed([proposal])
+  controller.layer.onAdd(map, {})
+  assert.equal(controller.status, 'ready', 'loading can finish after the user turns realism off')
+  assert.equal(controller.enabled, false)
+  assert.equal(controller.meshed, 0)
+  assert.equal(controller.scene.proposedCount, 0)
+  controller.layer.render(gl, matrix)
+  assert.equal(renderer.calls.length, 0)
+  assert.equal(map.repaints, 0)
+
+  controller.setEnabled(true)
+  assert.equal(controller.meshed, 1)
+  assert.equal(controller.scene.proposedCount, 1)
+  controller.layer.render(gl, matrix)
+  assert.equal(renderer.calls.filter(call => call[0] === 'render').length, 1)
+  const group = controller.scene.proposed.children[0]
+  const previousRepaints = map.repaints
+  controller.setEnabled(false)
+  assert.equal(map.repaints, previousRepaints + 1, 'one repaint clears the previously drawn meshes')
+  controller.setNeighborhood([house('b'), house('c', .0002)])
+  controller.setProposed([{ ...proposal, typeId: 'triplex', height: 11, floors: 3 }])
+  controller.setSun({ azimuth: 90, altitude: 30, id: 'morning' })
+  controller.layer.render(gl, matrix)
+  controller.setEnabled(false)
+  assert.equal(map.repaints, previousRepaints + 1, 'disabled inputs and repeated toggles do not request frames')
+  assert.equal(controller.meshed, 1, 'hidden scene is not rebuilt')
+  assert.equal(controller.scene.proposed.children[0], group)
+  assert.equal(renderer.calls.filter(call => call[0] === 'render').length, 1, 'disabled render does not touch WebGL')
+
+  controller.setEnabled(true)
+  assert.equal(controller.meshed, 2)
+  assert.equal(controller.scene.proposed.children[0].userData.type, 'triplex')
+  assert.ok(controller.scene.sun.position.x > 800)
+  controller.layer.render(gl, matrix)
+  assert.equal(renderer.calls.filter(call => call[0] === 'render').length, 2)
+  const resumedGroup = controller.scene.proposed.children[0], resumedRepaints = map.repaints
+  controller.setEnabled(true)
+  assert.equal(controller.scene.proposed.children[0], resumedGroup)
+  assert.equal(map.repaints, resumedRepaints, 'repeated activation is inert')
+  controller.layer.onRemove()
+  assert.equal(materials.disposed, 1)
+})
