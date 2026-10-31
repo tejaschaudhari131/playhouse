@@ -123,6 +123,51 @@ The reform simulator separates current adopted code, the cited pending bill and 
 
 The permit/acquisition pathway uses public-record evidence and the screened design. The pro forma, tax ledger and funding-program screens remain conditional estimates. Neither guarantees availability, a variance, acquisition terms, financing, tax treatment or program eligibility. Private owner names are not displayed.
 
+## Policy scenarios
+
+**Policy scenarios** in the header opens the **Scenarios** tab. It has four named scenarios. Code: `web/lib/policyScenarios.js` (definitions and outcomes) and `components/PolicyScenarios.js` (cards).
+
+| Scenario | Status | Lever | Example parcel (**Try an example**) |
+| --- | --- | --- | --- |
+| Land value tax shift | Hypothetical | City levy split rate ([Land value tax shift](#land-value-tax-shift)) | 650 Penn Ave, Downtown surface parking lot (GT-C), 40-home draft, 2D map |
+| Single-stair buildings | Hypothetical | Stair rule ([Single-stair reform](#single-stair-reform)) | Montezuma St, Lincoln-Lemington-Belmar: vacant RM-M lot about 10.4 m wide, 12-home apartment at 9 × 22 m |
+| Missing-middle lot reform | Hypothetical | Reform preset `missing-middle` | Maplewood Ave, East Hills: vacant 2,400 sq ft R2-L lot, triplex |
+| Bill 2025-1545 height bonus | Pending, not law | Reform preset `bill-2025-1545` | 215 S Euclid Ave, East Liberty: vacant LNC lot, 12-home apartment |
+
+Each card has four parts:
+
+- **What it would enable.** One paragraph on the rule change.
+- **Before and after.** Current rules against the reform on the selected parcel.
+- **How to evaluate it.** Net homes, affordability at AMI levels, tax change and feasibility.
+- **Try an example.** Selects the example parcel, sets only that scenario's lever, resets the others (stair rule, reform preset, tax-shift map) and chooses the building type. It is one undoable step after the site change.
+
+**Apply to this plan** turns the stair rule or reform preset on or off for the current parcel. The tax shift has its own map toggle.
+
+How the before/after rows are computed:
+
+- **Most homes.** The building with the most homes that passes every assessed check: physical fit, Title Nine and placed-building review.
+  - Zoning presets use the same simulation as the Compare reform simulator, so a preset only lifts the conflicts its rules name. Bill 2025-1545 ADUs are counted as in that simulator.
+  - Single-stair re-runs the lot-fit search for the 12-home apartment at each rule's core minimum (12 × 18 m for two stairs, 7.5 × 14 m for one) and keeps existing and planned buildings as obstacles. It counts the apartment only where its zoning checks have no conflict. One exception: the setback conflict that Title Nine reports whenever the default footprint misses the lot is ignored, because the stair search re-fits that footprint. Only the small apartment changes: houses and duplexes are R-3 with one exit, triplexes stay at 3 stories, and the 8-story large apartment needs two stairs either way.
+- **Net homes.** The new building's homes minus the recorded homes it replaces, using the same rule as the Build tab's redevelopment impact. Existing buildings are kept unless you demolish them in Build.
+- **Affordability at AMI.** Break-even rent per home, plus utilities, compared with 30% of the HUD FY income limit at 30%, 50%, 60% and 80% AMI for the selected household size. The result is the lowest band that can pay, or "above 80% AMI".
+- **Tax change.** The yearly property-tax ledger for the new building against today's parcel, at 2026 millage for all levies. For the land value tax shift, the City levy only: the parcel's bill, the City tax on the land alone, and the City tax once a new building is assessed at its cost before land. The new building's land stays at today's assessed land value.
+- **Feasibility.** Capitalized value at the assumed rent minus development cost. If the whole range is positive it pencils; if the whole range is negative there is a funding gap; otherwise it is marginal.
+
+Limits:
+
+- Example parcels were chosen from the processed County data because the reform changes something on them. They are illustrations, not development advice.
+- No owner, mailing or tax-delinquency information is shown.
+- Every number uses the same team cost, rent and cap-rate assumptions as the pro forma, so the before/after difference matters more than either value.
+
+### Learn more / prior work
+
+The **Learn more / prior work** section at the bottom of the tab links only to pages checked on 31 October 2026:
+
+- The [University of Pittsburgh Urban Planning Club](https://experience.pitt.edu/upc/). The Showcase feedback named a Pitt "Urban Policy Club"; no club by that name could be found, so the Urban Planning Club is credited.
+- [Allegheny County Property Assessments on WPRDC](https://data.wprdc.org/dataset/property-assessments).
+- The Center for Land Economics' [LVTShift toolkit](https://landeconomics.org/lvtshift) and its [write-up](https://blog.landeconomics.org/p/want-to-model-a-land-value-tax-shift).
+- [Courtyard Urbanist](https://courtyardurbanist.com/), including its [ROAD to Housing Act piece on point-access blocks](https://courtyardurbanist.com/p/the-road-to-housing-act-creates-a).
+
 ## Save, share and recover
 
 Edits save locally in this browser. Reloading restores scenario inputs and loads the referenced evidence before recalculating; stored or imported scores are not trusted.
@@ -149,7 +194,69 @@ If a draft extends beyond the parcel, **Inspect first** can show a nearby buildi
 
 Position on map stays active when cycling housing types. The colored preview and Add control use the same live fit/zoning screen. While full scores recalculate, dimensions update immediately in a grey preview and placement stays unavailable. R rotates +15°; Shift+R rotates −15°. Arrow keys move east/west/north/south by 1 metre (Shift: 5 metres), except when editing text or using a control's own keyboard navigation. Exact offsets and bearing remain in Advanced. Automatic alignment follows the parcel; the source data does not establish legal street frontage or setbacks for automatic snapping.
 
+**Drag to move.** In Build, press on the draft preview or on a building already in the plan, then drag it.
+- **While dragging.** The map does not pan. The draft re-runs the live fit and zoning screen as it moves. A placed building turns red wherever it would not fit.
+- **Dropping.** Positions snap to 0.5 m and keep the building's bearing, and the grab offset is kept so the building does not jump under the cursor.
+  - **Draft:** a drop that crosses the parcel boundary is refused, and the draft stays put. A drop onto an existing building is allowed, so **Demolish & replace** can follow.
+  - **Placed building:** a drop is refused if it crosses the boundary or overlaps another building or reserved area.
+- **Undo.** Every accepted drop is one undo step.
+- **Limits.** Only buildings on the selected parcel can be dragged; select another parcel to move its buildings. A short press without movement is still a click (inspect or select). Touch works with one finger. Code: `web/lib/dragPlacement.js`.
+
 Inspect a proposed building and choose **Edit shape & position**. Change the shape at its existing location, then Save or Cancel. The saved plan is unchanged until Save, which is one undoable action and keeps the building's ID and list position. Changing sites requires saving or cancelling first. Scenario export is explicit; autosave writes only to this device's local storage and does not download files.
+
+## Highlight building types
+
+**Highlight building types** on the map recolours existing buildings by the County assessment use of the parcel they stand on (`land_use` = `USEDESC`, `land_use_class` = `CLASSDESC`). Rules are checked in this order (`web/lib/buildingTypes.js`):
+
+| Category | County uses |
+| --- | --- |
+| Vacant lot | Any `VACANT …` use, builder's lots, developmental land and common greenbelt; also public or unclassified parcels flagged as vacant lots. Drawn as a green lot fill, never as a building. A building on land recorded as vacant shows as *Use unknown*. |
+| Single-family | `SINGLE FAMILY`, `ROWHOUSE`, `TOWNHOUSE`, mobile homes, houses used as offices or shops; other unmatched residential uses. |
+| Two-family / duplex | `TWO FAMILY`. |
+| Small multifamily · 3–4 | `THREE FAMILY`, `FOUR FAMILY`, `DWG APT CONVERSION`. |
+| Apartments · 5+ | Every `APART…` use, apartment condominiums, condominiums, independent living, housing authority and HUD projects. |
+| Commercial / mixed-use | Shops or offices with apartments over, and any remaining commercial, industrial or agricultural class. |
+| Institutional / other | Churches, schools, colleges, hospitals, nursing and group homes, government, fire, parks, cemeteries, utilities and outbuilding/common-area records. |
+
+Uses the County records as `UNKNOWN`, or that match no rule, show as *Use unknown*. The colours apply to the 2D overview, 3D extrusions (façade and roof) and the Three.js meshes, whose walls and roofs mix 78% toward the category colour while glass, doors and trim keep their own. Unchecking a type hides those footprints on every layer; the inspected building keeps its teal highlight. Proposed and placed buildings use a 40%-lighter tint of their typology's category: house and ADU as single-family, duplex as two-family, triplex as small multifamily and both apartment types as apartments. With highlighting on, a preview's placement status stays visible in its ground rim. Highlighting never changes scores.
+
+## Land value tax shift
+
+**Scenarios → Land value tax shift** is an illustrative estimate of how each parcel's City real estate bill could change if the City taxed land at a higher rate than buildings while raising the same revenue. Code: `web/lib/lvtShift.js` (math), `components/LvtShiftPanel.js` (panel). Data: `pipeline/refresh_assessed_values.py`.
+
+- **Inputs.** County assessed `LOCALLAND` and `LOCALBUILDING` (values for City and school taxes) and `TAXCODE` from the [WPRDC property assessments](https://data.wprdc.org/dataset/property-assessments). Parcels with tax code `T` and both values form the base: 123,074 City parcels, $4.73B land and $15.61B buildings, so land is 23% of the value. Exempt (`E`) and PURTA (`P`) parcels are left out and drawn grey.
+- **Levy.** [City of Pittsburgh 2026 millage, Code §263.01](https://ecode360.com/45440133): 9.67 mills. Only this levy is shifted. Pittsburgh's two-rate tax (1913–2001) was a City tax. [Pittsburgh Public Schools](https://www.wesanews.org/education/2025-12-17/pittsburgh-public-schools-2026-tax-increase-approved) (10.457 mills) and [Allegheny County](https://alleghenycountytreasurer.us/real-estate-tax/local-and-school-district-tax-millage/) (6.43 mills) stay uniform. The 0.5-mill Parks Trust Fund levy is not modelled.
+- **Revenue-neutral split rate.** Current revenue = 9.67 × (ΣL + ΣB) / 1000. The building rate is 9.67 × (ΣL + ΣB) / (k × ΣL + ΣB), and the land rate is k times that, where k is the land:building ratio. A parcel's bill falls exactly when its land share is below the citywide 23%. The slider runs from 1:1 to 6:1 in 0.5 steps and starts at 4:1, the toolkit's typical example. Pittsburgh used 2:1 after the 1913 phase-in ([Dye & England](https://www.lincolninst.edu/app/uploads/legacy-files/pubfiles/assessing-theory-practice-land-value-taxation-full_0.pdf)) and reached a high of 5.8:1 ([Banzhaf & Lavery 2008, Table 2](https://www.lincolninst.edu/app/uploads/legacy-files/pubfiles/banzhaf-wp08sb1.pdf)).
+
+| Ratio | Land mills | Building mills |
+| --- | --- | --- |
+| 1:1 (today) | 9.67 | 9.67 |
+| 2:1 | 15.69 | 7.85 |
+| 4:1 | 22.79 | 5.70 |
+| 5.8:1 | 26.51 | 4.57 |
+
+- **Map.** Classes are on the percent change of the City bill: falls 25% or more, falls 5–25%, within ±5%, rises 5–50%, rises 50% or more. Exempt parcels and parcels without values are grey. In 2D the colours cover each whole parcel, including its buildings; in 3D they are a thin ground slab under the buildings.
+- **Panel.** The selected parcel's City bill now and under the shift, with its land share. For the selected neighbourhood: the share of taxable parcels that would pay less, the median dollar change, and the median by recorded use (the Highlight building types categories).
+- **Methodology inspiration.** The Center for Land Economics' open [LVTShift toolkit](https://landeconomics.org/lvtshift) ([code](https://github.com/gregmiller00/LVTShift), [write-up](https://blog.landeconomics.org/p/want-to-model-a-land-value-tax-shift)) rebuilds the current levy from assessor data and solves for a revenue-neutral split rate parcel by parcel. Playhouse is simpler: it does not reallocate exemptions, reconcile against the certified levy, model an abatement alternative or join income and race data for progressivity. The reconstructed $196.6M is assessed value × millage before appeals, abatements and collection losses; it is not the City's budgeted revenue.
+- **Not modelled.** LERTA and other abatements, homestead and senior relief, appeals, reassessment, collection rates, changes in land prices or construction, and tenants' pass-through. Assessed value is not market value.
+
+## Single-stair reform
+
+**Build → Stairs** switches the apartment egress rule (`scenario.egress`, saved and exported with the plan). Code: `web/lib/singleStair.js`.
+
+- **Current code.** [2024 IBC Table 1006.3.4(1)](https://up.codes/s/single-exits) allows a single exit for R-2 apartments only through the third story, with at most 4 homes per story, 125 ft of exit-access travel and sprinklers. Pennsylvania's UCC adopts the IBC. The [2027 IBC change](https://centerforbuilding.org/article/2027-ibc-single-exit-height-limit-to-be-raised-to-four-stories) raises this to 4 stories, but it is not yet in force.
+- **Single-stair reform (hypothetical).** One stair up to 6 stories, at most 4 homes per floor, 125 ft of travel and NFPA 13 sprinklers. This is the common core of [Seattle's §1006.3.4 item 7](https://www.seattle.gov/documents/Departments/SDCI/Codes/SeattleBuildingCode/2021SBCChapter10.pdf), [Texas SB 2835](https://capitol.texas.gov/tlodocs/89R/billtext/html/SB02835F.htm) and Montana SB 213. Those laws add conditions this screen does not check: construction type, stair pressurization or enclosure rating, and Seattle's 20 ft from unit door to stair. See [Pew's 2025 summary](https://www.pew.org/en/research-and-analysis/articles/2025/11/04/states-advance-single-stairway-reforms-to-expand-housing).
+
+Stairs needed: triplexes (1 home per floor, 3 stories) need one under both rules. The 12-home, 4-story small apartment (3 per floor) needs **two** under current code and **one** under the reform. The 40-home, 8-story large apartment needs two under both. Travel is approximated as half the floor-plate diagonal.
+
+Core geometry is a team planning assumption, not a design:
+
+| | Stair core | Minimum footprint | Small apartment default |
+| --- | --- | --- | --- |
+| Two stairs | Two 2.8 × 5.8 m stairs joined by a 1.5 m corridor (double-loaded plan) | 12 × 18 m | 14 × 20 m |
+| One stair | One 2.8 × 5.8 m stair plus a 4 m² landing (point access) | 7.5 × 14 m | 11 × 18 m |
+
+The small apartment's default footprint and the **Fit dimensions to lot** minimum follow the rule. Under current code, the fit search no longer shrinks a 4-story small apartment below 12 m wide (it previously allowed 9 m). Cards and details show the stair count and whether the footprint meets the core minimum. The check is shown beside the score and never vetoes it. Zoning height, coverage and setbacks still apply, so 5–6 stories usually also need a zoning change. Proposed apartments draw one rooftop stair bulkhead per stair in both the Three.js meshes and the extrusion massing.
 
 ## 3D buildings, block and shadows
 
@@ -194,9 +301,55 @@ Existing footprints keep their recorded-use colors as warmed facades with a char
 
 **Build** and **Compare** show the selected lot's zoning envelope as an inset buildable pad plus height-limit corner posts and a top frame. The pad is an estimate. Its narrow ends are inset by the larger of the district's front and rear yards, and its long sides by the interior side yard. Corner-lot and legal-frontage yards are not classified. The height follows the **Policy Reform Simulator** preset. Only Council Bill 2025-1545's conditional Affordable Housing Bonus changes it: +30 ft for 4+ homes in eligible districts. A grey ghost frame then marks the current-code height, and the map note states the condition and that the bill is not law. Other presets leave height unchanged.
 
-**Morning / Noon / Afternoon** cast semi-transparent ground shadows from existing and proposed buildings. They use an equinox sun at 9:00, 12:00 and 15:00 solar time at Pittsburgh's latitude. Each shadow is the convex outline of the footprint and its cast roof: exact for rectangles and slightly generous for L-shapes. It is not a dated shadow study and ignores terrain and trees. **Street** pitches the camera to about 72°, close to the parcel, facing the guessed front facade. Press it again to return to the 55° aerial view.
+The map's sun control casts semi-transparent ground shadows from existing and proposed buildings. **Winter / Equinox / Summer** choose the representative day, and **Morning / Noon / Afternoon** choose 9:00, 12:00 or 15:00 solar time at Pittsburgh's latitude; the **Shadow study** slider sets any quarter hour. Each shadow is the convex outline of the footprint and its cast roof: exact for rectangles and slightly generous for L-shapes. Shadows ignore trees, and are computed on flat ground even when terrain is shown. **Street** pitches the camera to about 72°, close to the parcel, facing the guessed front facade. Press it again to return to the 55° aerial view.
 
 Code: `web/lib/architecture3d.js`, `streetscape3d.js`, `zoningEnvelope.js`, `sunShadows.js` and `localFrame.js`.
+
+## Terrain
+
+**Terrain** (map toggle) shows Pittsburgh's real topography:
+- **3D view.** MapLibre `raster-dem` terrain at 1× exaggeration, plus hillshade.
+- **2D view.** Hillshade only.
+- **Contours** (optional). 5 m lines, with an index line labelled every 25 m.
+- **Parcel slope** (optional). Each parcel is coloured by its typical slope: under 15%, 15–25% steep, or 25%+ very steep.
+
+The selected parcel's panel always shows its elevation (m and ft), the rise across the lot, typical and steepest slope, and the share of the lot at 15%+ and 25%+. It also shows the existing City 25%+ steep-slope overlap. When either source finds steep ground, the panel adds a caution: 25%+ is the City's landslide-risk proxy, the §915.02.A cut/fill limit, and a reason for geotechnical review. 15% is where §915.02.B slope planting starts.
+
+**Source and licence.** Tiles come from [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/), Terrarium PNG encoding (`elevation = R × 256 + G + B ÷ 256 − 32768` m), at `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`.
+- No key is needed. CORS is open (`Access-Control-Allow-Origin: *`, checked 2026-10-31).
+- For Pittsburgh the tile metadata names USGS NED 1/9 arc-second, 2006 (about 3 m).
+- The [required attribution](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) for US data is "3DEP (formerly NED) … courtesy of the U.S. Geological Survey". 3DEP is public domain.
+- The map attribution shows "Terrain Tiles on AWS · USGS 3DEP", and the terrain panel links both pages.
+
+**Slope method.**
+- **Horn's estimator.** Slope uses Horn's estimator, the same one GDAL and ArcGIS use, on a 3 × 3 window 4 m apart. The window is sampled bilinearly from z15 tiles, about 3.6 m per pixel at this latitude.
+- **Parcel statistics.** About 24 evenly spaced points inside the lot (10 for the map overlay) give the mean elevation, the median ("typical") slope and the steep shares.
+- **Contours.** Contours use marching squares on an 8 m grid over the view, capped at 1.5 km × 1.5 km, and segments are stitched into lines.
+- **Accuracy.** Retaining walls, cuts and post-2006 grading are not in the model. It is a screen, not a survey.
+
+**Alignment on terrain.** MapLibre places fill-extrusions (buildings, the draft, zoning envelope, yard pads, trees) and draped fills (parcels, shadows, overlays) on the terrain surface. The Three.js mesh layer is a custom WebGL layer drawn on MapLibre's flat Mercator plane, so its alignment with terrain cannot be guaranteed. While 3D terrain is on, **Detailed** therefore falls back to the extrusion renderer and the panel says so. Ground shadows are computed on flat ground and then draped, so on steep slopes they are approximate.
+
+**If the DEM fails.** Failed tiles are remembered and never retried in a loop. The sampler returns no data, so the parcel panel says elevation is unavailable and the overlays stay empty. After three MapLibre tile errors the map turns 3D terrain and hillshade off and shows flat ground; every other tool keeps working. Code: `web/lib/terrain.js`, `terrainTiles.js`; tests in `terrain.test.js`.
+
+## Seasonal shadow study
+
+**Build → Shadow study** estimates which neighbouring lots the proposed buildings shade, and for how long, on one representative day.
+
+| Day | Declination | Daylight at 40.44° N | Analysis window (solar time) |
+| --- | --- | --- | --- |
+| Winter solstice (Dec 21) | −23.44° | 9.1 h | about 8:57–15:03 |
+| Equinox (Mar 21 / Sep 21) | 0° | 12 h | 7:30–16:30 |
+| Summer solstice (Jun 21) | +23.44° | 14.9 h | about 6:03–17:57 |
+
+- **Sun.** Altitude and azimuth come from the standard declination and hour-angle formulas. Sunrise and sunset are geometric (no refraction). Times are local solar time; solar noon in Pittsburgh is about 12:20 EST, varying by about ±15 minutes with the equation of time.
+- **Window and days.** These follow the [NYC CEQR Technical Manual, chapter 8](https://www.nyc.gov/assets/oec/technical-manual/08_Shadows_2025.pdf): from 1.5 hours after sunrise to 1.5 hours before sunset, because earlier and later shadows are long, fast-moving and blend with existing ones. Its May 6 / Aug 6 day is not offered.
+- **Counting.** The sun is sampled every 15 minutes. At each sample, the shadow of every placed building, plus the current preview, is the convex hull of its footprint and cast roof outline. About 60 evenly spaced points inside each nearby parcel test whether that parcel is shaded. A parcel counts as shaded when at least 10% of its points are in shadow. Its hours are the number of shaded samples × 15 minutes; the panel also shows the first and last shaded time and the peak share.
+- **Scope.** The building's own parcels are excluded. Only parcels within the longest shadow in the window are checked.
+- **Limits.**
+  - It shows the project's shadow footprint, not the incremental shadow: shadows existing buildings already cast, trees and terrain are ignored (shadows are computed on flat ground).
+  - "Shaded" is a lot-level share, not a window or solar-panel study.
+
+Code: `web/lib/shadeStudy.js` and `sunShadows.js`; tests in `shadeStudy.test.js` and `sunShadows.test.js`.
 
 ## Financial assumptions
 

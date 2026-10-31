@@ -435,6 +435,22 @@
 .studio .empty-sites-control button:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
 .empty-sites-help { position: absolute; z-index: 4; top: calc(100% + 8px); left: 0; width: 290px; max-width: calc(100cqw - 100px); max-height: min(360px, calc(100cqh - 175px)); overflow: auto; padding: 13px; border: 1px solid #c2aa77; border-radius: 9px; background: #fffdf7; color: #3e503e; box-shadow: 0 6px 22px #1f3d2830; font-size: 13px; line-height: 1.5; }
 .empty-sites-help p { margin: 8px 0 0; }
+.type-highlight-control { max-width: 100%; color: #2e4337; font-size: 13px; }
+.type-highlight-row { display: flex; align-items: center; gap: 6px; }
+.studio .type-highlight-toggle { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 7px 10px; border: 1px solid #a9b9c9; background: #f8fafdf5; color: #2c3f55; box-shadow: 0 2px 8px #1f3d2815; font-weight: 650; white-space: nowrap; }
+.studio .type-highlight-toggle[aria-pressed=true] { border-color: #4b6584; background: #e3ebf6; }
+.type-highlight-icon { display: inline-flex; gap: 2px; }
+.type-highlight-icon i { width: 4px; height: 14px; border-radius: 1px; }
+.studio .type-highlight-collapse { width: 28px; height: 28px; padding: 0; border: 1px solid #a9b9c9; border-radius: 50%; background: #f8fafd; color: #2c3f55; }
+.type-highlight-legend { display: grid; grid-template-columns: repeat(2, minmax(0, max-content)); gap: 3px 12px; margin: 6px 0 0; padding: 9px 11px; max-width: min(360px, 100%); border: 1px solid #c6d2dd; border-radius: 9px; background: #fbfcfef7; box-shadow: 0 4px 14px #1f3d2820; font-size: 12px; }
+.type-highlight-legend legend { float: left; grid-column: 1 / -1; margin-bottom: 3px; padding: 0; color: #4d5e6e; font-size: 11px; font-weight: 650; }
+.type-highlight-legend label { display: flex; align-items: center; gap: 6px; min-height: 26px; cursor: pointer; }
+.type-highlight-legend label i, .type-highlight-legend p i { flex: none; width: 13px; height: 13px; border-radius: 3px; border: 1px solid #0002; }
+.type-highlight-legend p { display: flex; gap: 6px; align-items: flex-start; grid-column: 1 / -1; margin: 4px 0 0; color: #4d5e6e; font-size: 11px; line-height: 1.4; }
+.type-highlight-actions { grid-column: 1 / -1; display: flex; gap: 6px; }
+.studio .type-highlight-actions button { min-height: 28px; padding: 3px 9px; font-size: 11px; }
+.studio .type-highlight-control button:focus-visible, .type-highlight-legend input:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
+@media (max-width: 640px) { .type-highlight-legend { grid-template-columns: minmax(0, 1fr); } }
 .map-overlays .massing-tray { position: static; width: min(355px, 100%); }
 .canvas-legend { position: absolute; left: 88px; bottom: 30px; z-index: 3; display: block; width: max-content; max-width: calc(100% - 106px); padding: 0; border: 1px solid #d4dfd2; background: #fafcf8f5; border-radius: 9px; font-size: 12px; }
 .canvas-legend > summary { display: flex; align-items: center; gap: 9px; list-style: none; cursor: pointer; padding: 10px 12px; font-weight: 600; }
@@ -552,6 +568,13 @@
 .typology-card:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
 .typology-card strong { display: block; font-size: 13px; font-weight: 650; }
 .typology-meta { color: #5f7465; font-size: 11px; }
+.typology-stairs { color: #2f5d8a; font-weight: 650; }
+.typology-stairs.tight { color: #b42318; }
+.stair-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 6px 0 2px; font-size: 12px; }
+.stair-rule > span { color: #4c5f50; font-weight: 650; }
+.studio .stair-rule button { min-height: 30px; padding: 4px 9px; border: 1px solid #c3d0c4; border-radius: 7px; background: #fff; font-size: 12px; }
+.studio .stair-rule button[aria-pressed=true] { border-color: #2f5d8a; background: #e5eef8; font-weight: 650; }
+.stair-rule small { flex-basis: 100%; color: #5d6a60; font-size: 11px; }
 .typology-card .typology-score { display: block; margin-top: 3px; }
 .typology-score { font-variant-numeric: tabular-nums; font-weight: 650; color: #2e4d3c; }
 .typology-score.unscored, .typology-score.noscore { font-weight: 500; color: #7a877c; }
@@ -1122,3 +1145,99 @@
     .draft-dock .eyebrow, .draft-dock > div > strong { display: none; }
   }
 }
+
+/* Policy scenarios and land value tax shift */
+.scenario-card { margin: 0 0 14px; padding: 13px 14px; border: 1px solid #d3ddd2; border-radius: 10px; background: #fbfcfa; }
+.scenario-card h3 { margin: 0 0 6px; font-size: 16px; }
+.scenario-card h4 { margin: 10px 0 4px; font-size: 13px; }
+.lvt-panel { display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45; }
+.lvt-label { margin: 0; padding: 7px 9px; border-left: 3px solid #b7791f; background: #fff8e6; color: #5d4210; font-size: 12px; }
+.lvt-controls { display: grid; gap: 5px; }
+.lvt-controls input[type=range] { width: 100%; accent-color: #2f5d8a; }
+.lvt-controls small, .lvt-panel small { color: #5d6a60; font-size: 11px; }
+.studio .lvt-toggle { justify-self: start; min-height: 34px; padding: 6px 11px; border: 1px solid #7b98b6; border-radius: 8px; background: #fff; color: #244869; font-weight: 650; }
+.studio .lvt-toggle[aria-pressed=true] { background: #e5eef8; border-color: #2f5d8a; }
+.lvt-rates { display: grid; gap: 3px; margin: 0; }
+.lvt-rates div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+.lvt-rates dt { color: #5d6a60; font-weight: 650; }
+.lvt-rates dd { margin: 0; }
+.lvt-parcel p, .lvt-summary p { margin: 0; }
+.lvt-summary table { width: 100%; margin-top: 6px; border-collapse: collapse; font-size: 12px; }
+.lvt-summary th, .lvt-summary td { padding: 3px 4px; border-bottom: 1px solid #e3e8e2; text-align: left; font-weight: 400; }
+.lvt-summary thead th { color: #5d6a60; font-weight: 650; }
+.lvt-summary td { text-align: right; }
+.lvt-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.lvt-legend li { display: flex; align-items: center; gap: 5px; }
+.lvt-legend i { width: 13px; height: 13px; border-radius: 3px; border: 1px solid #0002; }
+.lvt-method summary { cursor: pointer; font-weight: 650; }
+.lvt-method p { margin: 6px 0 0; font-size: 12px; }
+.studio .policy-scenarios-button { padding: 9px 11px; border: 1px solid #8f3b1f; border-radius: 8px; background: #fff; color: #8f3b1f; font-size: 12px; font-weight: 650; }
+.studio .policy-scenarios-button[aria-pressed=true] { background: #8f3b1f; color: #fff; }
+.policy-scenarios { display: grid; gap: 12px; font-size: 13px; line-height: 1.45; }
+.scenario-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.studio .scenario-picker button { min-height: 40px; padding: 6px 9px; border: 1px solid #d3ddd2; border-radius: 8px; background: #fff; color: #243329; font-size: 12.5px; font-weight: 650; text-align: left; }
+.studio .scenario-picker button[aria-pressed=true] { border-color: #8f3b1f; background: #fbe4dc; color: #6e2c15; box-shadow: inset 3px 0 0 #8f3b1f; }
+.policy-scenarios .scenario-card { margin: 0; }
+.policy-scenario-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.policy-scenario-head h3 { margin: 0; }
+.scenario-enables { margin: 0; }
+.scenario-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+.studio .scenario-actions button { min-height: 36px; padding: 6px 11px; border: 1px solid #7b98b6; border-radius: 8px; background: #fff; color: #244869; font-weight: 650; text-align: left; }
+.studio .scenario-actions button[aria-pressed=true] { background: #e5eef8; border-color: #2f5d8a; }
+.studio .scenario-actions .scenario-example { border-color: #284f3e; background: #284f3e; color: #fff; }
+.scenario-example small { display: block; font-weight: 400; font-size: 11px; opacity: .9; }
+.scenario-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.scenario-table caption { padding-bottom: 4px; color: #5d6a60; font-size: 11.5px; text-align: left; }
+.scenario-table th, .scenario-table td { padding: 5px 4px; border-bottom: 1px solid #e3e8e2; text-align: left; vertical-align: top; font-weight: 400; }
+.scenario-table thead th { color: #5d6a60; font-weight: 650; }
+.scenario-table tbody th { width: 34%; color: #3d4b41; font-weight: 650; }
+.scenario-table td:last-child { background: #f6f9f3; }
+.scenario-rules, .scenario-evaluate { margin: 6px 0 0; padding-left: 18px; }
+.scenario-rules li, .scenario-evaluate li { margin: 2px 0; }
+.scenario-note { margin: 10px 0 0; color: #5d6a60; font-size: 11.5px; }
+.prior-work { padding: 10px 12px; border: 1px solid #d3ddd2; border-radius: 10px; background: #fff; }
+.prior-work summary { cursor: pointer; font-weight: 650; }
+.prior-work ul { display: grid; gap: 7px; margin: 8px 0 0; padding: 0; list-style: none; }
+.prior-work li { display: grid; gap: 1px; }
+.prior-work li > a { font-weight: 650; }
+.prior-work span { color: #4d5a50; font-size: 12px; }
+
+/* Seasonal shadow study */
+.map-sun-toggle [role=radiogroup] { display: flex; gap: 2px; }
+.map-sun-toggle .sun-divider { width: 1px; margin: 4px 2px; background: #d4dfd2; }
+.studio .map-sun-toggle .sun-season { font-size: 11px; font-weight: 600; }
+.shadow-study { display: grid; gap: 6px; margin: 14px 0 6px; font-size: 13px; line-height: 1.45; }
+.shadow-study .section-heading { margin: 0; }
+.shadow-study input[type=range] { width: 100%; accent-color: #b5652a; }
+.shadow-study small { color: #5d6a60; font-size: 11px; }
+.shadow-seasons { display: flex; flex-wrap: wrap; }
+.shadow-result p { margin: 0; }
+.shadow-list { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.shadow-list li { display: grid; gap: 1px; padding: 5px 8px; border-left: 3px solid #e08a3c; background: #fff7ee; border-radius: 0 6px 6px 0; }
+.shadow-list li > span { display: flex; justify-content: space-between; gap: 8px; }
+.shadow-list strong { color: #8a3b1d; white-space: nowrap; }
+.studio .shadow-seasons button { flex: 1; border-radius: 6px; }
+.studio .shadow-seasons button[aria-pressed=true] { color: #fff; background: #315b46; }
+
+/* Terrain: map toggle, slope legend and parcel elevation */
+.terrain-control { max-width: 100%; color: #3d3428; font-size: 13px; }
+.studio .terrain-toggle { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 7px 11px; border: 1px solid #c2b39a; background: #fbf8f2f5; color: #4a3b26; box-shadow: 0 2px 8px #1f3d2815; font-weight: 650; white-space: nowrap; }
+.studio .terrain-toggle[aria-pressed=true] { border-color: #8a6a3f; background: #f3eadb; }
+.terrain-panel { display: grid; gap: 4px; margin: 6px 0 0; padding: 9px 11px; max-width: min(340px, 100%); border: 1px solid #d8cbb5; border-radius: 9px; background: #fffdf9f7; box-shadow: 0 4px 14px #1f3d2820; font-size: 12px; }
+.terrain-panel legend { float: left; margin-bottom: 3px; padding: 0; color: #5d4f3c; font-size: 11px; font-weight: 650; }
+.terrain-panel label { display: flex; align-items: center; gap: 6px; min-height: 26px; cursor: pointer; }
+.terrain-panel p { margin: 2px 0 0; color: #5d5446; font-size: 11px; line-height: 1.4; }
+.terrain-panel .terrain-status { color: #8a3b1d; font-weight: 600; }
+.terrain-legend { display: flex; flex-wrap: wrap; gap: 3px 10px; margin: 0; padding: 0; list-style: none; }
+.terrain-legend li { display: flex; align-items: center; gap: 5px; }
+.terrain-legend i, .parcel-terrain dd i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #0002; vertical-align: -1px; margin-right: 4px; }
+.studio .terrain-control button:focus-visible, .terrain-panel input:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
+.parcel-terrain { margin: 10px 0; font-size: 12px; line-height: 1.45; }
+.parcel-terrain h4 { margin: 0 0 4px; font-size: 13px; }
+.parcel-terrain dl { display: grid; gap: 2px; margin: 0; }
+.parcel-terrain dl div { display: grid; grid-template-columns: 104px 1fr; gap: 6px; }
+.parcel-terrain dt { color: #5d6a60; font-weight: 650; }
+.parcel-terrain dd { margin: 0; }
+.parcel-terrain p { margin: 0; }
+.parcel-terrain small { display: block; margin-top: 4px; color: #5d6a60; font-size: 11px; }
+.parcel-terrain-caution { margin-top: 6px !important; padding: 6px 8px; border-left: 3px solid #c2412d; background: #fdf0ec; color: #6b2416; }

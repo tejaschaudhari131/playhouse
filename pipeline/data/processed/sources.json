@@ -431,5 +431,14 @@
         "note": "Pages 3\u20134 explain the 60% calculation and hold-harmless rules; pages 9\u201310 describe rent restrictions and imputed household size."
       }
     ]
+  },
+  {
+    "name": "Allegheny County assessed land and building values",
+    "url": "https://data.wprdc.org/dataset/property-assessments",
+    "publisher": "Allegheny County Office of Property Assessments, via Western Pennsylvania Regional Data Center",
+    "pulled_at": "2026-10-31",
+    "license": "See the WPRDC property assessments dataset page",
+    "status": "ok",
+    "notes": "Fields PARID,TAXCODE,LOCALLAND,LOCALBUILDING only. LOCALLAND and LOCALBUILDING are the assessed values for local (City and school) tax purposes; TAXCODE T is taxable, E exempt and P PURTA. 140983 of 142865 parcels matched; 123074 taxable. Used only for the illustrative land value tax shift. Assessed value is not market value."
   }
 ]

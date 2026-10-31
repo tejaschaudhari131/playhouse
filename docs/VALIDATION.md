@@ -311,3 +311,30 @@ Further browser checks:
 - about 140 meshed neighbours at street zoom.
 
 No browser warnings or errors were captured. The 40-unit apartment does not fit either lot and is shown with its red rim. On Chatsworth, the existing front guess puts its storefront away from the street, because the footprint spills past the lot. Scores, eligibility, source data and plan schema are unchanged.
+
+## Policy scenarios — October 31, 2026
+
+`lib/policyScenarios.test.js` adds 10 tests:
+
+- the four named scenarios, each with an "enables" paragraph, the four evaluation measures and an example parcel;
+- the lowest HUD AMI band at 30% of income, by household size;
+- the pencils, marginal and gap classes;
+- metrics read from a redevelopment impact;
+- the missing-middle outcome on a 2,000 sq ft R1D-L lot (0 → 3 homes);
+- the Bill 2025-1545 RM-M height of 55 → 85 ft and 4 → 6 stories, with no bonus in R1D;
+- single-stair fit on 10.4 m, 20 m and 7 m lots, and the setback conflict from a missed default fit being re-fitted rather than counted;
+- single-stair adding no homes where zoning bars multi-unit;
+- the LVT outcome: the parcel bill, the land-only tax and a new building at land plus cost before land.
+
+The full web suite passes and the production build passes.
+
+Headless Chrome (SwiftShader WebGL) opened **Policy scenarios** from the header on Hazelwood Ave and ran **Try an example** for each scenario:
+
+| Scenario | Example | Before → after |
+| --- | --- | --- |
+| Land value tax shift, 4:1 | 650 Penn Ave | City bill $10,879 → $25,383 a year. City tax on a new 40-home building $286k–$403k → $188k–$256k a year. Opens in 2D with the tax-shift colours. |
+| Single-stair buildings | Montezuma St | Two-stair core does not fit; single-stair fits at 9 × 22 m. Most homes 3 → 12. |
+| Missing-middle lot reform | Maplewood Ave | No type passes → triplex (3 homes). §911.02 and §903.03.B lifted. |
+| Bill 2025-1545 height bonus | 215 S Euclid Ave | Height 45 ft / 3 stories → 75 ft / 5 stories. Most homes 3 → 12. The 3D envelope shows the bonus frame. |
+
+No browser errors were captured.

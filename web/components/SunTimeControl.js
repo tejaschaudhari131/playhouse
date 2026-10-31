@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { SUN_TIMES } from '../lib/sunShadows.js'
+import { SEASONS, SUN_TIMES, normalizeSun, seasonFor } from '../lib/sunShadows.js'
 
 const DIRECTIONS = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
 
@@ -12,28 +12,35 @@ function SunTimeIcon({ time }) {
   </svg>
 }
 
-export default function SunTimeControl({ value, onChange }) {
+/** Roving-tabindex radio group: arrows, Home and End move the choice, as in the WAI-ARIA radio pattern. */
+function RadioRow({ label, items, selected, onChoose, render, title }) {
   const buttons = useRef([])
-  const selected = Math.max(0, SUN_TIMES.findIndex(time => time.id === value))
-
-  function choose(index) {
-    const next = (index + SUN_TIMES.length) % SUN_TIMES.length
-    onChange(SUN_TIMES[next].id)
-    buttons.current[next]?.focus({ preventScroll: true })
+  const index = Math.max(0, selected)
+  function choose(next) {
+    const i = (next + items.length) % items.length
+    onChoose(items[i])
+    buttons.current[i]?.focus({ preventScroll: true })
   }
-
-  function keyDown(event, index) {
+  function keyDown(event, i) {
     if (event.altKey || event.ctrlKey || event.metaKey) return
     if (!(event.key in DIRECTIONS) && event.key !== 'Home' && event.key !== 'End') return
     event.preventDefault()
     event.stopPropagation()
-    choose(event.key === 'Home' ? 0 : event.key === 'End' ? SUN_TIMES.length - 1 : index + DIRECTIONS[event.key])
+    choose(event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : i + DIRECTIONS[event.key])
   }
+  return <div role="radiogroup" aria-label={label}>
+    {items.map((item, i) => <button key={item.id} ref={node => { buttons.current[i] = node }} type="button" role="radio" aria-checked={i === selected} aria-label={item.label}
+      title={title(item)} tabIndex={i === index ? 0 : -1} onClick={() => choose(i)} onKeyDown={event => keyDown(event, i)}>{render(item)}</button>)}
+  </div>
+}
 
-  return <div className="map-sun-toggle" role="radiogroup" aria-label="Sun position for shadows (equinox)" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
-    {SUN_TIMES.map((time, index) => <button key={time.id} ref={node => { buttons.current[index] = node }} type="button" role="radio" aria-checked={value === time.id} aria-label={time.label}
-      title={`${time.label} · ${time.hour}:00 (equinox solar time)`} tabIndex={index === selected ? 0 : -1} onClick={() => choose(index)} onKeyDown={event => keyDown(event, index)}>
-      <SunTimeIcon time={time.id}/>
-    </button>)}
+export default function SunTimeControl({ value, onChange }) {
+  const sun = normalizeSun(value), season = seasonFor(sun.season)
+  return <div className="map-sun-toggle" onPointerDown={event => event.stopPropagation()} onClick={event => event.stopPropagation()}>
+    <RadioRow label="Day of year for shadows" items={SEASONS} selected={SEASONS.findIndex(s => s.id === sun.season)} onChoose={s => onChange(normalizeSun({ season: s.id, hour: sun.hour }))}
+      title={s => `${s.label} · ${s.date}`} render={s => <span className="sun-season">{s.short}</span>}/>
+    <span className="sun-divider" aria-hidden="true"/>
+    <RadioRow label={`Time of day for shadows (${season.label.toLowerCase()})`} items={SUN_TIMES} selected={SUN_TIMES.findIndex(t => t.hour === sun.hour)} onChoose={t => onChange({ season: sun.season, hour: t.hour })}
+      title={t => `${t.label} · ${t.hour}:00 solar time, ${season.label.toLowerCase()}`} render={t => <SunTimeIcon time={t.id}/>}/>
   </div>
 }

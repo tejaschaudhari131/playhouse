@@ -9,6 +9,7 @@ import { collection, neighborhoodId, neighborhoodAdjacency, spatialIndex } from 
 import { prepareEmptySites } from '../lib/emptySites.js'
 import { partitionAddressRows } from '../lib/addressSearch.js'
 import { encodeFeatureTransport } from '../lib/featureTransport.js'
+import { taxBase } from '../lib/lvtShift.js'
 
 // Legacy study partitioner retained for transport-parity regression tests.
 export function partitionStudioData(parcels, buildings, neighborhoods) {
@@ -81,7 +82,7 @@ export async function prepareStudioData() {
     if (batch.length || !files.length) await flush()
     return { files, sizes }
   }
-  const uses = new Map(), pinLookup = {}, descriptors = [], addressRows = []
+  const uses = new Map(), pinLookup = {}, descriptors = [], addressRows = [], taxRecords = []
   for (const n of neighborhoods.features) {
     const id=neighborhoodId(n.properties.name), data=await gz(new URL(`parcels/${id}.geojson.gz`, source))
     for (const f of data.features) {
@@ -89,6 +90,7 @@ export async function prepareStudioData() {
       uses.set(p.pin,{properties:{land_use:p.land_use,land_use_class:p.land_use_class}})
       ;(pinLookup[p.pin.slice(0,3)] ||= {})[p.pin]=id
       addressRows.push([p.pin, p.address || '', id])
+      taxRecords.push(p)
     }
   }
   const buildings = colorBuildingUses(await gz(new URL('existing-buildings.geojson.gz',source)),uses)
@@ -111,7 +113,7 @@ export async function prepareStudioData() {
     if (!regions.has(region)) regions.set(region,[])
     regions.get(region).push(bounds)
   }
-  const manifest={version:3, featureTransport:'properties-dictionary-v1', neighborhoods:descriptors, pinLookup:{}, parcelCount:uses.size, buildingCount:buildings.features.length, maximumFileBytes:0, emptySiteCount:0, emptySiteBytes:0}
+  const manifest={version:3, featureTransport:'properties-dictionary-v1', neighborhoods:descriptors, pinLookup:{}, parcelCount:uses.size, buildingCount:buildings.features.length, maximumFileBytes:0, emptySiteCount:0, emptySiteBytes:0, taxBase:taxBase(taxRecords)}
   for (const n of neighborhoods.features) {
     const name=n.properties.name, id=neighborhoodId(name), area=n.properties.group
     const parcels=await gz(new URL(`parcels/${id}.geojson.gz`,source))

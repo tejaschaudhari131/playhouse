@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MeshBasicMaterial, Vector4 } from 'three'
-import { BuildingScene, createThreeBuildingsLayer, mergeBuildings } from './threeBuildingsLayer.js'
+import { BuildingScene, TINTED_MATERIALS, createThreeBuildingsLayer, hexToRgb, mergeBuildings, tintColors } from './threeBuildingsLayer.js'
 import { mercator, meterInMercator } from './threeBuildingMeshes.js'
 import { footprintKey } from './redevelopment.js'
 
@@ -29,6 +29,37 @@ test('merging shifts each building by its anchor offset', () => {
   assert.deepEqual([...merged.position.slice(0, 3)], [11, 22, 3])
   assert.deepEqual([...merged.position.slice(9, 12)], [0, 2, 3])
   assert.equal(merged.uv.length, 12)
+})
+
+test('building-type tint mixes wall and roof colours only, and merge applies it per building', () => {
+  assert.deepEqual(hexToRgb('#ff8000'), [1, 128 / 255, 0])
+  assert.ok(TINTED_MATERIALS.has('brick') && !TINTED_MATERIALS.has('glass'))
+  const white = new Float32Array(6).fill(1), red = [1, 0, 0]
+  assert.deepEqual([...tintColors('glass', Float32Array.from(white), red)], [...white], 'glass keeps its colour')
+  const tinted = tintColors('brick', Float32Array.from(white), red)
+  assert.ok(Math.abs(tinted[0] - 1) < 1e-6 && Math.abs(tinted[1] - .22) < 1e-6 && Math.abs(tinted[5] - .22) < 1e-6)
+  const arrays = { position: new Float32Array(6), normal: new Float32Array(6), uv: new Float32Array(4), color: Float32Array.from(white) }
+  const merged = mergeBuildings(new Map([['brick', [{ arrays, offset: [0, 0], tint: [0, 0, 1] }, { arrays, offset: [0, 0], tint: null }]]])).get('brick')
+  assert.ok(merged.color[0] < .3 && merged.color[2] === 1, 'first building tinted blue')
+  assert.deepEqual([...merged.color.slice(6)], [...white], 'untinted building and source arrays unchanged')
+  assert.deepEqual([...arrays.color], [...white])
+})
+
+test('highlighting hides unchecked categories and tints the rest, keeping the inspected footprint highlighted', () => {
+  const materials = stubMaterials(), scene = new BuildingScene({ materials })
+  scene.setOrigin(ORIGIN)
+  const a = house('a', 0, { type_category: 'single_family' }), b = house('b', .0003, { type_category: 'commercial' })
+  scene.setNeighborhood([a, b])
+  assert.equal(scene.meshed, 2)
+  const colourOf = () => scene.neighborhood.children.find(m => m.userData.material === 'shingle').geometry.getAttribute('color').array
+  const plainColour = Float32Array.from(colourOf())
+  scene.setNeighborhood([a, b], { highlight: { colors: { single_family: '#0000ff', commercial: '#ff0000' }, hidden: ['commercial'] } })
+  assert.equal(scene.meshed, 1, 'commercial building hidden')
+  const tinted = colourOf()
+  assert.ok(tinted[2] > plainColour[2] && tinted[0] < plainColour[0], 'roof mixed toward blue')
+  scene.setNeighborhood([a, b], { inspectedKey: footprintKey(a), highlight: { colors: { single_family: '#0000ff' }, hidden: [] } })
+  assert.equal(scene.meshed, 2)
+  assert.ok(materials.made.highlight.size > 0, 'inspected building drawn with highlight materials')
 })
 
 test('origin matrix maps scene metres onto MapLibre mercator coordinates', () => {
