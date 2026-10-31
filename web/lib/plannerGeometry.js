@@ -160,5 +160,6 @@ export function fitMassing(geometry, width, depth, placement = null, existingBui
 }
 
 export function slimParcels(collection) {
-  return { type: 'FeatureCollection', features: collection.features.map(f => ({ type: 'Feature', id: f.properties.pin, geometry: f.geometry, properties: { pin: f.properties.pin, vacant: f.properties.vacant_lot === true, area: f.properties.area, type_category: parcelCategory(f.properties) } })) }
+  return { type: 'FeatureCollection', features: collection.features.map(f => ({ type: 'Feature', id: f.properties.pin, geometry: f.geometry, properties: { pin: f.properties.pin, vacant: f.properties.vacant_lot === true, area: f.properties.area, neighborhood: f.properties.neighborhood, type_category: parcelCategory(f.properties),
+    tax_status: f.properties.tax_status ?? null, assessed_land: f.properties.assessed_land ?? null, assessed_building: f.properties.assessed_building ?? null } })) }
 }

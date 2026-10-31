@@ -28,6 +28,7 @@ import { envelopeFeatures } from '../lib/zoningEnvelope.js'
 import { cleanRing, insetRing, localFrame, openRing, toPolygon } from '../lib/localFrame.js'
 import { BUILDINGS } from '../lib/buildings.js'
 import { stairsRequired } from '../lib/singleStair.js'
+import { LVT_MAP_COLORS, parcelShift, shiftClass } from '../lib/lvtShift.js'
 import { BUILDING_TYPE_CATEGORIES, allFilters, hiddenCategoryFilter, plannedCategoryColor, typologyCategory } from '../lib/buildingTypes.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
@@ -45,7 +46,7 @@ function rimFeature(geometry, color, width = .35) {
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair' }) {
+export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair', lvt = null }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -149,7 +150,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addSource('districts', { type: 'geojson', data: neighborhoods })
       map.addSource('stops', { type: 'geojson', data: stops || empty() })
       map.addSource('existing-buildings', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://mapservices.pasda.psu.edu/server/rest/services/pasda/AlleghenyCounty/MapServer/11">Allegheny County / PASDA buildings</a> · Heights: County / <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, ODbL</a>' })
-      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim', 'vacant-lots']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
+      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim', 'vacant-lots', 'lvt-shift']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
       map.addSource('walking-network', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL</a>' })
       map.addLayer({ id: 'district-line', type: 'line', source: 'districts', paint: { 'line-color': '#78978c', 'line-width': 2, 'line-dasharray': [3, 3] } })
       map.addLayer({ id: 'district-fill', type: 'fill', source: 'districts', maxzoom: DETAIL_ZOOM, paint: { 'fill-color': '#78978c', 'fill-opacity': .12 } }, 'district-line')
@@ -177,6 +178,11 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addLayer({ id: 'existing-buildings-roof', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-base': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-height': ['get', 'height_m'], 'fill-extrusion-color': colors.roof, 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
       // Buildings drawn by the Three.js layer stay clickable through this invisible copy (opacity 0 skips drawing, not queries).
       map.addLayer({ id: 'existing-buildings-hit', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, filter: ['in', ['to-string', ['get', 'id']], ['literal', []]], paint: { 'fill-extrusion-height': ['get', 'height_m'], 'fill-extrusion-color': '#000000', 'fill-extrusion-opacity': 0 } })
+      // Tax shift choropleth: flat over buildings in 2D, a thin ground slab under them in 3D.
+      const lvtColor = ['match', ['get', 'lvt_class'], ...Object.entries(LVT_MAP_COLORS).flat(), '#c9ccd1']
+      map.addLayer({ id: 'lvt-ground', type: 'fill-extrusion', source: 'lvt-shift', minzoom: DETAIL_EXIT_ZOOM, layout: { visibility: 'none' }, paint: { 'fill-extrusion-height': .35, 'fill-extrusion-color': lvtColor, 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': false } }, 'existing-buildings-overview')
+      map.addLayer({ id: 'lvt-fill', type: 'fill', source: 'lvt-shift', minzoom: DETAIL_EXIT_ZOOM, layout: { visibility: 'none' }, paint: { 'fill-color': lvtColor, 'fill-opacity': .82 } })
+      map.addLayer({ id: 'lvt-line', type: 'line', source: 'lvt-shift', minzoom: DETAIL_EXIT_ZOOM, layout: { visibility: 'none' }, paint: { 'line-color': '#ffffff', 'line-width': .5, 'line-opacity': .8 } })
       map.addLayer({ id: 'service-link', type: 'line', source: 'service', filter: ['==', ['geometry-type'], 'LineString'], paint: { 'line-color': '#386da3', 'line-width': 3 } })
       map.addLayer({ id: 'stops-points', type: 'circle', source: 'stops', minzoom: DETAIL_EXIT_ZOOM, paint: { 'circle-radius': 4, 'circle-color': '#fff', 'circle-stroke-color': '#587693', 'circle-stroke-width': 1.5 } })
       map.addLayer({ id: 'service-zone', type: 'fill-extrusion', source: 'service', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-extrusion-height': 1.5, 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-opacity': .95 } })
@@ -336,6 +342,20 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     map.setPaintProperty('existing-buildings-fill', 'fill-extrusion-color', colors.facade)
     map.setPaintProperty('existing-buildings-roof', 'fill-extrusion-color', colors.roof)
   }, [ready, buildingStyle, highlightOn])
+  const lvtRates = lvt?.rates || null
+  useEffect(() => {
+    const map = readyMap()
+    if (!map) return
+    map.getSource('lvt-shift').setData(fc(lvtRates ? visibleParcels.map(f => {
+      const shift = parcelShift(f.properties, lvtRates)
+      return { type: 'Feature', geometry: f.geometry, properties: { pin: f.properties.pin, lvt_class: shift ? shiftClass(shift.percent) : 'none' } }
+    }) : []))
+    map.setLayoutProperty('lvt-fill', 'visibility', lvtRates && !view3d ? 'visible' : 'none')
+    map.setLayoutProperty('lvt-line', 'visibility', lvtRates && !view3d ? 'visible' : 'none')
+    map.setLayoutProperty('lvt-ground', 'visibility', lvtRates && view3d ? 'visible' : 'none')
+    if (lvtRates && !view3d) map.moveLayer('selected-line', 'service-link')
+    else map.moveLayer('selected-line', 'park-fill')
+  }, [ready, visibleParcels, lvtRates, view3d])
   useEffect(() => {
     if (!ready) return
     const showVacant = highlightOn && !hiddenTypes.includes('vacant')
@@ -622,5 +642,5 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     focus()
   }, [ready, buildingFocusRequest, buildingRows, selected?.properties.pin])
 
-  return <><div ref={container} className="planner-map" data-building-style={buildingStyle} data-type-highlight={highlightOn ? hiddenKey || 'all' : 'off'} data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-active={threeActive} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
+  return <><div ref={container} className="planner-map" data-building-style={buildingStyle} data-type-highlight={highlightOn ? hiddenKey || 'all' : 'off'} data-lvt-ratio={lvtRates ? lvtRates.ratio : 'off'} data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-active={threeActive} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
 }

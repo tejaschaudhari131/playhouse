@@ -167,6 +167,26 @@ Inspect a proposed building and choose **Edit shape & position**. Change the sha
 
 Uses the County records as `UNKNOWN`, or that match no rule, show as *Use unknown*. The colours apply to the 2D overview, 3D extrusions (façade and roof) and the Three.js meshes, whose walls and roofs mix 78% toward the category colour while glass, doors and trim keep their own. Unchecking a type hides those footprints on every layer; the inspected building keeps its teal highlight. Proposed and placed buildings use a 40%-lighter tint of their typology's category: house and ADU as single-family, duplex as two-family, triplex as small multifamily and both apartment types as apartments. With highlighting on, a preview's placement status stays visible in its ground rim. Highlighting never changes scores.
 
+## Land value tax shift
+
+**Scenarios → Land value tax shift** is an illustrative estimate of how each parcel's City real estate bill could change if the City taxed land at a higher rate than buildings while raising the same revenue. Code: `web/lib/lvtShift.js` (math), `components/LvtShiftPanel.js` (panel). Data: `pipeline/refresh_assessed_values.py`.
+
+- **Inputs.** County assessed `LOCALLAND` and `LOCALBUILDING` (values for City and school taxes) and `TAXCODE` from the [WPRDC property assessments](https://data.wprdc.org/dataset/property-assessments). Parcels with tax code `T` and both values form the base: 123,074 City parcels, $4.73B land and $15.61B buildings, so land is 23% of the value. Exempt (`E`) and PURTA (`P`) parcels are left out and drawn grey.
+- **Levy.** [City of Pittsburgh 2026 millage, Code §263.01](https://ecode360.com/45440133): 9.67 mills. Only this levy is shifted. Pittsburgh's two-rate tax (1913–2001) was a City tax. [Pittsburgh Public Schools](https://www.wesanews.org/education/2025-12-17/pittsburgh-public-schools-2026-tax-increase-approved) (10.457 mills) and [Allegheny County](https://alleghenycountytreasurer.us/real-estate-tax/local-and-school-district-tax-millage/) (6.43 mills) stay uniform. The 0.5-mill Parks Trust Fund levy is not modelled.
+- **Revenue-neutral split rate.** Current revenue = 9.67 × (ΣL + ΣB) / 1000. The building rate is 9.67 × (ΣL + ΣB) / (k × ΣL + ΣB), and the land rate is k times that, where k is the land:building ratio. A parcel's bill falls exactly when its land share is below the citywide 23%. The slider runs from 1:1 to 6:1 in 0.5 steps and starts at 4:1, the toolkit's typical example. Pittsburgh used 2:1 after the 1913 phase-in ([Dye & England](https://www.lincolninst.edu/app/uploads/legacy-files/pubfiles/assessing-theory-practice-land-value-taxation-full_0.pdf)) and reached a high of 5.8:1 ([Banzhaf & Lavery 2008, Table 2](https://www.lincolninst.edu/app/uploads/legacy-files/pubfiles/banzhaf-wp08sb1.pdf)).
+
+| Ratio | Land mills | Building mills |
+| --- | --- | --- |
+| 1:1 (today) | 9.67 | 9.67 |
+| 2:1 | 15.69 | 7.85 |
+| 4:1 | 22.79 | 5.70 |
+| 5.8:1 | 26.51 | 4.57 |
+
+- **Map.** Classes are on the percent change of the City bill: falls 25% or more, falls 5–25%, within ±5%, rises 5–50%, rises 50% or more. Exempt parcels and parcels without values are grey. In 2D the colours cover each whole parcel, including its buildings; in 3D they are a thin ground slab under the buildings.
+- **Panel.** The selected parcel's City bill now and under the shift, with its land share. For the selected neighbourhood: the share of taxable parcels that would pay less, the median dollar change, and the median by recorded use (the Highlight building types categories).
+- **Methodology inspiration.** The Center for Land Economics' open [LVTShift toolkit](https://landeconomics.org/lvtshift) ([code](https://github.com/gregmiller00/LVTShift), [write-up](https://blog.landeconomics.org/p/want-to-model-a-land-value-tax-shift)) rebuilds the current levy from assessor data and solves for a revenue-neutral split rate parcel by parcel. Playhouse is simpler: it does not reallocate exemptions, reconcile against the certified levy, model an abatement alternative or join income and race data for progressivity. The reconstructed $196.6M is assessed value × millage before appeals, abatements and collection losses; it is not the City's budgeted revenue.
+- **Not modelled.** LERTA and other abatements, homestead and senior relief, appeals, reassessment, collection rates, changes in land prices or construction, and tenants' pass-through. Assessed value is not market value.
+
 ## Single-stair reform
 
 **Build → Stairs** switches the apartment egress rule (`scenario.egress`, saved and exported with the plan). Code: `web/lib/singleStair.js`.

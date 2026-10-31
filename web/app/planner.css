@@ -1145,3 +1145,29 @@
     .draft-dock .eyebrow, .draft-dock > div > strong { display: none; }
   }
 }
+
+/* Policy scenarios and land value tax shift */
+.scenario-card { margin: 0 0 14px; padding: 13px 14px; border: 1px solid #d3ddd2; border-radius: 10px; background: #fbfcfa; }
+.scenario-card h3 { margin: 0 0 6px; font-size: 16px; }
+.scenario-card h4 { margin: 10px 0 4px; font-size: 13px; }
+.lvt-panel { display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45; }
+.lvt-label { margin: 0; padding: 7px 9px; border-left: 3px solid #b7791f; background: #fff8e6; color: #5d4210; font-size: 12px; }
+.lvt-controls { display: grid; gap: 5px; }
+.lvt-controls input[type=range] { width: 100%; accent-color: #2f5d8a; }
+.lvt-controls small, .lvt-panel small { color: #5d6a60; font-size: 11px; }
+.studio .lvt-toggle { justify-self: start; min-height: 34px; padding: 6px 11px; border: 1px solid #7b98b6; border-radius: 8px; background: #fff; color: #244869; font-weight: 650; }
+.studio .lvt-toggle[aria-pressed=true] { background: #e5eef8; border-color: #2f5d8a; }
+.lvt-rates { display: grid; gap: 3px; margin: 0; }
+.lvt-rates div { display: grid; grid-template-columns: 92px 1fr; gap: 8px; }
+.lvt-rates dt { color: #5d6a60; font-weight: 650; }
+.lvt-rates dd { margin: 0; }
+.lvt-parcel p, .lvt-summary p { margin: 0; }
+.lvt-summary table { width: 100%; margin-top: 6px; border-collapse: collapse; font-size: 12px; }
+.lvt-summary th, .lvt-summary td { padding: 3px 4px; border-bottom: 1px solid #e3e8e2; text-align: left; font-weight: 400; }
+.lvt-summary thead th { color: #5d6a60; font-weight: 650; }
+.lvt-summary td { text-align: right; }
+.lvt-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.lvt-legend li { display: flex; align-items: center; gap: 5px; }
+.lvt-legend i { width: 13px; height: 13px; border-radius: 3px; border: 1px solid #0002; }
+.lvt-method summary { cursor: pointer; font-weight: 650; }
+.lvt-method p { margin: 6px 0 0; font-size: 12px; }
