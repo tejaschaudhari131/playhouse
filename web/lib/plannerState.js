@@ -3,6 +3,7 @@ import { BUILDINGS, BUILDING_IDS } from './buildings.js'
 import { normalizeDemolition, buildingRefKey } from './redevelopment.js'
 import { housingCostInputs } from './housingCosts.js'
 import { prototypeRentOption } from './rentAssumptions.js'
+import { egressMassing } from './singleStair.js'
 
 export const MODEL_VERSION = 'planner-screen-3.0'
 export const EXAMPLES = [
@@ -27,8 +28,10 @@ export const PLANNER_FACTORS = [
 ]
 export const INITIAL_WEIGHTS = { demand: 25, physical: 0, affordability: 25, displacement: 15, capacity: 0, access: 20, carbon: 15 }
 
-export function optionFor(typeId, rent) {
-  return { typeId, ...MASSING_DEFAULTS[typeId], height: BUILDINGS[typeId].heightM, floors: BUILDINGS[typeId].floors, residentialForm: 'duplex', rent, utilities: 150, placement: null }
+/** Default footprint for a type; the small apartment's depends on the stair rule (`scenario.egress`). */
+export const massingFor = (typeId, egress) => egressMassing(typeId, egress, MASSING_DEFAULTS[typeId])
+export function optionFor(typeId, rent, egress) {
+  return { typeId, ...massingFor(typeId, egress), height: BUILDINGS[typeId].heightM, floors: BUILDINGS[typeId].floors, residentialForm: 'duplex', rent, utilities: 150, placement: null }
 }
 export function initialScenario(pin, props = {}, stopId = '') {
   // ACS gross rent includes utilities; subtract the explicit utility assumption once.

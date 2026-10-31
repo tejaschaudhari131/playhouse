@@ -568,6 +568,13 @@
 .typology-card:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
 .typology-card strong { display: block; font-size: 13px; font-weight: 650; }
 .typology-meta { color: #5f7465; font-size: 11px; }
+.typology-stairs { color: #2f5d8a; font-weight: 650; }
+.typology-stairs.tight { color: #b42318; }
+.stair-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 6px 0 2px; font-size: 12px; }
+.stair-rule > span { color: #4c5f50; font-weight: 650; }
+.studio .stair-rule button { min-height: 30px; padding: 4px 9px; border: 1px solid #c3d0c4; border-radius: 7px; background: #fff; font-size: 12px; }
+.studio .stair-rule button[aria-pressed=true] { border-color: #2f5d8a; background: #e5eef8; font-weight: 650; }
+.stair-rule small { flex-basis: 100%; color: #5d6a60; font-size: 11px; }
 .typology-card .typology-score { display: block; margin-top: 3px; }
 .typology-score { font-variant-numeric: tabular-nums; font-weight: 650; color: #2e4d3c; }
 .typology-score.unscored, .typology-score.noscore { font-weight: 500; color: #7a877c; }

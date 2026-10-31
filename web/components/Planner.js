@@ -56,7 +56,7 @@ import incomeLimits from '../lib/hudIncomeLimits.json'
 import { typologyCards, resizeDraft, rotatePlacement, nudgePlacement, draftKey, previewPaused } from '../lib/buildControls.js'
 import { nearbyStops, preferredStop, round } from '../lib/plannerModel.js'
 import { createPlannerEvaluator, sameEvaluationContext } from '../lib/plannerEvaluation.js'
-import { EXAMPLES, PLANNER_FACTORS, MASSING_DEFAULTS, optionFor, initialStudioScenario, historyFor, scenarioReducer, scenarioExport, defaultComparisonTypes } from '../lib/plannerState.js'
+import { EXAMPLES, PLANNER_FACTORS, massingFor, optionFor, initialStudioScenario, historyFor, scenarioReducer, scenarioExport, defaultComparisonTypes } from '../lib/plannerState.js'
 import { readSavedPlan, savePlan, restorePlanContext, shouldSavePlan } from '../lib/planPersistence.js'
 import { draftStatus } from '../lib/plannerStatus.js'
 import { housingCostInputs, housingCostConfirmed } from '../lib/housingCosts.js'
@@ -75,7 +75,8 @@ import { permitPathway } from '../lib/permitPathway.js'
 import { reformSummary } from '../lib/policyReform.js'
 import useAddressSearch from './useAddressSearch.js'
 import { isParcelSearch } from '../lib/addressSearch.js'
-import { fitDiagnosis, fitToLot, fitSummary } from '../lib/lotFit.js'
+import { fitDiagnosis, fitToLot, fitSummary, TYPE_MINIMUMS } from '../lib/lotFit.js'
+import { egressMinimum, APARTMENT_FOOTPRINT, EGRESS_RULES } from '../lib/singleStair.js'
 import { districtStandards } from '../lib/titleNineRules.js'
 
 const PlannerMap = dynamic(() => import('./PlannerMap.js'), { ssr: false, loading: () => <div className="planner-loading">Preparing the map…</div> })
@@ -480,7 +481,7 @@ function Studio({ data }) {
     setNotice(include ? 'Housing costs now count in scores as scenario assumptions, for the draft and every placed building. Edits keep them included.' : 'Housing costs excluded from every score. Turn the switch back on to include them.', 'transient')
   }
   const costSwitch = compact => <CostSwitch compact={compact} included={costsIncluded} rent={option.rent} utilities={option.utilities} targetIncome={scenario.targetIncome} placedExcluded={placedCostsExcluded} onChange={setHousingCosts}/>
-  const cards = useMemo(() => typologyCards({ draft: option, options, code: props.zoning_code, zoning }), [option, options, props.zoning_code, zoning])
+  const cards = useMemo(() => typologyCards({ draft: option, options, code: props.zoning_code, zoning, egress: scenario.egress }), [option, options, props.zoning_code, zoning, scenario.egress])
   const zoningInputs = scenario.zoningInputsByPin?.[scenario.pin] || {}
   function setZoningInput(key, value) { set('zoningInputsByPin', { ...scenario.zoningInputsByPin, [scenario.pin]: { ...zoningInputs, [key]: value } }) }
   const addressSearch = useAddressSearch(manifest, query, props.neighborhood)
@@ -507,7 +508,7 @@ function Studio({ data }) {
     if (pin === scenario.pin) { if (!building && emptyCandidates.has(pin)) changeType(emptyCandidates.get(pin)); setTool('housing'); setInspectorTab('edit'); setQuery(''); return }
     const sameArea = byPin.get(pin).properties.area === props.area
     const next = makeScenario(pin)
-    if (!building && emptyCandidates.has(pin)) Object.assign(next, { draft: { ...optionFor(emptyCandidates.get(pin), next.draft.rent), ...prototypeRentOption(emptyCandidates.get(pin)) }, comparisonTypes: defaultComparisonTypes(emptyCandidates.get(pin)) })
+    if (!building && emptyCandidates.has(pin)) Object.assign(next, { draft: { ...optionFor(emptyCandidates.get(pin), next.draft.rent, next.egress), ...prototypeRentOption(emptyCandidates.get(pin)) }, comparisonTypes: defaultComparisonTypes(emptyCandidates.get(pin)) })
     if (sameArea) Object.assign(next, { zoningInputsByPin: scenario.zoningInputsByPin, projectInputs: scenario.projectInputs, connections: scenario.connections, routes: scenario.routes, parks: scenario.parks, parkAccessShare: scenario.parkAccessShare, weights: scenario.weights, comparisonTypes: scenario.comparisonTypes, buildings: scenario.buildings || [], demolitions: scenario.demolitions || [], additionalDepartures: scenario.additionalDepartures, serviceHours: scenario.serviceHours,  spareBoardings: scenario.spareBoardings, ...sharedCapacityInputs(scenario), availablePlacesPerDeparture: scenario.availablePlacesPerDeparture, boardingsPerHome: scenario.boardingsPerHome })
     if (sameArea) {
       if (scenario.proForma !== undefined) next.proForma = scenario.proForma
@@ -594,7 +595,7 @@ function Studio({ data }) {
     dispatch({ type: 'restoreHistory', history: buildingEdit.history }); setBuildingEdit(null); setPlacing(false); setJustAdded(null); setHoverPoint(null); setSelectedBuilding(null)
     setNotice('Building edit cancelled; original plan restored.', 'transient')
   }
-  function changeType(typeId) { setSelectedBuilding(null); dispatch({ type: 'draft', value: { typeId, ...MASSING_DEFAULTS[typeId], height: BUILDINGS[typeId].heightM, floors: BUILDINGS[typeId].floors, residentialForm: 'duplex', placement: placing || buildingEdit ? placement : null, ...(scenario.rentMode === 'prototype' ? prototypeRentOption(typeId) : {}) } }) }
+  function changeType(typeId) { setSelectedBuilding(null); dispatch({ type: 'draft', value: { typeId, ...massingFor(typeId, scenario.egress), height: BUILDINGS[typeId].heightM, floors: BUILDINGS[typeId].floors, residentialForm: 'duplex', placement: placing || buildingEdit ? placement : null, ...(scenario.rentMode === 'prototype' ? prototypeRentOption(typeId) : {}) } }) }
   function previewTemplate(template) {
     if (evaluation.pending) return
     dispatch({ type: 'draft', value: template }); setTool('housing'); setInspectorTab('edit'); setPlacing(false)
@@ -604,6 +605,14 @@ function Studio({ data }) {
   function set(key, value) {
     if (key === 'additionalDepartures' && !Object.keys(servicePatch(scenario, value)).length) return
     dispatch({ type: 'patch', value: { [key]: value, ...(key === 'additionalDepartures' ? servicePatch(scenario, value) : {}), ...(key === 'targetIncome' ? { incomeSource: 'custom', incomeBand: null } : {}), ...(key === 'spareBoardings' ? { capacityStopId: scenario.stopId } : {}) } })
+  }
+  /** Switch the stair rule; a small apartment still at the other rule's default footprint takes this rule's default. */
+  function setEgress(egress) {
+    const next = egress === 'single-stair' ? 'single-stair' : 'two-stair'
+    if ((scenario.egress || 'two-stair') === next) return
+    const previous = APARTMENT_FOOTPRINT[scenario.egress || 'two-stair']
+    const atDefault = option.typeId === 'small_apartment' && option.width === previous.width && option.depth === previous.depth
+    dispatch({ type: 'patch', value: { egress: next, ...(atDefault ? { draft: { ...option, ...APARTMENT_FOOTPRINT[next], placement: null } } : {}) } })
   }
   function setOption(key, value) {
     if (key === 'rent') dispatch({ type: 'patch', value: { rentMode: 'custom', draft: { ...option, rent: value, rentSource: 'custom', rentSourceDetail: 'User-entered rent shared by compared types.', rentRange: null } } })
@@ -636,8 +645,9 @@ function Studio({ data }) {
   function fitDraftToLot() {
     if (evaluation.pending) return
     const district = districtStandards(props.zoning_code), lotM2 = Number.isFinite(props.lot_sqft) ? props.lot_sqft / 10.7639 : null
-    const fit = fitToLot({ option, geometry: selected.geometry, obstacles: proposalObstacles, maxFootprintM2: district?.coverage && lotM2 ? lotM2 * district.coverage / 100 : null })
-    if (!fit) { setNotice(fitSummary(null, option)); return }
+    const minimum = egressMinimum({ ...option, units: housingSpec(option).units }, TYPE_MINIMUMS[option.typeId] || { width: 4, depth: 6 }, scenario.egress)
+    const fit = fitToLot({ option, geometry: selected.geometry, obstacles: proposalObstacles, maxFootprintM2: district?.coverage && lotM2 ? lotM2 * district.coverage / 100 : null, minimum })
+    if (!fit) { setNotice(fitSummary(null, option, minimum)); return }
     setJustAdded(null); setPlacing(false)
     dispatch({ type: 'draft', value: { width: fit.width, depth: fit.depth, placement: null } })
     setNotice(`Fitted to the lot: ${fitSummary(fit, option)} Undo restores the previous size.`, 'transient')
@@ -788,7 +798,7 @@ function Studio({ data }) {
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
-        <PlannerMap buildingStyle={buildingStyle} buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding || paused ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest} streetView={streetView} sunTime={sunTime} zoningEnvelope={zoningEnvelope} typeHighlight={typeHighlight}/>
+        <PlannerMap buildingStyle={buildingStyle} buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding || paused ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest} streetView={streetView} sunTime={sunTime} zoningEnvelope={zoningEnvelope} typeHighlight={typeHighlight} egress={scenario.egress}/>
         {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates. Arrow keys move 1 m; Shift moves 5 m.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
         <div className="map-quick-actions">
@@ -849,6 +859,7 @@ function Studio({ data }) {
           {inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !selectedBuilding && <section data-tour="housing" className="housing-editor">
             <div className="drawer-heading"><h3>{buildingEdit ? 'Edit planned building' : 'New building'}</h3></div>
             <TypologyCards cards={cards} pending={evaluation.pending} onChoose={typeId => { if (typeId !== option.typeId) changeType(typeId); else setJustAdded(null) }} onScoreAll={() => set('comparisonTypes', BUILDING_IDS.filter(id => id !== option.typeId))}/>
+            <div className="stair-rule" role="group" aria-label="Apartment stair rule"><span>Stairs</span>{[['two-stair', 'Current code'], ['single-stair', 'Single-stair reform']].map(([id, label]) => <button key={id} type="button" aria-pressed={(scenario.egress || 'two-stair') === id} title={EGRESS_RULES[id].short} onClick={() => setEgress(id)}>{label}</button>)}{scenario.egress === 'single-stair' && <small>Hypothetical: one stair up to 6 stories, ≤ 4 homes per floor, sprinklered. Not Pittsburgh law.</small>}</div>
             {paused ? <div className="added-callout" role="status"><p><strong>✓ {justAdded.label} {justAdded.edited ? 'updated in' : 'added to'} your plan.</strong> The preview is paused so it does not sit on top of the new building.</p><div className="placement-actions"><button onClick={event => selectBuilding({ kind: 'placed', id: justAdded.id, pin: justAdded.pin }, event.currentTarget)}>Inspect {justAdded.edited ? 'updated' : 'new'} building</button></div></div> : <>
             <fieldset className="quick-controls" aria-label="Size and orientation">
               <div className="quick-steppers">{[['width', 'Width', `${option.width} m`, 1], ['depth', 'Depth', `${option.depth} m`, 1], ['floors', 'Stories', option.floors ?? housingSpec(option).floors, 1]].map(([key, label, value, step]) => <div key={key} className="stepper"><span>{label}</span><button aria-label={`Decrease ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, -step)} onClick={() => resize(key, -step)}>−</button><output aria-live="polite" aria-label={label}>{value}</output><button aria-label={`Increase ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, step)} onClick={() => resize(key, step)}>+</button></div>)}</div>

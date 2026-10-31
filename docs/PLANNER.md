@@ -167,6 +167,24 @@ Inspect a proposed building and choose **Edit shape & position**. Change the sha
 
 Uses the County records as `UNKNOWN`, or that match no rule, show as *Use unknown*. The colours apply to the 2D overview, 3D extrusions (façade and roof) and the Three.js meshes, whose walls and roofs mix 78% toward the category colour while glass, doors and trim keep their own. Unchecking a type hides those footprints on every layer; the inspected building keeps its teal highlight. Proposed and placed buildings use a 40%-lighter tint of their typology's category: house and ADU as single-family, duplex as two-family, triplex as small multifamily and both apartment types as apartments. With highlighting on, a preview's placement status stays visible in its ground rim. Highlighting never changes scores.
 
+## Single-stair reform
+
+**Build → Stairs** switches the apartment egress rule (`scenario.egress`, saved and exported with the plan). Code: `web/lib/singleStair.js`.
+
+- **Current code.** [2024 IBC Table 1006.3.4(1)](https://up.codes/s/single-exits) allows a single exit for R-2 apartments only through the third story, with at most 4 homes per story, 125 ft of exit-access travel and sprinklers. Pennsylvania's UCC adopts the IBC. The [2027 IBC change](https://centerforbuilding.org/article/2027-ibc-single-exit-height-limit-to-be-raised-to-four-stories) raises this to 4 stories, but it is not yet in force.
+- **Single-stair reform (hypothetical).** One stair up to 6 stories, at most 4 homes per floor, 125 ft of travel and NFPA 13 sprinklers. This is the common core of [Seattle's §1006.3.4 item 7](https://www.seattle.gov/documents/Departments/SDCI/Codes/SeattleBuildingCode/2021SBCChapter10.pdf), [Texas SB 2835](https://capitol.texas.gov/tlodocs/89R/billtext/html/SB02835F.htm) and Montana SB 213. Those laws add conditions this screen does not check: construction type, stair pressurization or enclosure rating, and Seattle's 20 ft from unit door to stair. See [Pew's 2025 summary](https://www.pew.org/en/research-and-analysis/articles/2025/11/04/states-advance-single-stairway-reforms-to-expand-housing).
+
+Stairs needed: triplexes (1 home per floor, 3 stories) need one under both rules. The 12-home, 4-story small apartment (3 per floor) needs **two** under current code and **one** under the reform. The 40-home, 8-story large apartment needs two under both. Travel is approximated as half the floor-plate diagonal.
+
+Core geometry is a team planning assumption, not a design:
+
+| | Stair core | Minimum footprint | Small apartment default |
+| --- | --- | --- | --- |
+| Two stairs | Two 2.8 × 5.8 m stairs joined by a 1.5 m corridor (double-loaded plan) | 12 × 18 m | 14 × 20 m |
+| One stair | One 2.8 × 5.8 m stair plus a 4 m² landing (point access) | 7.5 × 14 m | 11 × 18 m |
+
+The small apartment's default footprint and the **Fit dimensions to lot** minimum follow the rule. Under current code, the fit search no longer shrinks a 4-story small apartment below 12 m wide (it previously allowed 9 m). Cards and details show the stair count and whether the footprint meets the core minimum. The check is shown beside the score and never vetoes it. Zoning height, coverage and setbacks still apply, so 5–6 stories usually also need a zoning change. Proposed apartments draw one rooftop stair bulkhead per stair in both the Three.js meshes and the extrusion massing.
+
 ## 3D buildings, block and shadows
 
 ### Real-world building meshes

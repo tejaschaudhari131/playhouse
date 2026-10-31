@@ -1,6 +1,7 @@
 import { BUILDING_IDS } from './buildings.js'
 import { optionFor } from './plannerState.js'
 import { housingPermission, housingSpec } from './titleNine.js'
+import { egressCheck, egressRule } from './singleStair.js'
 import { zoningBadge, zoningReviewLabel, proposalStatus, proposalChecks } from './studioPresentation.js'
 
 const PERMISSION_SHORT = {
@@ -12,10 +13,10 @@ const PERMISSION_SHORT = {
 }
 
 /** One scannable card per housing type. Scores come only from the current evaluation; nothing is estimated here. */
-export function typologyCards({ draft, options, code, zoning }) {
+export function typologyCards({ draft, options, code, zoning, egress = 'two-stair' }) {
   return BUILDING_IDS.map(typeId => {
     const active = typeId === draft.typeId
-    const option = active ? draft : optionFor(typeId, draft.rent)
+    const option = active ? draft : optionFor(typeId, draft.rent, egress)
     const spec = housingSpec(option), evaluated = options?.[typeId]
     const permission = housingPermission(option, code, zoning)
     const badge = evaluated ? zoningBadge(evaluated) : null
@@ -34,8 +35,11 @@ export function typologyCards({ draft, options, code, zoning }) {
     const details = conflicts.map(check => ({ text: `${check.label}: ${check.detail}`, url: check.url, section: check.section }))
     if (physical && physical.status !== 'pass') details.push({ text: `Physical fit: ${physical.detail}` })
     for (const member of evaluated?.area?.invalid || []) details.push({ text: `Planned building on ${member.pin}: ${member.gate}` })
+    const stairs = egressCheck({ ...option, units: spec.units, floors: option.floors ?? spec.floors }, egress)
+    if (stairs) details.push({ text: `Stairs: ${stairs.text}`, url: egressRule(stairs.rule).url, section: null })
     return {
-      typeId, active, label: spec.label, shortLabel: spec.label.replace(/ \(.*\)$/, ''), units: spec.units,
+      typeId, active, label: spec.label, shortLabel: typeId === 'small_apartment' && stairs?.stairs === 1 && egress === 'single-stair' ? 'Single-stair apartment' : spec.label.replace(/ \(.*\)$/, ''), units: spec.units,
+      stairs: stairs ? { count: stairs.stairs, fits: stairs.fits, text: stairs.text } : null,
       width: option.width, depth: option.depth, floors: option.floors ?? spec.floors,
       permission: { category: badge?.tone || permission.category, label: badge?.text || PERMISSION_SHORT[permission.category] || PERMISSION_SHORT.unknown, detail: permission.label },
       review: evaluated ? zoningReviewLabel(evaluated) : 'This type has not been evaluated.',

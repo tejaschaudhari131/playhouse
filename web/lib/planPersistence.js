@@ -1,4 +1,5 @@
 import { validFinanceInputs } from './financeInputs.js'
+import { EGRESS_IDS } from './singleStair.js'
 import { BUILDING_IDS } from './buildings.js'
 import { MODEL_VERSION } from './plannerState.js'
 import { HOUSING_COST_LIMITS } from './housingCosts.js'
@@ -52,6 +53,7 @@ export function validatePlan(scenario) {
   }
   if (!Number.isInteger(scenario.additionalDepartures)) return 'Added departures must be a whole number.'
   if (scenario.rentMode !== undefined && !['prototype', 'custom', 'legacy'].includes(scenario.rentMode) || scenario.incomeSource !== undefined && !['hud', 'custom', 'legacy', 'fallback'].includes(scenario.incomeSource) || scenario.incomeBand !== undefined && scenario.incomeBand !== null && ![30, 50, 60, 80].includes(scenario.incomeBand)) return 'The saved housing-cost provenance is invalid.'
+  if (scenario.egress !== undefined && !EGRESS_IDS.includes(scenario.egress)) return 'The saved stair rule is invalid.'
   if (scenario.spareBoardings !== null && !number(scenario.spareBoardings, 0, 10000)) return 'The saved transit reserve is invalid.'
   if (scenario.baselinePlacesPerDeparture !== undefined && !number(scenario.baselinePlacesPerDeparture, 0, 100)) return 'The saved transit capacity input is invalid.'
   if (scenario.capacityMode !== undefined && !['schedule', 'manual'].includes(scenario.capacityMode) || scenario.accessMode !== undefined && !['network', 'direct'].includes(scenario.accessMode)) return 'The saved calculation mode is invalid.'

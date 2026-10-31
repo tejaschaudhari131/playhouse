@@ -639,7 +639,7 @@ function solarArray(b, area, blocked, z, south, max = 48) {
 }
 
 /** Mid-rise apartments: storefront or lobby podium, articulated bays, balconies, cornice, penthouse, solar. */
-function apartment(b, { W, D, h, floors, seed, south }) {
+function apartment(b, { W, D, h, floors, seed, south, stairs = 1 }) {
   const hw = W / 2, hd = D / 2
   const zone = clamp(D * .07, .9, 1.4), side = clamp(Math.min(W, D) * .03, .3, .45)
   const x0 = -hw + side, x1 = hw - side, y0 = -hd + side, y1 = hd - zone
@@ -707,13 +707,17 @@ function apartment(b, { W, D, h, floors, seed, south }) {
   for (const [ax0, ax1, ay0, ay1] of [[x0, x1, y0, y0 + k], [x0, x1, y1 - k, y1], [x0, x0 + k, y0 + k, y1 - k], [x1 - k, x1, y0 + k, y1 - k]]) b.box('limestone', ax0, ax1, ay0, ay1, deck + parapet - .08, deck + parapet)
   const blocked = []
   if (penthouse) {
-    const px = Math.min(2.8, (x1 - x0) * .2), py0 = y0 + 1.2, py1 = py0 + Math.min(5, (y1 - y0) * .28)
-    b.box({ side: 'panel', top: 'roofFlat', bottom: null }, -px, px, py0, py1, deck, h)
-    const pw = rectWalls(-px, px, py0, py1)
-    wallQuad(b, 'door', pw.front, pw.front.length / 2 - .45, pw.front.length / 2 + .45, deck, deck + 2.1, .03)
-    wallQuad(b, 'vent', pw.right, .4, pw.right.length - .4, deck + .9, deck + 2, .03)
-    blocked.push({ x0: -px - .8, x1: px + .8, y0: py0 - .8, y1: py1 + .8 })
-    const hx = Math.min(x1 - k - 2.4, px + 2.2)
+    // Stair bulkheads: one centred, or two at opposite ends of the corridor when the code needs a second exit.
+    const px = Math.min(2.8, (x1 - x0) * .2), len = Math.min(5, (y1 - y0) * .28)
+    const heads = stairs >= 2 ? [[y0 + 1.2, y0 + 1.2 + len], [y1 - k - .6 - len, y1 - k - .6]] : [[y0 + 1.2, y0 + 1.2 + len]]
+    for (const [py0, py1] of heads) {
+      b.box({ side: 'panel', top: 'roofFlat', bottom: null }, -px, px, py0, py1, deck, h)
+      const pw = rectWalls(-px, px, py0, py1)
+      wallQuad(b, 'door', pw.front, pw.front.length / 2 - .45, pw.front.length / 2 + .45, deck, deck + 2.1, .03)
+      wallQuad(b, 'vent', pw.right, .4, pw.right.length - .4, deck + .9, deck + 2, .03)
+      blocked.push({ x0: -px - .8, x1: px + .8, y0: py0 - .8, y1: py1 + .8 })
+    }
+    const py0 = heads[0][0], hx = Math.min(x1 - k - 2.4, px + 2.2)
     if (hx - .8 > px + .6) { b.box({ side: 'metal', top: 'vent', bottom: null }, hx - .8, hx + .8, py0, py0 + 1.2, deck, deck + 1.1); blocked.push({ x0: hx - 1.4, x1: hx + 1.4, y0: py0 - .6, y1: py0 + 1.8 }) }
   }
   solarArray(b, { x0: x0 + k + .5, x1: x1 - k - .5, y0: y0 + k + .6, y1: y1 - k - .6 }, blocked, deck, south)
@@ -732,7 +736,7 @@ function block(b, { W, D, h, floors }) {
  * metres; `front`: unit vector toward the street (the 2D massing's front guess), snapped to a footprint axis.
  * `state` 'invalid' tints roof and trim red, 'pending' grey; previews also get a ground rim in the state colour.
  */
-export function buildProposedBuilding({ ring, front = null, typeId, height, floors, state = 'placed', flagged = false, seed = 0 }) {
+export function buildProposedBuilding({ ring, front = null, typeId, height, floors, state = 'placed', flagged = false, seed = 0, stairs = 1 }) {
   const corners = openRing(ring || [])
   if (corners.length !== 4 || !(height > 0)) return null
   const centre = [corners.reduce((n, p) => n + p[0], 0) / 4, corners.reduce((n, p) => n + p[1], 0) / 4]
@@ -752,7 +756,7 @@ export function buildProposedBuilding({ ring, front = null, typeId, height, floo
   if (type === 'single_family' || type === 'adu') house(b, { ...ctx, adu: type === 'adu' })
   else if (type === 'townhouse_duplex') doubleHouse(b, ctx)
   else if (type === 'triplex') walkUp(b, ctx)
-  else if (type === 'small_apartment' || type === 'large_apartment') apartment(b, { ...ctx, south: [-X[1], -F[1]] })
+  else if (type === 'small_apartment' || type === 'large_apartment') apartment(b, { ...ctx, south: [-X[1], -F[1]], stairs })
   else block(b, ctx)
   const rim = state === 'invalid' || flagged ? '#dc2626' : state === 'pending' ? '#94a3b8' : state === 'valid' ? '#16a34a' : null
   if (rim) {
@@ -762,7 +766,7 @@ export function buildProposedBuilding({ ring, front = null, typeId, height, floo
     b.box('rim', -hw, -hw + r, -hd + r, hd - r, 0, RIM_M); b.box('rim', hw - r, hw, -hd + r, hd - r, 0, RIM_M)
   }
   const geometries = b.geometries()
-  return { geometries, width: W, depth: D, height, type, triangles: triangleCount(geometries) }
+  return { geometries, width: W, depth: D, height, type, stairs: type === 'small_apartment' || type === 'large_apartment' ? (stairs >= 2 ? 2 : 1) : null, triangles: triangleCount(geometries) }
 }
 
 /* ---------- Recorded neighbourhood buildings ---------- */

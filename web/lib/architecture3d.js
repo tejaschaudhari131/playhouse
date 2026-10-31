@@ -99,7 +99,7 @@ function floorCount(floors, wallTop) {
  * Architectural parts for one drafted or placed building: { geometry, base, top, color, part }.
  * `state`: 'placed' for material tones, or 'valid' / 'invalid' / 'pending' for preview tones.
  */
-export function architecturalMassing({ geometry, typeId, height, floors, color, state = 'placed', parcel = null, neighbors = [] }) {
+export function architecturalMassing({ geometry, typeId, height, floors, color, state = 'placed', parcel = null, neighbors = [], stairs = 1 }) {
   const box = withFront(footprintBox(geometry), parcel, neighbors)
   if (!box || !(height > 0)) return geometry && height > 0 ? [{ geometry, base: 0, top: height, color, part: 'body' }] : []
   const p = massingPalette(color, state), parts = []
@@ -173,9 +173,11 @@ export function architecturalMassing({ geometry, typeId, height, floors, color, 
     if (penthouse) {
       const ph = Math.min(2.5, W * .15), pd = Math.min(4.5, D * .22)
       add('penthouse', slab(box, -ph, ph, D - k - .8 - pd, D - k - .8), deck, height, p.mech)
-      const cols = Math.max(1, Math.min(6, Math.floor((W - 2 * k - 2.4) / 1.4))), rows = Math.max(1, Math.min(4, Math.floor((D / 2 - k - 1.2) / 2.2)))
+      if (stairs >= 2) add('penthouse', slab(box, -ph, ph, k + .8, k + .8 + pd), deck, height, p.mech)
+      const start = stairs >= 2 ? k + 1.6 + pd : k + 1.2
+      const cols = Math.max(1, Math.min(6, Math.floor((W - 2 * k - 2.4) / 1.4))), rows = Math.max(stairs >= 2 ? 0 : 1, Math.min(4, Math.floor((D / 2 - start) / 2.2)))
       for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-        const s = -((cols - 1) * 1.4) / 2 + c * 1.4, f = k + 1.2 + r * 2.2
+        const s = -((cols - 1) * 1.4) / 2 + c * 1.4, f = start + r * 2.2
         add('solar', slab(box, s - .5, s + .5, f, f + 1.7), deck + .25, deck + .5, p.solar)
       }
     }

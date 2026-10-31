@@ -27,6 +27,7 @@ import { buildingShadows, sunFor, sunLight } from '../lib/sunShadows.js'
 import { envelopeFeatures } from '../lib/zoningEnvelope.js'
 import { cleanRing, insetRing, localFrame, openRing, toPolygon } from '../lib/localFrame.js'
 import { BUILDINGS } from '../lib/buildings.js'
+import { stairsRequired } from '../lib/singleStair.js'
 import { BUILDING_TYPE_CATEGORIES, allFilters, hiddenCategoryFilter, plannedCategoryColor, typologyCategory } from '../lib/buildingTypes.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
@@ -44,7 +45,7 @@ function rimFeature(geometry, color, width = .35) {
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null }) {
+export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair' }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -83,6 +84,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   const hiddenTypes = useMemo(() => hiddenKey ? hiddenKey.split('|') : [], [hiddenKey])
   const meshHighlight = useMemo(() => highlightOn ? { colors: Object.fromEntries(BUILDING_TYPE_CATEGORIES.map(c => [c.id, c.color])), hidden: hiddenTypes } : null, [highlightOn, hiddenTypes])
   const plannedColor = useCallback((typeId, fallback) => highlightOn ? plannedCategoryColor(typologyCategory(typeId)) : fallback, [highlightOn])
+  const stairsFor = useCallback((typeId, floors) => stairsRequired({ typeId, floors, units: BUILDINGS[typeId]?.units }, egress), [egress])
   const demolishedKeys = useMemo(() => new Set(demolitions.map(demolitionKey).filter(Boolean)), [demolitions])
   const meshCandidates = useMemo(() => threeActive && showExisting && meshFocus ? neighborhoodSelection(visibleBuildings, meshFocus, { exclude: demolishedKeys }) : [], [threeActive, showExisting, meshFocus, visibleBuildings, demolishedKeys])
   const meshKey = meshCandidates.map(f => String(f.properties.id ?? f.id)).join('|')
@@ -390,8 +392,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     streetBearing.current = building[0] ? facadeBearing(building[0].geometry, lot.parcel, lot.neighbors) : null
     // Highlighting colours the body by typology; the status colour moves to a ground rim so fit and zoning still read.
     const rims = highlightOn ? building.map(b => rimFeature(b.geometry, b.properties.color, .45)).filter(Boolean) : []
-    map.getSource('building-massing').setData(fc([...building.flatMap(b => parts(buildingMassing({ buildingStyle, geometry: b.geometry, typeId: b.properties.typeId, height: b.properties.height, floors: b.properties.floors, color: plannedColor(b.properties.typeId, b.properties.color), state: highlightOn ? 'placed' : b.properties.state || 'valid', ...lot }))), ...rims]))
-  }, [ready, buildingStyle, buildingPreview, tool, selected, lotContext, highlightOn, plannedColor])
+    map.getSource('building-massing').setData(fc([...building.flatMap(b => parts(buildingMassing({ buildingStyle, geometry: b.geometry, typeId: b.properties.typeId, height: b.properties.height, floors: b.properties.floors, stairs: stairsFor(b.properties.typeId, b.properties.floors), color: plannedColor(b.properties.typeId, b.properties.color), state: highlightOn ? 'placed' : b.properties.state || 'valid', ...lot }))), ...rims]))
+  }, [ready, buildingStyle, buildingPreview, tool, selected, lotContext, highlightOn, plannedColor, stairsFor])
 
   useEffect(() => {
     const map = readyMap()
@@ -406,10 +408,10 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const massing = drawn.flatMap(b => {
       const lot = lotContext(b.pin, b.massing.geometry), bearing = facadeBearing(b.massing.geometry, lot.parcel, lot.neighbors)
       if (bearing !== null) placedBearings.current.set(b.pin, bearing)
-      return parts(buildingMassing({ buildingStyle, geometry: b.massing.geometry, typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, color: plannedColor(b.typeId, placedBuildingColor(b.typeId)), ...lot }), { id: b.id, pin: b.pin })
+      return parts(buildingMassing({ buildingStyle, geometry: b.massing.geometry, typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, stairs: stairsFor(b.typeId, b.floors ?? BUILDINGS[b.typeId]?.floors), color: plannedColor(b.typeId, placedBuildingColor(b.typeId)), ...lot }), { id: b.id, pin: b.pin })
     })
     map.getSource('placed-massing').setData(fc([...massing, ...rims]))
-  }, [ready, buildingStyle, placedBuildings, lotContext, plannedColor])
+  }, [ready, buildingStyle, placedBuildings, lotContext, plannedColor, stairsFor])
 
   const showDraft = ['housing', 'compare'].includes(tool)
   const envelope = useMemo(() => showDraft && selected && zoningEnvelope
@@ -536,14 +538,14 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const items = []
     if (showDraft && buildingPreview && selected) {
       const p = buildingPreview.properties
-      items.push(item('preview', buildingPreview.geometry, selected.properties.pin, { typeId: p.typeId, height: p.height, floors: p.floors, state: p.state || 'valid', hidden: !!constructing, tint: highlightOn ? plannedColor(p.typeId) : null }))
+      items.push(item('preview', buildingPreview.geometry, selected.properties.pin, { typeId: p.typeId, height: p.height, floors: p.floors, state: p.state || 'valid', hidden: !!constructing, tint: highlightOn ? plannedColor(p.typeId) : null, stairs: stairsFor(p.typeId, p.floors) }))
     }
     for (const b of placedBuildings) if (b.massing.geometry) {
       const key = `${b.id}:${b.pin}`
-      items.push(item(key, b.massing.geometry, b.pin, { typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, state: 'placed', flagged: !b.eligible, hidden: constructing === key, tint: highlightOn ? plannedColor(b.typeId) : null }))
+      items.push(item(key, b.massing.geometry, b.pin, { typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, state: 'placed', flagged: !b.eligible, hidden: constructing === key, tint: highlightOn ? plannedColor(b.typeId) : null, stairs: stairsFor(b.typeId, b.floors ?? BUILDINGS[b.typeId]?.floors) }))
     }
     threeController.setProposed(items)
-  }, [threeController, buildingPreview, placedBuildings, showDraft, selected, lotContext, constructing, highlightOn, plannedColor])
+  }, [threeController, buildingPreview, placedBuildings, showDraft, selected, lotContext, constructing, highlightOn, plannedColor, stairsFor])
 
   useEffect(() => {
     const map = readyMap()

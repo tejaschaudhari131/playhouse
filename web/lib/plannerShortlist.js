@@ -6,14 +6,14 @@ import { prototypeRentOption } from './rentAssumptions.js'
 /** Standard dimensions with one disclosed per-home cost assumption for every type. */
 export function shortlistTemplates(scenario, sourceSlot) {
   const source = scenario.options[sourceSlot]
-  return Object.fromEntries(BUILDING_IDS.map(id => [id, { ...optionFor(id, source.rent), ...(scenario.rentMode === 'prototype' ? prototypeRentOption(id) : { rentSource: 'custom', rentSourceDetail: 'Shared user-entered rent applied to every comparison type.' }), utilities: source.utilities }]))
+  return Object.fromEntries(BUILDING_IDS.map(id => [id, { ...optionFor(id, source.rent, scenario.egress), ...(scenario.rentMode === 'prototype' ? prototypeRentOption(id) : { rentSource: 'custom', rentSourceDetail: 'Shared user-entered rent applied to every comparison type.' }), utilities: source.utilities }]))
 }
 
 /** The current custom draft plus selected, distinct standard alternatives. */
 export function comparisonTemplates(scenario) {
   const draft = scenario.draft
   const ids = [draft.typeId, ...new Set(scenario.comparisonTypes || [])].filter((id, index, all) => BUILDING_IDS.includes(id) && all.indexOf(id) === index)
-  return Object.fromEntries(ids.map(id => [id, id === draft.typeId ? { ...draft } : { ...optionFor(id, draft.rent), ...(scenario.rentMode === 'prototype' ? prototypeRentOption(id) : { rentSource: draft.rentSource || 'custom', rentSourceDetail: 'Shared user-entered rent applied to every comparison type.' }), utilities: draft.utilities }]))
+  return Object.fromEntries(ids.map(id => [id, id === draft.typeId ? { ...draft } : { ...optionFor(id, draft.rent, scenario.egress), ...(scenario.rentMode === 'prototype' ? prototypeRentOption(id) : { rentSource: draft.rentSource || 'custom', rentSourceDetail: 'Shared user-entered rent applied to every comparison type.' }), utilities: draft.utilities }]))
 }
 
 export function rankTemplates(options) {

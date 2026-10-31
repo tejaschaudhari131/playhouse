@@ -144,14 +144,14 @@ export class BuildingScene {
     for (const item of items) {
       const ring = item.geometry?.type === 'Polygon' ? item.geometry.coordinates[0] : null
       if (!ring) continue
-      const signature = JSON.stringify([item.key, ring, item.front, item.typeId, item.height, item.floors, item.state, !!item.flagged, item.tint ?? null])
+      const signature = JSON.stringify([item.key, ring, item.front, item.typeId, item.height, item.floors, item.state, !!item.flagged, item.tint ?? null, item.stairs ?? 1])
       let entry = this.proposedItems.get(signature) || next.get(signature)
       if (!entry) {
         const corners = ring.slice(0, -1), anchor = [corners.reduce((n, p) => n + p[0], 0) / corners.length, corners.reduce((n, p) => n + p[1], 0) / corners.length]
         const project = metresProjector(anchor)
         let built = null
         try {
-          built = buildProposedBuilding({ ring: corners.map(project), front: item.front, typeId: item.typeId, height: item.height, floors: item.floors, state: item.state, flagged: item.flagged, seed: seedOf(item.key) })
+          built = buildProposedBuilding({ ring: corners.map(project), front: item.front, typeId: item.typeId, height: item.height, floors: item.floors, state: item.state, flagged: item.flagged, seed: seedOf(item.key), stairs: item.stairs ?? 1 })
         } catch { built = null }
         const group = new Group()
         group.matrixAutoUpdate = false

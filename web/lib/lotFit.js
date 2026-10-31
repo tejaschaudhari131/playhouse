@@ -58,8 +58,8 @@ export function fitDiagnosis(option, geometry, massing) {
   return { lot, reasons }
 }
 
-function candidates(option, lot, maxFootprintM2) {
-  const min = TYPE_MINIMUMS[option.typeId] || { width: 4, depth: 6 }
+function candidates(option, lot, maxFootprintM2, minimum) {
+  const min = minimum || TYPE_MINIMUMS[option.typeId] || { width: 4, depth: 6 }
   const area = Math.min(option.width * option.depth, maxFootprintM2 ?? Infinity)
   const widest = Math.min(option.width, lot ? floorHalf(lot.width) : option.width)
   const list = []
@@ -75,11 +75,11 @@ function candidates(option, lot, maxFootprintM2) {
  * position, preferring one clear of retained buildings and obstacles. Keeps stories and height.
  * Returns null when nothing at the minimum fits.
  */
-export function fitToLot({ option, geometry, obstacles = null, maxFootprintM2 = null }) {
+export function fitToLot({ option, geometry, obstacles = null, maxFootprintM2 = null, minimum = null }) {
   if (!geometry) return null
   const lot = lotDimensions(geometry)
   let occupied = null
-  for (const size of candidates(option, lot, maxFootprintM2)) {
+  for (const size of candidates(option, lot, maxFootprintM2, minimum)) {
     const massing = fitMassing(geometry, size.width, size.depth, null, obstacles)
     if (!massing.fits) continue
     const result = { ...size, bearing: round1(massing.placement.bearing), collisions: massing.collisions, lot,
@@ -90,9 +90,9 @@ export function fitToLot({ option, geometry, obstacles = null, maxFootprintM2 = 
   return occupied
 }
 
-export function fitSummary(fit, option) {
+export function fitSummary(fit, option, minimum = null) {
   if (!fit) {
-    const min = TYPE_MINIMUMS[option.typeId]
+    const min = minimum || TYPE_MINIMUMS[option.typeId]
     return `No ${min ? `${min.width} × ${min.depth} m or larger ` : ''}footprint fits this outline at an edge-aligned position. Try a smaller housing type.`
   }
   return `${fit.width} × ${fit.depth} m (was ${option.width} × ${option.depth} m), aligned to a parcel edge at bearing ${fit.bearing}°${fit.collisions ? `; it still overlaps ${fit.collisions} existing ${fit.collisions === 1 ? 'building' : 'buildings'}` : ''}. Stories and height are unchanged.`
