@@ -6,8 +6,39 @@ export const SUN_TIMES = [
   { id: 'noon', label: 'Noon', hour: 12 },
   { id: 'afternoon', label: 'Afternoon', hour: 15 },
 ]
+/** Representative days used by shadow studies (NYC CEQR Technical Manual, ch. 8): solar declination on each. */
+export const SEASONS = [
+  { id: 'winter', label: 'Winter solstice', short: 'Winter', date: 'Dec 21', declination: -23.44 },
+  { id: 'equinox', label: 'Equinox', short: 'Equinox', date: 'Mar 21 / Sep 21', declination: 0 },
+  { id: 'summer', label: 'Summer solstice', short: 'Summer', date: 'Jun 21', declination: 23.44 },
+]
+export const DEFAULT_SUN = { season: 'equinox', hour: 12 }
 export const PITTSBURGH_LATITUDE = 40.44
 const rad = Math.PI / 180
+
+export function seasonFor(id) {
+  return SEASONS.find(s => s.id === id) || SEASONS[1]
+}
+
+/** Geometric sunrise and sunset in local solar hours (no refraction), from the sunset hour angle. */
+export function daylight(latitude = PITTSBURGH_LATITUDE, declination = 0) {
+  const cos = -Math.tan(latitude * rad) * Math.tan(declination * rad)
+  const half = cos <= -1 ? 12 : cos >= 1 ? 0 : Math.acos(cos) / rad / 15
+  return { sunrise: 12 - half, sunset: 12 + half, length: 2 * half }
+}
+
+/** A sun choice as `{ season, hour }`; preset ids ('morning', 'noon', 'afternoon') mean that hour at the equinox. */
+export function normalizeSun(value, latitude = PITTSBURGH_LATITUDE) {
+  if (typeof value === 'string' || !value) return { season: 'equinox', hour: (SUN_TIMES.find(t => t.id === value) || SUN_TIMES[1]).hour }
+  const season = seasonFor(value.season), { sunrise, sunset } = daylight(latitude, season.declination)
+  const hour = Number.isFinite(value.hour) ? Math.min(sunset - .25, Math.max(sunrise + .25, value.hour)) : 12
+  return { season: season.id, hour }
+}
+
+export function formatSolarHour(hour) {
+  const minutes = Math.round(hour * 60), h = Math.floor(minutes / 60) % 24, m = minutes % 60
+  return `${h}:${String(m).padStart(2, '0')}`
+}
 
 /** Solar altitude and compass azimuth (degrees clockwise from north) for a latitude, solar hour and declination. */
 export function sunPosition(latitude = PITTSBURGH_LATITUDE, hour = 12, declination = 0) {
@@ -17,9 +48,11 @@ export function sunPosition(latitude = PITTSBURGH_LATITUDE, hour = 12, declinati
   return { altitude: altitude / rad, azimuth: (azimuth + 360) % 360 }
 }
 
-export function sunFor(id, latitude = PITTSBURGH_LATITUDE) {
-  const time = SUN_TIMES.find(t => t.id === id) || SUN_TIMES[1]
-  return { ...time, ...sunPosition(latitude, time.hour) }
+/** Sun for a preset id or `{ season, hour }`, with the matching preset id (or 'custom') and season attached. */
+export function sunFor(value, latitude = PITTSBURGH_LATITUDE) {
+  const { season, hour } = normalizeSun(value, latitude), day = seasonFor(season)
+  const preset = SUN_TIMES.find(t => t.hour === hour)
+  return { id: preset?.id || 'custom', label: preset?.label || formatSolarHour(hour), hour, season, declination: day.declination, ...sunPosition(latitude, hour, day.declination) }
 }
 
 /** Ground offset (east, north metres) of a roof corner's shadow; it falls away from the sun. */
@@ -48,12 +81,17 @@ export function convexHull(points) {
 export function shadowPolygon(geometry, height, sun) {
   const rings = polygons(geometry).map(p => p[0]).filter(r => r?.length >= 4)
   if (!rings.length) return null
+  const frame = localFrame(rings[0][0])
+  const hull = shadowHull(rings.flat().map(frame.project), height, sun)
+  return hull ? toPolygon(frame, hull) : null
+}
+
+/** The same shadow in local metres: convex hull of footprint points and their roof points cast along the sun. */
+export function shadowHull(points, height, sun) {
   const [dx, dy] = shadowVector(height, sun)
   if (!dx && !dy) return null
-  const frame = localFrame(rings[0][0])
-  const points = rings.flat().map(frame.project)
   const hull = convexHull([...points, ...points.map(([x, y]) => [x + dx, y + dy])])
-  return hull.length >= 3 ? toPolygon(frame, hull) : null
+  return hull.length >= 3 ? hull : null
 }
 
 /** Shadow features for buildings `{ geometry, height, kind }`; `kind` lets proposed shadows read darker. */

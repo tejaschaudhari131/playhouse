@@ -14,10 +14,10 @@ import { CAPACITY_ASSUMPTIONS } from '../lib/capacityCheck.js'
 import { selectedDepartures, servicePatch, transitComparisonLabel } from '../lib/transitControls.js'
 
 import dynamic from 'next/dynamic'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { BUILDINGS, BUILDING_IDS } from '../lib/buildings.js'
 import { buildingHeightCoverage } from '../lib/buildingHeights.js'
-import { geometryBounds, placementAt, geometriesOverlap, rectangleAt, fitMassing } from '../lib/plannerGeometry.js'
+import { geometryBounds, geometryCenter, placementAt, geometriesOverlap, rectangleAt, fitMassing } from '../lib/plannerGeometry.js'
 import { hasMapDetail, mergeNeighborhoods, spatialIndex, containsBounds } from '../lib/studioData.js'
 import NeighborhoodPicker from './NeighborhoodPicker.js'
 import { locateNeighborhood } from '../lib/neighborhoodLoader.js'
@@ -67,6 +67,9 @@ import { CostSwitch, AmiChips } from './HousingCostControls.js'
 import PolicyContext from './PolicyContext.js'
 import { envelopeHeight } from '../lib/zoningEnvelope.js'
 import SunTimeControl from './SunTimeControl.js'
+import ShadowStudyPanel from './ShadowStudyPanel.js'
+import { DEFAULT_SUN, normalizeSun } from '../lib/sunShadows.js'
+import { shadeBounds, shadeFeatures, shadeStudy } from '../lib/shadeStudy.js'
 import PolicyReformSimulator from './PolicyReformSimulator.js'
 import PermitPathway from './PermitPathway.js'
 import SiteBrief from './SiteBrief.js'
@@ -300,7 +303,7 @@ function Studio({ data }) {
     window.history.replaceState(null, '', url)
   }, [scenario.pin, tourStep])
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [tool, setActiveTool] = useState('housing'), [proposed, setProposed] = useState(true), [view3d, setView3d] = useState(true), [streetView, setStreetView] = useState(false), [sunTime, setSunTime] = useState('noon')
+  const [tool, setActiveTool] = useState('housing'), [proposed, setProposed] = useState(true), [view3d, setView3d] = useState(true), [streetView, setStreetView] = useState(false), [sunTime, setSunTime] = useState(DEFAULT_SUN), [shadeOn, setShadeOn] = useState(false)
   const scenarioPins = plan => [plan.pin, ...(plan.buildings || []).map(b => b.pin), ...(plan.demolitions || []).map(demolitionSite)]
   const scenarioNeighborhoods = plan => [...new Set([...scenarioPins(plan).map(pin => catalogue.get(pin).id), ...[...(plan.connections || []), ...(plan.parks || [])].flatMap(edit => edit.neighborhoodIds || [])])].sort()
   const requiredIds = scenarioNeighborhoods(scenario)
@@ -665,6 +668,20 @@ function Studio({ data }) {
   const placementPreview = previewMassing && result?.proposal?.[option.typeId] ? previewAtPlacement({ ...result.proposal[option.typeId], height: option.height }, previewMassing, screenPlacement(previewMassing)) : result?.proposal?.[option.typeId]
   const draftState = draftStatus({ evaluated: previewOption, proposal: placementPreview, weights: scenario.weights, pending: evaluation.pending, error: evaluation.error, infrastructureErrors: result?.infrastructureErrors, hasPlacedBuildings: scenario.buildings.length > 0 })
   const buildingPreview = useMemo(() => draftPreview(placementPreview, evaluation.pending), [placementPreview, evaluation.pending])
+  const mapPreview = selectedBuilding || paused ? null : buildingPreview
+  const shadeSources = useMemo(() => [
+    ...renderedBuildings.filter(b => b.massing?.geometry).map(b => ({ geometry: b.massing.geometry, height: b.height, pin: b.pin })),
+    ...(mapPreview ? [{ geometry: mapPreview.geometry, height: mapPreview.properties.height, pin: scenario.pin }] : []),
+  ], [renderedBuildings, mapPreview, scenario.pin])
+  const deferredShade = useDeferredValue(shadeSources)
+  const shade = useMemo(() => {
+    if (!shadeOn || !deferredShade.length) return null
+    const options = { season: normalizeSun(sunTime).season, latitude: geometryCenter(selected.geometry)?.[1] }
+    const bounds = shadeBounds(deferredShade, options)
+    const parcels = bounds ? loaded.parcelIndex.query(bounds) : []
+    const study = shadeStudy({ buildings: deferredShade, parcels, ...options })
+    return { study, features: shadeFeatures(study, parcels) }
+  }, [shadeOn, deferredShade, sunTime, selected, loaded.parcelIndex])
   function addBuilding(massing = result?.proposal?.[option.typeId]?.massing) {
     if (!evaluation.pending && massing?.fits && massing.collisions > 0 && blockingFootprints(retainedNearbyBuildings, massing.geometry).length) { setNotice('An existing building is in the way. Use “Demolish & replace existing building” to clear it in this plan, or choose another spot.'); return }
     if (evaluation.pending || result?.infrastructureErrors?.length || !massing?.fits || massing.collisions !== 0 || screenPlacement(massing).conflict) { setNotice('Cannot add: physical fit or a supported zoning check conflicts. Check the red preview and zoning details.'); return }
@@ -804,7 +821,7 @@ function Studio({ data }) {
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
-        <PlannerMap buildingStyle={buildingStyle} buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={selectedBuilding || paused ? null : buildingPreview} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest} streetView={streetView} sunTime={sunTime} zoningEnvelope={zoningEnvelope} typeHighlight={typeHighlight} egress={scenario.egress} lvt={lvtMap}/>
+        <PlannerMap buildingStyle={buildingStyle} buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={mapPreview} shadedParcels={shade?.features} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest} streetView={streetView} sunTime={sunTime} zoningEnvelope={zoningEnvelope} typeHighlight={typeHighlight} egress={scenario.egress} lvt={lvtMap}/>
         {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates. Arrow keys move 1 m; Shift moves 5 m.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
         <div className="map-quick-actions">
@@ -894,6 +911,7 @@ function Studio({ data }) {
             <div className="build-actions">{buildingEdit && <button onClick={cancelBuildingEdit}>Cancel building edit</button>}<button className="primary-build" aria-disabled={!paused && !draftState.canPlace} onClick={() => { if (paused) setJustAdded(null); else if (draftState.canPlace) addBuilding(placing && hoverMassing ? hoverMassing : undefined) }}>{buildingEdit ? 'Save building changes' : paused ? 'Preview another building' : placing ? 'Add at preview' : 'Add to plan'}</button><button disabled={evaluation.pending || !context} aria-pressed={placing} onClick={() => { setProposed(true); setJustAdded(null); setPlacing(!placing) }}>{placing ? 'Cancel placement' : 'Position on map'}</button></div>
             <RedevelopmentImpact impact={siteImpact(siteDemolished)}/>
             <PermitPathway pathway={pathway}/>
+            <ShadowStudyPanel sun={sunTime} onSun={setSunTime} enabled={shadeOn} onEnabled={setShadeOn} study={shade?.study} buildings={shadeSources.length} addressFor={pin => byPin.get(pin)?.properties.address}/>
             <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Advanced · income, costs & evidence →</button>
           </section>}
           {inspectorTab === 'edit' && tool === 'service' && <>

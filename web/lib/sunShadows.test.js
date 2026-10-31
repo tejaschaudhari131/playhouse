@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SUN_TIMES, sunPosition, sunFor, shadowVector, shadowPolygon, buildingShadows, convexHull, sunLight } from './sunShadows.js'
+import { SUN_TIMES, SEASONS, sunPosition, sunFor, shadowVector, shadowPolygon, buildingShadows, convexHull, sunLight, daylight, normalizeSun, formatSolarHour, seasonFor } from './sunShadows.js'
 import { rectangleAt, geometryArea } from './plannerGeometry.js'
 
 const near = (a, b, tolerance, message) => assert.ok(Math.abs(a - b) <= tolerance, `${message}: ${a} vs ${b}`)
@@ -37,6 +37,43 @@ test('a box shadow covers its footprint plus the swept roof outline', () => {
   const features = buildingShadows([{ geometry: footprint, height: 8, kind: 'proposed' }, { geometry: footprint, height: 0 }], noon)
   assert.equal(features.length, 1)
   assert.equal(features[0].properties.kind, 'proposed')
+})
+
+test('seasonal noon sun: 90° − latitude ± 23.44° declination, always due south at Pittsburgh', () => {
+  assert.deepEqual(SEASONS.map(s => s.id), ['winter', 'equinox', 'summer'])
+  const winter = sunFor({ season: 'winter', hour: 12 }), summer = sunFor({ season: 'summer', hour: 12 })
+  near(winter.altitude, 90 - 40.44 - 23.44, .01, 'winter solstice noon altitude')
+  near(summer.altitude, 90 - 40.44 + 23.44, .01, 'summer solstice noon altitude')
+  near(winter.azimuth, 180, .01, 'winter noon azimuth')
+  near(summer.azimuth, 180, .01, 'summer noon azimuth')
+  assert.equal(winter.season, 'winter')
+  assert.equal(winter.id, 'noon')
+  const june9 = sunFor({ season: 'summer', hour: 9 }), dec9 = sunFor({ season: 'winter', hour: 9 })
+  assert.ok(june9.altitude > dec9.altitude + 25, 'June morning sun is far higher')
+  assert.ok(june9.azimuth < dec9.azimuth, 'June morning sun is further north of east')
+  assert.ok(sunPosition(40.44, 6, 23.44).azimuth < 90, 'June sunrise is north of east')
+  assert.ok(sunPosition(40.44, 15, -23.44).azimuth < 270 - 25, 'December afternoon sun stays south of west')
+})
+
+test('daylight: 12 h at the equinox, about 9.1 h and 14.9 h at the solstices', () => {
+  near(daylight(40.44, 0).length, 12, 1e-9, 'equinox day')
+  near(daylight(40.44, -23.44).length, 9.11, .02, 'winter day')
+  near(daylight(40.44, 23.44).length, 14.89, .02, 'summer day')
+  near(daylight(40.44, 23.44).sunrise + daylight(40.44, 23.44).sunset, 24, 1e-9, 'symmetric about solar noon')
+  assert.equal(daylight(80, 23.44).length, 24, 'polar day')
+  assert.equal(daylight(80, -23.44).length, 0, 'polar night')
+})
+
+test('sun choices: preset ids stay equinox presets, hours clamp inside daylight, unknown seasons fall back', () => {
+  assert.deepEqual(normalizeSun('morning'), { season: 'equinox', hour: 9 })
+  assert.deepEqual(normalizeSun(null), { season: 'equinox', hour: 12 })
+  const early = normalizeSun({ season: 'winter', hour: 5 })
+  near(early.hour, daylight(40.44, -23.44).sunrise + .25, 1e-9, 'clamped after winter sunrise')
+  assert.equal(normalizeSun({ season: 'mars', hour: 10 }).season, 'equinox')
+  assert.equal(sunFor({ season: 'summer', hour: 10.5 }).id, 'custom')
+  assert.equal(sunFor({ season: 'summer', hour: 10.5 }).label, '10:30')
+  assert.equal(formatSolarHour(8.875), '8:53')
+  assert.equal(seasonFor('summer').date, 'Jun 21')
 })
 
 test('convex hull and light follow the same sun', () => {

@@ -1171,3 +1171,20 @@
 .lvt-legend i { width: 13px; height: 13px; border-radius: 3px; border: 1px solid #0002; }
 .lvt-method summary { cursor: pointer; font-weight: 650; }
 .lvt-method p { margin: 6px 0 0; font-size: 12px; }
+
+/* Seasonal shadow study */
+.map-sun-toggle [role=radiogroup] { display: flex; gap: 2px; }
+.map-sun-toggle .sun-divider { width: 1px; margin: 4px 2px; background: #d4dfd2; }
+.studio .map-sun-toggle .sun-season { font-size: 11px; font-weight: 600; }
+.shadow-study { display: grid; gap: 6px; margin: 14px 0 6px; font-size: 13px; line-height: 1.45; }
+.shadow-study .section-heading { margin: 0; }
+.shadow-study input[type=range] { width: 100%; accent-color: #b5652a; }
+.shadow-study small { color: #5d6a60; font-size: 11px; }
+.shadow-seasons { display: flex; flex-wrap: wrap; }
+.shadow-result p { margin: 0; }
+.shadow-list { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.shadow-list li { display: grid; gap: 1px; padding: 5px 8px; border-left: 3px solid #e08a3c; background: #fff7ee; border-radius: 0 6px 6px 0; }
+.shadow-list li > span { display: flex; justify-content: space-between; gap: 8px; }
+.shadow-list strong { color: #8a3b1d; white-space: nowrap; }
+.studio .shadow-seasons button { flex: 1; border-radius: 6px; }
+.studio .shadow-seasons button[aria-pressed=true] { color: #fff; background: #315b46; }

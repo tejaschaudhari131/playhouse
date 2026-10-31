@@ -248,9 +248,29 @@ Existing footprints keep their recorded-use colors as warmed facades with a char
 
 **Build** and **Compare** show the selected lot's zoning envelope as an inset buildable pad plus height-limit corner posts and a top frame. The pad is an estimate. Its narrow ends are inset by the larger of the district's front and rear yards, and its long sides by the interior side yard. Corner-lot and legal-frontage yards are not classified. The height follows the **Policy Reform Simulator** preset. Only Council Bill 2025-1545's conditional Affordable Housing Bonus changes it: +30 ft for 4+ homes in eligible districts. A grey ghost frame then marks the current-code height, and the map note states the condition and that the bill is not law. Other presets leave height unchanged.
 
-**Morning / Noon / Afternoon** cast semi-transparent ground shadows from existing and proposed buildings. They use an equinox sun at 9:00, 12:00 and 15:00 solar time at Pittsburgh's latitude. Each shadow is the convex outline of the footprint and its cast roof: exact for rectangles and slightly generous for L-shapes. It is not a dated shadow study and ignores terrain and trees. **Street** pitches the camera to about 72°, close to the parcel, facing the guessed front facade. Press it again to return to the 55° aerial view.
+The map's sun control casts semi-transparent ground shadows from existing and proposed buildings. **Winter / Equinox / Summer** choose the representative day, and **Morning / Noon / Afternoon** choose 9:00, 12:00 or 15:00 solar time at Pittsburgh's latitude; the **Shadow study** slider sets any quarter hour. Each shadow is the convex outline of the footprint and its cast roof: exact for rectangles and slightly generous for L-shapes. Shadows ignore trees. **Street** pitches the camera to about 72°, close to the parcel, facing the guessed front facade. Press it again to return to the 55° aerial view.
 
 Code: `web/lib/architecture3d.js`, `streetscape3d.js`, `zoningEnvelope.js`, `sunShadows.js` and `localFrame.js`.
+
+## Seasonal shadow study
+
+**Build → Shadow study** estimates which neighbouring lots the proposed buildings shade, and for how long, on one representative day.
+
+| Day | Declination | Daylight at 40.44° N | Analysis window (solar time) |
+| --- | --- | --- | --- |
+| Winter solstice (Dec 21) | −23.44° | 9.1 h | about 8:57–15:03 |
+| Equinox (Mar 21 / Sep 21) | 0° | 12 h | 7:30–16:30 |
+| Summer solstice (Jun 21) | +23.44° | 14.9 h | about 6:03–17:57 |
+
+- **Sun.** Altitude and azimuth come from the standard declination and hour-angle formulas. Sunrise and sunset are geometric (no refraction). Times are local solar time; solar noon in Pittsburgh is about 12:20 EST, varying by about ±15 minutes with the equation of time.
+- **Window and days.** These follow the [NYC CEQR Technical Manual, chapter 8](https://www.nyc.gov/assets/oec/technical-manual/08_Shadows_2025.pdf): from 1.5 hours after sunrise to 1.5 hours before sunset, because earlier and later shadows are long, fast-moving and blend with existing ones. Its May 6 / Aug 6 day is not offered.
+- **Counting.** The sun is sampled every 15 minutes. At each sample, the shadow of every placed building, plus the current preview, is the convex hull of its footprint and cast roof outline. About 60 evenly spaced points inside each nearby parcel test whether that parcel is shaded. A parcel counts as shaded when at least 10% of its points are in shadow. Its hours are the number of shaded samples × 15 minutes; the panel also shows the first and last shaded time and the peak share.
+- **Scope.** The building's own parcels are excluded. Only parcels within the longest shadow in the window are checked.
+- **Limits.**
+  - It shows the project's shadow footprint, not the incremental shadow: shadows existing buildings already cast, trees and terrain are ignored.
+  - "Shaded" is a lot-level share, not a window or solar-panel study.
+
+Code: `web/lib/shadeStudy.js` and `sunShadows.js`; tests in `shadeStudy.test.js` and `sunShadows.test.js`.
 
 ## Financial assumptions
 

@@ -46,7 +46,7 @@ function rimFeature(geometry, color, width = .35) {
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair', lvt = null }) {
+export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair', lvt = null, shadedParcels = null }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -150,7 +150,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addSource('districts', { type: 'geojson', data: neighborhoods })
       map.addSource('stops', { type: 'geojson', data: stops || empty() })
       map.addSource('existing-buildings', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://mapservices.pasda.psu.edu/server/rest/services/pasda/AlleghenyCounty/MapServer/11">Allegheny County / PASDA buildings</a> · Heights: County / <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, ODbL</a>' })
-      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim', 'vacant-lots', 'lvt-shift']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
+      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim', 'vacant-lots', 'lvt-shift', 'shaded-parcels']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
       map.addSource('walking-network', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL</a>' })
       map.addLayer({ id: 'district-line', type: 'line', source: 'districts', paint: { 'line-color': '#78978c', 'line-width': 2, 'line-dasharray': [3, 3] } })
       map.addLayer({ id: 'district-fill', type: 'fill', source: 'districts', maxzoom: DETAIL_ZOOM, paint: { 'fill-color': '#78978c', 'fill-opacity': .12 } }, 'district-line')
@@ -169,6 +169,9 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addLayer({ id: 'connection-line', type: 'line', source: 'connections', paint: { 'line-color': '#a16736', 'line-width': 4 } })
       map.addLayer({ id: 'saved-route-line', type: 'line', source: 'saved-routes', paint: { 'line-color': '#137bd1', 'line-width': 5 } })
       map.addLayer({ id: 'shadows', type: 'fill', source: 'shadows', paint: { 'fill-color': '#1d2733', 'fill-opacity': ['case', ['==', ['get', 'kind'], 'existing'], .14, .22], 'fill-antialias': false } }, 'connection-line')
+      // Neighbours in project shadow: warmer and more opaque with more hours, labelled with the estimate.
+      map.addLayer({ id: 'shade-fill', type: 'fill', source: 'shaded-parcels', minzoom: DETAIL_EXIT_ZOOM, paint: { 'fill-color': ['interpolate', ['linear'], ['get', 'hours'], 0, '#f6d58b', 3, '#e08a3c', 6, '#a8432a'], 'fill-opacity': ['interpolate', ['linear'], ['get', 'hours'], 0, .35, 6, .7] } }, 'shadows')
+      map.addLayer({ id: 'shade-line', type: 'line', source: 'shaded-parcels', minzoom: DETAIL_EXIT_ZOOM, paint: { 'line-color': '#8a3b1d', 'line-width': 1.4 } }, 'shadows')
       map.addLayer({ id: 'draft-point', type: 'circle', source: 'draft-node', paint: { 'circle-color': '#f3b45b', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
       map.addLayer({ id: 'site-ground', type: 'fill-extrusion', source: 'site-ground', paint: { ...extrusion, 'fill-extrusion-vertical-gradient': false, 'fill-extrusion-opacity': 1 } })
       const colors = existingBuildingColors(buildingStyle, !!typeHighlight)
@@ -214,6 +217,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
           'icon-image': ['case', ['get', 'selected'], 'building-number-selected', 'building-number'],
           'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'icon-ignore-placement': false, 'icon-padding': 0,
         }, paint: { 'text-color': ['case', ['get', 'selected'], '#ffffff', '#214b3a'] } })
+      map.addLayer({ id: 'shade-label', type: 'symbol', source: 'shaded-parcels', minzoom: 16, layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-pitch-alignment': 'viewport' }, paint: { 'text-color': '#5c2410', 'text-halo-color': '#fffaf0', 'text-halo-width': 1.6 } })
       map.on('mousemove', event => {
         if (!callbacks.current.placing || hoverFrame) return
         hoverFrame = requestAnimationFrame(() => { hoverFrame = null; callbacks.current.onHover?.([event.lngLat.lng, event.lngLat.lat]) })
@@ -475,6 +479,10 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const draft = showDraft && buildingPreview ? [{ geometry: buildingPreview.geometry, height: buildingPreview.properties.height, kind: 'proposed' }] : []
     map.getSource('shadows').setData(fc(detail ? buildingShadows([...existing, ...placed, ...draft], sun) : []))
   }, [ready, sun, detail, viewport?.zoom, visibleBuildings, placedBuildings, buildingPreview, showDraft])
+  useEffect(() => {
+    const map = readyMap()
+    if (map) map.getSource('shaded-parcels').setData(fc(shadedParcels || []))
+  }, [ready, shadedParcels])
 
   useEffect(() => {
     // A request removed before evaluation finishes is consumed too: Undo/Redo
