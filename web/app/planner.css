@@ -1188,3 +1188,26 @@
 .shadow-list strong { color: #8a3b1d; white-space: nowrap; }
 .studio .shadow-seasons button { flex: 1; border-radius: 6px; }
 .studio .shadow-seasons button[aria-pressed=true] { color: #fff; background: #315b46; }
+
+/* Terrain: map toggle, slope legend and parcel elevation */
+.terrain-control { max-width: 100%; color: #3d3428; font-size: 13px; }
+.studio .terrain-toggle { display: flex; align-items: center; gap: 7px; min-height: 40px; padding: 7px 11px; border: 1px solid #c2b39a; background: #fbf8f2f5; color: #4a3b26; box-shadow: 0 2px 8px #1f3d2815; font-weight: 650; white-space: nowrap; }
+.studio .terrain-toggle[aria-pressed=true] { border-color: #8a6a3f; background: #f3eadb; }
+.terrain-panel { display: grid; gap: 4px; margin: 6px 0 0; padding: 9px 11px; max-width: min(340px, 100%); border: 1px solid #d8cbb5; border-radius: 9px; background: #fffdf9f7; box-shadow: 0 4px 14px #1f3d2820; font-size: 12px; }
+.terrain-panel legend { float: left; margin-bottom: 3px; padding: 0; color: #5d4f3c; font-size: 11px; font-weight: 650; }
+.terrain-panel label { display: flex; align-items: center; gap: 6px; min-height: 26px; cursor: pointer; }
+.terrain-panel p { margin: 2px 0 0; color: #5d5446; font-size: 11px; line-height: 1.4; }
+.terrain-panel .terrain-status { color: #8a3b1d; font-weight: 600; }
+.terrain-legend { display: flex; flex-wrap: wrap; gap: 3px 10px; margin: 0; padding: 0; list-style: none; }
+.terrain-legend li { display: flex; align-items: center; gap: 5px; }
+.terrain-legend i, .parcel-terrain dd i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid #0002; vertical-align: -1px; margin-right: 4px; }
+.studio .terrain-control button:focus-visible, .terrain-panel input:focus-visible { outline: 3px solid #21838a; outline-offset: 2px; }
+.parcel-terrain { margin: 10px 0; font-size: 12px; line-height: 1.45; }
+.parcel-terrain h4 { margin: 0 0 4px; font-size: 13px; }
+.parcel-terrain dl { display: grid; gap: 2px; margin: 0; }
+.parcel-terrain dl div { display: grid; grid-template-columns: 104px 1fr; gap: 6px; }
+.parcel-terrain dt { color: #5d6a60; font-weight: 650; }
+.parcel-terrain dd { margin: 0; }
+.parcel-terrain p { margin: 0; }
+.parcel-terrain small { display: block; margin-top: 4px; color: #5d6a60; font-size: 11px; }
+.parcel-terrain-caution { margin-top: 6px !important; padding: 6px 8px; border-left: 3px solid #c2412d; background: #fdf0ec; color: #6b2416; }

@@ -29,9 +29,11 @@ import { cleanRing, insetRing, localFrame, openRing, toPolygon } from '../lib/lo
 import { BUILDINGS } from '../lib/buildings.js'
 import { stairsRequired } from '../lib/singleStair.js'
 import { LVT_MAP_COLORS, parcelShift, shiftClass } from '../lib/lvtShift.js'
+import { SLOPE_CLASSES, TERRAIN_ATTRIBUTION, TERRAIN_MAX_ZOOM, TERRAIN_TILES } from '../lib/terrain.js'
 import { BUILDING_TYPE_CATEGORIES, allFilters, hiddenCategoryFilter, plannedCategoryColor, typologyCategory } from '../lib/buildingTypes.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
+const TERRAIN_SOURCES = ['terrain-dem', 'terrain-hillshade']
 const fc = features => ({ type: 'FeatureCollection', features })
 const AERIAL_PITCH = 55, STREET_PITCH = 72, STREET_ZOOM = 19.9, SITE_ZOOM = 17.6
 const extrusion = { 'fill-extrusion-base': ['get', 'base'], 'fill-extrusion-height': ['get', 'top'], 'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-vertical-gradient': true }
@@ -46,7 +48,7 @@ function rimFeature(geometry, color, width = .35) {
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair', lvt = null, shadedParcels = null, draggable = false, onDragStart, onDragMove, onDragEnd }) {
+export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair', lvt = null, shadedParcels = null, draggable = false, onDragStart, onDragMove, onDragEnd, terrain = null, onTerrainError }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -78,8 +80,11 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   const constructionRun = useRef(null), constructionRequest = useRef(null), consumedConstruction = useRef(null)
   // Real-world Three.js buildings: loaded on first 3D detail view, one controller per map instance.
   const three = useRef(null), threeLoad = useRef(null)
+  const [demFailed, setDemFailed] = useState(false)
   const [threeStatus, setThreeStatus] = useState('idle'), [meshFocus, setMeshFocus] = useState(null), [constructing, setConstructing] = useState(null)
-  const threeWanted = buildingStyle === 'realistic' && !!view3d && detail && viewport.zoom >= 16, threeActive = threeWanted && threeStatus === 'ready'
+  const terrain3d = !!terrain && !!view3d && !demFailed
+  // Three.js draws on MapLibre's flat Mercator plane, so meshes yield to terrain-aware extrusions while 3D terrain is on.
+  const threeWanted = buildingStyle === 'realistic' && !!view3d && detail && viewport.zoom >= 16 && !terrain3d, threeActive = threeWanted && threeStatus === 'ready'
   const threeController = threeActive ? three.current?.controller ?? null : null
   const highlightOn = !!typeHighlight, hiddenKey = (typeHighlight?.hidden || []).join('|')
   const hiddenTypes = useMemo(() => hiddenKey ? hiddenKey.split('|') : [], [hiddenKey])
@@ -113,7 +118,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       setError('Map detail could not update. Reload to restore the map; your scenario controls remain available.')
     })
   }
-  callbacks.current = { onSelect, onStop, tool, placing, onPlace, onHover, drawing, onDraw, onViewport, onBuildingSelect, onSiteBuildingSelect, hideSiteMarker: siteLabels.length > 0, sunTime, draggable, onDragStart, onDragMove, onDragEnd }
+  callbacks.current = { onSelect, onStop, tool, placing, onPlace, onHover, drawing, onDraw, onViewport, onBuildingSelect, onSiteBuildingSelect, hideSiteMarker: siteLabels.length > 0, sunTime, draggable, onDragStart, onDragMove, onDragEnd, onTerrainError }
 
   useEffect(() => {
     let map, disposeBenchmark, hoverFrame = null
@@ -150,12 +155,16 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addSource('districts', { type: 'geojson', data: neighborhoods })
       map.addSource('stops', { type: 'geojson', data: stops || empty() })
       map.addSource('existing-buildings', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://mapservices.pasda.psu.edu/server/rest/services/pasda/AlleghenyCounty/MapServer/11">Allegheny County / PASDA buildings</a> · Heights: County / <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, ODbL</a>' })
-      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim', 'vacant-lots', 'lvt-shift', 'shaded-parcels']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
+      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim', 'vacant-lots', 'lvt-shift', 'shaded-parcels', 'terrain-contours', 'parcel-slope']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
       map.addSource('walking-network', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL</a>' })
       map.addLayer({ id: 'district-line', type: 'line', source: 'districts', paint: { 'line-color': '#78978c', 'line-width': 2, 'line-dasharray': [3, 3] } })
       map.addLayer({ id: 'district-fill', type: 'fill', source: 'districts', maxzoom: DETAIL_ZOOM, paint: { 'fill-color': '#78978c', 'fill-opacity': .12 } }, 'district-line')
       map.addLayer({ id: 'parcel-fill', type: 'fill', source: 'parcels', minzoom: DETAIL_EXIT_ZOOM, paint: { 'fill-color': ['case', ['get', 'vacant'], '#81b99c', '#e6e9e3'], 'fill-opacity': .28 } })
       map.addLayer({ id: 'parcel-line', type: 'line', source: 'parcels', minzoom: DETAIL_EXIT_ZOOM, paint: { 'line-color': '#788f84', 'line-width': .6, 'line-opacity': .55 } })
+      const slopeColor = ['match', ['get', 'slope_class'], ...SLOPE_CLASSES.flatMap(c => [c.id, c.color]), '#c9ccd1']
+      map.addLayer({ id: 'parcel-slope-fill', type: 'fill', source: 'parcel-slope', minzoom: DETAIL_EXIT_ZOOM, layout: { visibility: 'none' }, paint: { 'fill-color': slopeColor, 'fill-opacity': ['match', ['get', 'slope_class'], 'gentle', .18, 'steep', .5, .62] } })
+      map.addLayer({ id: 'parcel-slope-line', type: 'line', source: 'parcel-slope', minzoom: DETAIL_EXIT_ZOOM, layout: { visibility: 'none' }, filter: ['!=', ['get', 'slope_class'], 'gentle'], paint: { 'line-color': slopeColor, 'line-width': 1.2 } })
+      map.addLayer({ id: 'terrain-contours', type: 'line', source: 'terrain-contours', minzoom: DETAIL_EXIT_ZOOM, layout: { visibility: 'none', 'line-join': 'round' }, paint: { 'line-color': '#7a5a3a', 'line-opacity': ['case', ['get', 'index'], .85, .5], 'line-width': ['case', ['get', 'index'], 1.6, .7] } })
       map.addLayer({ id: 'vacant-lot-fill', type: 'fill', source: 'vacant-lots', minzoom: DETAIL_EXIT_ZOOM, paint: { 'fill-color': BUILDING_TYPE_CATEGORIES.find(c => c.id === 'vacant').color, 'fill-opacity': .55 } })
       map.addLayer({ id: 'empty-site-fill', type: 'fill', source: 'empty-sites', minzoom: DETAIL_EXIT_ZOOM, paint: { 'fill-color': '#fbbf24', 'fill-opacity': .45 } })
       map.addLayer({ id: 'empty-site-outline', type: 'line', source: 'empty-sites', minzoom: DETAIL_EXIT_ZOOM, paint: { 'line-color': '#a16207', 'line-width': 2 } })
@@ -217,8 +226,15 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
           'icon-image': ['case', ['get', 'selected'], 'building-number-selected', 'building-number'],
           'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'icon-ignore-placement': false, 'icon-padding': 0,
         }, paint: { 'text-color': ['case', ['get', 'selected'], '#ffffff', '#214b3a'] } })
+      map.addLayer({ id: 'terrain-contour-labels', type: 'symbol', source: 'terrain-contours', minzoom: 15, filter: ['get', 'index'], layout: { visibility: 'none', 'symbol-placement': 'line', 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Regular'], 'text-size': 10, 'symbol-spacing': 320 }, paint: { 'text-color': '#5c4128', 'text-halo-color': '#fffaf0', 'text-halo-width': 1.4 } })
+      map.on('error', event => {
+        if (!TERRAIN_SOURCES.includes(event.sourceId)) return
+        terrainErrors += 1
+        if (terrainErrors >= 3) { setDemFailed(true); callbacks.current.onTerrainError?.() }
+      })
       map.addLayer({ id: 'shade-label', type: 'symbol', source: 'shaded-parcels', minzoom: 16, layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-pitch-alignment': 'viewport' }, paint: { 'text-color': '#5c2410', 'text-halo-color': '#fffaf0', 'text-halo-width': 1.6 } })
       // Press-and-drag moves the draft preview or a placed building; preventDefault stops the map panning for that gesture.
+      let terrainErrors = 0
       let dragging = null, dragFrame = null, pendingMove = null, cursorFrame = null, grabCursor = false
       const dragLayers = () => ['building-fill', 'building-outline', 'placed-buildings-fill', 'placed-buildings-outline'].filter(id => map.getLayer(id))
       const dragTarget = point => {
@@ -537,6 +553,24 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const map = readyMap()
     if (map) map.getSource('shaded-parcels').setData(fc(shadedParcels || []))
   }, [ready, shadedParcels])
+  useEffect(() => {
+    const map = readyMap()
+    if (!map) return
+    const on = !!terrain && !demFailed
+    if (on && !map.getSource('terrain-dem')) {
+      for (const id of TERRAIN_SOURCES) map.addSource(id, { type: 'raster-dem', tiles: [TERRAIN_TILES], tileSize: 256, maxzoom: TERRAIN_MAX_ZOOM, encoding: 'terrarium', ...(id === 'terrain-dem' ? { attribution: TERRAIN_ATTRIBUTION } : {}) })
+      // Hillshade sits under the basemap's labels and every PlayHouse layer.
+      const layers = map.getStyle().layers, own = layers.findIndex(l => l.id === 'district-line')
+      const before = layers.slice(0, own).find(l => l.type === 'symbol')?.id || 'district-line'
+      map.addLayer({ id: 'terrain-hillshade', type: 'hillshade', source: 'terrain-hillshade', paint: { 'hillshade-exaggeration': .5, 'hillshade-shadow-color': '#3b382f', 'hillshade-highlight-color': '#fffdf6', 'hillshade-accent-color': '#5b5242' } }, before)
+    }
+    if (map.getLayer('terrain-hillshade')) map.setLayoutProperty('terrain-hillshade', 'visibility', on ? 'visible' : 'none')
+    try { map.setTerrain(on && view3d ? { source: 'terrain-dem', exaggeration: 1 } : null) } catch { setDemFailed(true) }
+    map.getSource('terrain-contours').setData(fc(terrain?.contours || []))
+    map.getSource('parcel-slope').setData(fc(terrain?.slopes || []))
+    for (const id of ['terrain-contours', 'terrain-contour-labels']) map.setLayoutProperty(id, 'visibility', terrain?.contours?.length ? 'visible' : 'none')
+    for (const id of ['parcel-slope-fill', 'parcel-slope-line']) map.setLayoutProperty(id, 'visibility', terrain?.slopes?.length ? 'visible' : 'none')
+  }, [ready, terrain, view3d, demFailed])
 
   useEffect(() => {
     // A request removed before evaluation finishes is consumed too: Undo/Redo
@@ -704,5 +738,5 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     focus()
   }, [ready, buildingFocusRequest, buildingRows, selected?.properties.pin])
 
-  return <><div ref={container} className="planner-map" data-building-style={buildingStyle} data-type-highlight={highlightOn ? hiddenKey || 'all' : 'off'} data-lvt-ratio={lvtRates ? lvtRates.ratio : 'off'} data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-active={threeActive} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
+  return <><div ref={container} className="planner-map" data-building-style={buildingStyle} data-type-highlight={highlightOn ? hiddenKey || 'all' : 'off'} data-terrain={terrain ? demFailed ? 'failed' : view3d ? '3d' : 'hillshade' : 'off'} data-lvt-ratio={lvtRates ? lvtRates.ratio : 'off'} data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-active={threeActive} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
 }

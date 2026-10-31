@@ -256,9 +256,35 @@ Existing footprints keep their recorded-use colors as warmed facades with a char
 
 **Build** and **Compare** show the selected lot's zoning envelope as an inset buildable pad plus height-limit corner posts and a top frame. The pad is an estimate. Its narrow ends are inset by the larger of the district's front and rear yards, and its long sides by the interior side yard. Corner-lot and legal-frontage yards are not classified. The height follows the **Policy Reform Simulator** preset. Only Council Bill 2025-1545's conditional Affordable Housing Bonus changes it: +30 ft for 4+ homes in eligible districts. A grey ghost frame then marks the current-code height, and the map note states the condition and that the bill is not law. Other presets leave height unchanged.
 
-The map's sun control casts semi-transparent ground shadows from existing and proposed buildings. **Winter / Equinox / Summer** choose the representative day, and **Morning / Noon / Afternoon** choose 9:00, 12:00 or 15:00 solar time at Pittsburgh's latitude; the **Shadow study** slider sets any quarter hour. Each shadow is the convex outline of the footprint and its cast roof: exact for rectangles and slightly generous for L-shapes. Shadows ignore trees. **Street** pitches the camera to about 72°, close to the parcel, facing the guessed front facade. Press it again to return to the 55° aerial view.
+The map's sun control casts semi-transparent ground shadows from existing and proposed buildings. **Winter / Equinox / Summer** choose the representative day, and **Morning / Noon / Afternoon** choose 9:00, 12:00 or 15:00 solar time at Pittsburgh's latitude; the **Shadow study** slider sets any quarter hour. Each shadow is the convex outline of the footprint and its cast roof: exact for rectangles and slightly generous for L-shapes. Shadows ignore trees, and are computed on flat ground even when terrain is shown. **Street** pitches the camera to about 72°, close to the parcel, facing the guessed front facade. Press it again to return to the 55° aerial view.
 
 Code: `web/lib/architecture3d.js`, `streetscape3d.js`, `zoningEnvelope.js`, `sunShadows.js` and `localFrame.js`.
+
+## Terrain
+
+**Terrain** (map toggle) shows Pittsburgh's real topography:
+- **3D view.** MapLibre `raster-dem` terrain at 1× exaggeration, plus hillshade.
+- **2D view.** Hillshade only.
+- **Contours** (optional). 5 m lines, with an index line labelled every 25 m.
+- **Parcel slope** (optional). Each parcel is coloured by its typical slope: under 15%, 15–25% steep, or 25%+ very steep.
+
+The selected parcel's panel always shows its elevation (m and ft), the rise across the lot, typical and steepest slope, and the share of the lot at 15%+ and 25%+. It also shows the existing City 25%+ steep-slope overlap. When either source finds steep ground, the panel adds a caution: 25%+ is the City's landslide-risk proxy, the §915.02.A cut/fill limit, and a reason for geotechnical review. 15% is where §915.02.B slope planting starts.
+
+**Source and licence.** Tiles come from [Terrain Tiles on AWS](https://registry.opendata.aws/terrain-tiles/), Terrarium PNG encoding (`elevation = R × 256 + G + B ÷ 256 − 32768` m), at `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png`.
+- No key is needed. CORS is open (`Access-Control-Allow-Origin: *`, checked 2026-10-31).
+- For Pittsburgh the tile metadata names USGS NED 1/9 arc-second, 2006 (about 3 m).
+- The [required attribution](https://github.com/tilezen/joerd/blob/master/docs/attribution.md) for US data is "3DEP (formerly NED) … courtesy of the U.S. Geological Survey". 3DEP is public domain.
+- The map attribution shows "Terrain Tiles on AWS · USGS 3DEP", and the terrain panel links both pages.
+
+**Slope method.**
+- **Horn's estimator.** Slope uses Horn's estimator, the same one GDAL and ArcGIS use, on a 3 × 3 window 4 m apart. The window is sampled bilinearly from z15 tiles, about 3.6 m per pixel at this latitude.
+- **Parcel statistics.** About 24 evenly spaced points inside the lot (10 for the map overlay) give the mean elevation, the median ("typical") slope and the steep shares.
+- **Contours.** Contours use marching squares on an 8 m grid over the view, capped at 1.5 km × 1.5 km, and segments are stitched into lines.
+- **Accuracy.** Retaining walls, cuts and post-2006 grading are not in the model. It is a screen, not a survey.
+
+**Alignment on terrain.** MapLibre places fill-extrusions (buildings, the draft, zoning envelope, yard pads, trees) and draped fills (parcels, shadows, overlays) on the terrain surface. The Three.js mesh layer is a custom WebGL layer drawn on MapLibre's flat Mercator plane, so its alignment with terrain cannot be guaranteed. While 3D terrain is on, **Detailed** therefore falls back to the extrusion renderer and the panel says so. Ground shadows are computed on flat ground and then draped, so on steep slopes they are approximate.
+
+**If the DEM fails.** Failed tiles are remembered and never retried in a loop. The sampler returns no data, so the parcel panel says elevation is unavailable and the overlays stay empty. After three MapLibre tile errors the map turns 3D terrain and hillshade off and shows flat ground; every other tool keeps working. Code: `web/lib/terrain.js`, `terrainTiles.js`; tests in `terrain.test.js`.
 
 ## Seasonal shadow study
 
@@ -275,7 +301,7 @@ Code: `web/lib/architecture3d.js`, `streetscape3d.js`, `zoningEnvelope.js`, `sun
 - **Counting.** The sun is sampled every 15 minutes. At each sample, the shadow of every placed building, plus the current preview, is the convex hull of its footprint and cast roof outline. About 60 evenly spaced points inside each nearby parcel test whether that parcel is shaded. A parcel counts as shaded when at least 10% of its points are in shadow. Its hours are the number of shaded samples × 15 minutes; the panel also shows the first and last shaded time and the peak share.
 - **Scope.** The building's own parcels are excluded. Only parcels within the longest shadow in the window are checked.
 - **Limits.**
-  - It shows the project's shadow footprint, not the incremental shadow: shadows existing buildings already cast, trees and terrain are ignored.
+  - It shows the project's shadow footprint, not the incremental shadow: shadows existing buildings already cast, trees and terrain are ignored (shadows are computed on flat ground).
   - "Shaded" is a lot-level share, not a window or solar-panel study.
 
 Code: `web/lib/shadeStudy.js` and `sunShadows.js`; tests in `shadeStudy.test.js` and `sunShadows.test.js`.
