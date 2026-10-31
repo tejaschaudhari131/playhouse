@@ -83,6 +83,7 @@ import { isParcelSearch } from '../lib/addressSearch.js'
 import { fitDiagnosis, fitToLot, fitSummary, TYPE_MINIMUMS } from '../lib/lotFit.js'
 import { egressMinimum, APARTMENT_FOOTPRINT, EGRESS_RULES } from '../lib/singleStair.js'
 import { districtStandards } from '../lib/titleNineRules.js'
+import { DRAG_SNAP_M, dragMoved, dragPlacement, dropVerdict, obstaclesExcept, placementCenter, startDrag } from '../lib/dragPlacement.js'
 
 const PlannerMap = dynamic(() => import('./PlannerMap.js'), { ssr: false, loading: () => <div className="planner-loading">Preparing the map…</div> })
 const fmt = (value, suffix = '') => typeof value === 'number' && Number.isFinite(value) ? `${round(value).toLocaleString()}${suffix}` : 'Unknown'
@@ -697,6 +698,60 @@ function Studio({ data }) {
   function placeProposal(coordinates) {
     addBuilding(fitMassing(selected.geometry, option.width, option.depth, placementAt(selected.geometry, coordinates, placement.bearing), proposalObstacles))
   }
+  const dragRef = useRef(null)
+  const [dragged, setDragged] = useState(null)
+  const canDrag = inspectorTab === 'edit' && (tool === 'housing' || tool === 'compare') && !placing && !drawing && !evaluation.pending
+  const placedObstacles = useMemo(() => retainedNearbyBuildings === null ? null : [...retainedNearbyBuildings.map(b => ({ geometry: b.geometry })), ...(result?.committed?.proposal || []).filter(b => b.massing.geometry).map(b => ({ id: b.id, geometry: b.massing.geometry })), ...(result?.reservations || [])], [retainedNearbyBuildings, result])
+  /** Press on the draft preview or a placed building on this parcel; returning false lets the map pan instead. */
+  function beginDrag(target, pointer, px) {
+    if (!canDrag) return false
+    if (target.kind === 'draft') {
+      if (!canAdjust || paused || selectedBuilding || !mapPreview) return false
+      dragRef.current = startDrag({ kind: 'draft', pin: scenario.pin, pointer, px, placement: draftMassing?.placement || placement, parcel: selected.geometry })
+    } else {
+      const building = scenario.buildings.find(b => b.id === target.id), drawn = renderedBuildings.find(b => b.id === target.id)
+      if (!building || building.pin !== scenario.pin || buildingEdit) return false
+      dragRef.current = startDrag({ kind: 'placed', id: building.id, pin: building.pin, pointer, px, placement: drawn?.massing?.placement || building.option.placement, parcel: selected.geometry })
+      if (dragRef.current) dragRef.current.size = { width: building.option.width, depth: building.option.depth }
+    }
+    return !!dragRef.current
+  }
+  function moveDrag(pointer, px) {
+    const state = dragRef.current
+    if (!state || !dragMoved(state, px)) return
+    state.moved = true
+    state.last = dragPlacement(state, pointer, DRAG_SNAP_M)
+    if (state.kind === 'draft') setHoverPoint(placementCenter(selected.geometry, state.last))
+    else setDragged({ id: state.id, placement: state.last })
+  }
+  function endDrag() {
+    const state = dragRef.current
+    dragRef.current = null
+    setDragged(null)
+    if (!state?.moved || !state.last) return false
+    if (state.kind === 'draft') {
+      setHoverPoint(null)
+      const verdict = dropVerdict(fitMassing(selected.geometry, option.width, option.depth, state.last, proposalObstacles), { allowCollisions: true })
+      if (!verdict.ok) { setNotice(verdict.reason, 'transient'); return true }
+      setJustAdded(null); moveProposal(state.last)
+      setNotice('Draft moved. Undo restores its previous position; Add to plan keeps it here.', 'transient')
+    } else {
+      const verdict = dropVerdict(fitMassing(selected.geometry, state.size.width, state.size.depth, state.last, obstaclesExcept(placedObstacles, state.id)))
+      if (!verdict.ok) { setNotice(verdict.reason, 'transient'); return true }
+      dispatch({ type: 'moveBuilding', id: state.id, placement: state.last })
+      setNotice('Building moved. Undo restores its previous position.', 'transient')
+    }
+    return true
+  }
+  const mapBuildings = useMemo(() => {
+    if (!dragged) return renderedBuildings
+    return renderedBuildings.map(b => {
+      if (b.id !== dragged.id) return b
+      const spec = scenario.buildings.find(x => x.id === b.id)?.option
+      const fit = fitMassing(selected.geometry, spec?.width, spec?.depth, dragged.placement, obstaclesExcept(placedObstacles, b.id))
+      return fit.geometry ? { ...b, massing: { ...b.massing, geometry: fit.geometry, placement: dragged.placement }, eligible: dropVerdict(fit).ok } : b
+    })
+  }, [dragged, renderedBuildings, selected, scenario.buildings, placedObstacles])
   function beginDrawing(kind) { drawingRevision.current++; drawingBusy.current = false; setPlacing(false); setDrawing(kind); setDraftNode(null); setNotice('') }
   function cancelDrawing() { drawingRevision.current++; drawingBusy.current = false; setDrawing(null); setDraftNode(null) }
   useEffect(() => {
@@ -821,7 +876,7 @@ function Studio({ data }) {
     </header>
     <StudioWorkspace sidebarOpen={sidebarOpen} expanded={inspectorTab === 'rankings'} map={
       <section className="studio-canvas" aria-label="Planning map">
-        <PlannerMap buildingStyle={buildingStyle} buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={mapPreview} shadedParcels={shade?.features} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={renderedBuildings} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest} streetView={streetView} sunTime={sunTime} zoningEnvelope={zoningEnvelope} typeHighlight={typeHighlight} egress={scenario.egress} lvt={lvtMap}/>
+        <PlannerMap buildingStyle={buildingStyle} buildingRows={buildingRows} showBuildingLabels={inspectorTab === 'edit' && tool === 'housing'} buildingFocusRequest={buildingFocusRequest} onSiteBuildingSelect={key => { const row = buildingRows.find(row => row.key === key); if (row) inspectOnSite(row.building) }} parcelIndex={loaded.parcelIndex} buildingIndex={loaded.buildingIndex} neighborhoods={neighborhoods} stops={stops} showExisting={showExisting} selected={selected} buildingPreview={mapPreview} shadedParcels={shade?.features} demolitions={scenario.demolitions} demolitionEffect={demolitionEffect} constructionEffect={scenario.buildings.some(b => b.id === constructionEffect?.id) ? constructionEffect : null} selectedBuilding={selectedBuilding} onBuildingSelect={selectBuilding} stop={stop} proposed={proposed} additionalDepartures={scenario.additionalDepartures} view3d={view3d} onSelect={select} onStop={selectStop} tool={tool} placing={placing} onPlace={placeProposal} onHover={setHoverPoint} placedBuildings={mapBuildings} draggable={canDrag} onDragStart={beginDrag} onDragMove={moveDrag} onDragEnd={endDrag} network={network} visibleNeighborhoodIds={loaded.visibleIds} networkResult={evaluated?.access} reservations={result?.reservations} connections={scenario.connections} routes={scenario.routes || []} drawing={drawing} draftNode={draftNode} onDraw={drawInfrastructure} discoveryPins={discoveryPins} emptyPins={emptyPins} onViewport={onViewport} focusRequest={focusRequest} streetView={streetView} sunTime={sunTime} zoningEnvelope={zoningEnvelope} typeHighlight={typeHighlight} egress={scenario.egress} lvt={lvtMap}/>
         {placing && <div className="placement-banner" role="status"><span>Click to add {housingSpec(option).label}. Green: passes placement screen · red: needs review. <kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd> rotates. Arrow keys move 1 m; Shift moves 5 m.</span><span><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button>{!!blockingBuildings.length && <button onClick={() => demolishFootprints(blockingBuildings)} disabled={evaluation.pending || !context}>Demolish {blockingBuildings.length === 1 ? 'building' : `${blockingBuildings.length} buildings`} under preview</button>}<button onClick={() => setPlacing(false)}>Cancel placement</button></span></div>}
         <nav data-tour="tools" className="studio-tools" aria-label="Planning tools">{[['housing', 'building', 'Build'], ['service', 'bus', 'Transit'], ['network', 'network', 'Streets']].map(([id, icon, label]) => <button key={id} className={tool === id || id === 'housing' && tool === 'compare' ? 'active' : ''} aria-pressed={tool === id || id === 'housing' && tool === 'compare'} onClick={() => { setTool(id); setInspectorTab('edit') }}><Icon name={icon}/><span>{label}</span></button>)}</nav>
         <div className="map-quick-actions">
@@ -887,7 +942,7 @@ function Studio({ data }) {
             <fieldset className="quick-controls" aria-label="Size and orientation">
               <div className="quick-steppers">{[['width', 'Width', `${option.width} m`, 1], ['depth', 'Depth', `${option.depth} m`, 1], ['floors', 'Stories', option.floors ?? housingSpec(option).floors, 1]].map(([key, label, value, step]) => <div key={key} className="stepper"><span>{label}</span><button aria-label={`Decrease ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, -step)} onClick={() => resize(key, -step)}>−</button><output aria-live="polite" aria-label={label}>{value}</output><button aria-label={`Increase ${label.toLowerCase()}`} disabled={!resizeDraft(option, key, step)} onClick={() => resize(key, step)}>+</button></div>)}</div>
               <div className="quick-rotate"><button aria-label="Rotate draft −15°" disabled={!canAdjust} onClick={() => rotate(-15)}>⟲ −15°</button><button aria-label="Rotate draft +15°" disabled={!canAdjust} onClick={() => rotate(15)}>⟳ +15°</button><button disabled={!option.placement} onClick={() => { setOption('placement', null); setPlacing(false) }}>Reset alignment</button></div>
-              <small>{option.height} m high · {option.placement ? `manual position, bearing ${round(placement.bearing)}°` : 'automatic parcel alignment'} · <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Exact values in Advanced</button></small>
+              <small>{option.height} m high · {option.placement ? `manual position, bearing ${round(placement.bearing)}°` : 'automatic parcel alignment'} · drag it on the map to move · <button className="assumptions-link" onClick={() => setInspectorTab('assumptions')}>Exact values in Advanced</button></small>
             </fieldset>
             <div className="draft-result" aria-busy={evaluation.pending}><div><span>Current draft</span><strong>{draftState.title}</strong><small>{evaluated?.eligible && !evaluation.pending ? 'Under your priorities' : draftState.detail}</small>{!evaluation.pending && evaluated && <small>{zoningReviewLabel(evaluated)}</small>}{!evaluation.pending && evaluated?.checks && <small>Fit: {evaluated.checks.physical?.status || 'unknown'} · Transit reserve: {evaluated.checks.capacity?.status || 'unknown'} (assumed)</small>}</div><button onClick={() => setInspectorTab('rankings')}>Compare types →</button></div>
             {fitIssue && <div className="fit-callout" role="group" aria-label="Why this draft does not fit">

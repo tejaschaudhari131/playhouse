@@ -110,6 +110,7 @@ export function scenarioReducer(state, action) {
     next = { ...next, ...(manualRent ? { rentMode: 'custom' } : {}), draft: { ...next.draft, ...action.value, ...rentUpdate }, comparisonTypes }
   }
   if (action.type === 'removeBuilding') next = { ...next, buildings: (next.buildings || []).filter(b => b.id !== action.id) }
+  if (action.type === 'moveBuilding' && action.placement && (next.buildings || []).some(b => b.id === action.id)) next = { ...next, buildings: next.buildings.map(b => b.id === action.id ? { ...b, option: { ...b.option, placement: action.placement } } : b) }
   if (action.type === 'reset') next = action.scenario
   if (action.type === 'patch') next = { ...next, ...action.value }
   if (action.type === 'set') next = { ...next, ...(action.key === 'targetIncome' ? { incomeSource: 'custom', incomeBand: null } : {}), [action.key]: action.value }

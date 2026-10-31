@@ -46,7 +46,7 @@ function rimFeature(geometry, color, width = .35) {
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair', lvt = null, shadedParcels = null }) {
+export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null, egress = 'two-stair', lvt = null, shadedParcels = null, draggable = false, onDragStart, onDragMove, onDragEnd }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -113,7 +113,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       setError('Map detail could not update. Reload to restore the map; your scenario controls remain available.')
     })
   }
-  callbacks.current = { onSelect, onStop, tool, placing, onPlace, onHover, drawing, onDraw, onViewport, onBuildingSelect, onSiteBuildingSelect, hideSiteMarker: siteLabels.length > 0, sunTime }
+  callbacks.current = { onSelect, onStop, tool, placing, onPlace, onHover, drawing, onDraw, onViewport, onBuildingSelect, onSiteBuildingSelect, hideSiteMarker: siteLabels.length > 0, sunTime, draggable, onDragStart, onDragMove, onDragEnd }
 
   useEffect(() => {
     let map, disposeBenchmark, hoverFrame = null
@@ -218,6 +218,60 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
           'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport', 'icon-allow-overlap': false, 'icon-ignore-placement': false, 'icon-padding': 0,
         }, paint: { 'text-color': ['case', ['get', 'selected'], '#ffffff', '#214b3a'] } })
       map.addLayer({ id: 'shade-label', type: 'symbol', source: 'shaded-parcels', minzoom: 16, layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-pitch-alignment': 'viewport' }, paint: { 'text-color': '#5c2410', 'text-halo-color': '#fffaf0', 'text-halo-width': 1.6 } })
+      // Press-and-drag moves the draft preview or a placed building; preventDefault stops the map panning for that gesture.
+      let dragging = null, dragFrame = null, pendingMove = null, cursorFrame = null, grabCursor = false
+      const dragLayers = () => ['building-fill', 'building-outline', 'placed-buildings-fill', 'placed-buildings-outline'].filter(id => map.getLayer(id))
+      const dragTarget = point => {
+        const hit = map.queryRenderedFeatures(point, { layers: dragLayers() })[0]
+        if (!hit) return null
+        return hit.layer.id.startsWith('placed') ? { kind: 'placed', id: String(hit.properties.id) } : { kind: 'draft' }
+      }
+      const pressDrag = event => {
+        const cb = callbacks.current
+        if (!cb.draggable || cb.placing || cb.drawing || !hasMapDetail(currentViewport) || event.originalEvent?.button > 0) return
+        const target = dragTarget(event.point)
+        if (!target || !cb.onDragStart?.(target, [event.lngLat.lng, event.lngLat.lat], [event.point.x, event.point.y])) return
+        event.preventDefault()
+        dragging = target
+        map.getCanvas().style.cursor = 'grabbing'
+        window.addEventListener('pointerup', releaseDrag, { once: true })
+      }
+      const moveDrag = event => {
+        if (!dragging) return
+        const pointer = [event.lngLat.lng, event.lngLat.lat], px = [event.point.x, event.point.y]
+        pendingMove = [pointer, px]
+        dragFrame ||= requestAnimationFrame(flushMove)
+      }
+      function flushMove() {
+        dragFrame = null
+        const move = pendingMove
+        pendingMove = null
+        if (move) callbacks.current.onDragMove?.(...move)
+      }
+      const releaseDrag = () => {
+        if (!dragging) return
+        dragging = null
+        if (dragFrame) cancelAnimationFrame(dragFrame)
+        flushMove()
+        map.getCanvas().style.cursor = grabCursor ? 'grab' : ''
+        callbacks.current.onDragEnd?.()
+      }
+      map.on('mousedown', pressDrag)
+      map.on('touchstart', event => { if (event.points?.length === 1) pressDrag(event) })
+      map.on('mousemove', moveDrag)
+      map.on('touchmove', moveDrag)
+      map.on('mouseup', releaseDrag)
+      map.on('touchend', releaseDrag)
+      map.on('touchcancel', releaseDrag)
+      map.on('mousemove', event => {
+        const cb = callbacks.current
+        if (dragging || cursorFrame || !cb.draggable || cb.placing || cb.drawing) return
+        cursorFrame = requestAnimationFrame(() => {
+          cursorFrame = null
+          const over = !dragging && !!dragTarget(event.point)
+          if (over !== grabCursor) { grabCursor = over; map.getCanvas().style.cursor = over ? 'grab' : '' }
+        })
+      })
       map.on('mousemove', event => {
         if (!callbacks.current.placing || hoverFrame) return
         hoverFrame = requestAnimationFrame(() => { hoverFrame = null; callbacks.current.onHover?.([event.lngLat.lng, event.lngLat.lat]) })

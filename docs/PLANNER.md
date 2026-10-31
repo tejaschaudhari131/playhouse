@@ -149,6 +149,14 @@ If a draft extends beyond the parcel, **Inspect first** can show a nearby buildi
 
 Position on map stays active when cycling housing types. The colored preview and Add control use the same live fit/zoning screen. While full scores recalculate, dimensions update immediately in a grey preview and placement stays unavailable. R rotates +15°; Shift+R rotates −15°. Arrow keys move east/west/north/south by 1 metre (Shift: 5 metres), except when editing text or using a control's own keyboard navigation. Exact offsets and bearing remain in Advanced. Automatic alignment follows the parcel; the source data does not establish legal street frontage or setbacks for automatic snapping.
 
+**Drag to move.** In Build, press on the draft preview or on a building already in the plan, then drag it.
+- **While dragging.** The map does not pan. The draft re-runs the live fit and zoning screen as it moves. A placed building turns red wherever it would not fit.
+- **Dropping.** Positions snap to 0.5 m and keep the building's bearing, and the grab offset is kept so the building does not jump under the cursor.
+  - **Draft:** a drop that crosses the parcel boundary is refused, and the draft stays put. A drop onto an existing building is allowed, so **Demolish & replace** can follow.
+  - **Placed building:** a drop is refused if it crosses the boundary or overlaps another building or reserved area.
+- **Undo.** Every accepted drop is one undo step.
+- **Limits.** Only buildings on the selected parcel can be dragged; select another parcel to move its buildings. A short press without movement is still a click (inspect or select). Touch works with one finger. Code: `web/lib/dragPlacement.js`.
+
 Inspect a proposed building and choose **Edit shape & position**. Change the shape at its existing location, then Save or Cancel. The saved plan is unchanged until Save, which is one undoable action and keeps the building's ID and list position. Changing sites requires saving or cancelling first. Scenario export is explicit; autosave writes only to this device's local storage and does not download files.
 
 ## Highlight building types
