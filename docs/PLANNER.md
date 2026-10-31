@@ -123,6 +123,51 @@ The reform simulator separates current adopted code, the cited pending bill and 
 
 The permit/acquisition pathway uses public-record evidence and the screened design. The pro forma, tax ledger and funding-program screens remain conditional estimates. Neither guarantees availability, a variance, acquisition terms, financing, tax treatment or program eligibility. Private owner names are not displayed.
 
+## Policy scenarios
+
+**Policy scenarios** in the header opens the **Scenarios** tab. It has four named scenarios. Code: `web/lib/policyScenarios.js` (definitions and outcomes) and `components/PolicyScenarios.js` (cards).
+
+| Scenario | Status | Lever | Example parcel (**Try an example**) |
+| --- | --- | --- | --- |
+| Land value tax shift | Hypothetical | City levy split rate ([Land value tax shift](#land-value-tax-shift)) | 650 Penn Ave, Downtown surface parking lot (GT-C), 40-home draft, 2D map |
+| Single-stair buildings | Hypothetical | Stair rule ([Single-stair reform](#single-stair-reform)) | Montezuma St, Lincoln-Lemington-Belmar: vacant RM-M lot about 10.4 m wide, 12-home apartment at 9 × 22 m |
+| Missing-middle lot reform | Hypothetical | Reform preset `missing-middle` | Maplewood Ave, East Hills: vacant 2,400 sq ft R2-L lot, triplex |
+| Bill 2025-1545 height bonus | Pending, not law | Reform preset `bill-2025-1545` | 215 S Euclid Ave, East Liberty: vacant LNC lot, 12-home apartment |
+
+Each card has four parts:
+
+- **What it would enable.** One paragraph on the rule change.
+- **Before and after.** Current rules against the reform on the selected parcel.
+- **How to evaluate it.** Net homes, affordability at AMI levels, tax change and feasibility.
+- **Try an example.** Selects the example parcel, sets only that scenario's lever, resets the others (stair rule, reform preset, tax-shift map) and chooses the building type. It is one undoable step after the site change.
+
+**Apply to this plan** turns the stair rule or reform preset on or off for the current parcel. The tax shift has its own map toggle.
+
+How the before/after rows are computed:
+
+- **Most homes.** The building with the most homes that passes every assessed check: physical fit, Title Nine and placed-building review.
+  - Zoning presets use the same simulation as the Compare reform simulator, so a preset only lifts the conflicts its rules name. Bill 2025-1545 ADUs are counted as in that simulator.
+  - Single-stair re-runs the lot-fit search for the 12-home apartment at each rule's core minimum (12 × 18 m for two stairs, 7.5 × 14 m for one) and keeps existing and planned buildings as obstacles. It counts the apartment only where its zoning checks have no conflict. One exception: the setback conflict that Title Nine reports whenever the default footprint misses the lot is ignored, because the stair search re-fits that footprint. Only the small apartment changes: houses and duplexes are R-3 with one exit, triplexes stay at 3 stories, and the 8-story large apartment needs two stairs either way.
+- **Net homes.** The new building's homes minus the recorded homes it replaces, using the same rule as the Build tab's redevelopment impact. Existing buildings are kept unless you demolish them in Build.
+- **Affordability at AMI.** Break-even rent per home, plus utilities, compared with 30% of the HUD FY income limit at 30%, 50%, 60% and 80% AMI for the selected household size. The result is the lowest band that can pay, or "above 80% AMI".
+- **Tax change.** The yearly property-tax ledger for the new building against today's parcel, at 2026 millage for all levies. For the land value tax shift, the City levy only: the parcel's bill, the City tax on the land alone, and the City tax once a new building is assessed at its cost before land. The new building's land stays at today's assessed land value.
+- **Feasibility.** Capitalized value at the assumed rent minus development cost. If the whole range is positive it pencils; if the whole range is negative there is a funding gap; otherwise it is marginal.
+
+Limits:
+
+- Example parcels were chosen from the processed County data because the reform changes something on them. They are illustrations, not development advice.
+- No owner, mailing or tax-delinquency information is shown.
+- Every number uses the same team cost, rent and cap-rate assumptions as the pro forma, so the before/after difference matters more than either value.
+
+### Learn more / prior work
+
+The **Learn more / prior work** section at the bottom of the tab links only to pages checked on 31 October 2026:
+
+- The [University of Pittsburgh Urban Planning Club](https://experience.pitt.edu/upc/). The Showcase feedback named a Pitt "Urban Policy Club"; no club by that name could be found, so the Urban Planning Club is credited.
+- [Allegheny County Property Assessments on WPRDC](https://data.wprdc.org/dataset/property-assessments).
+- The Center for Land Economics' [LVTShift toolkit](https://landeconomics.org/lvtshift) and its [write-up](https://blog.landeconomics.org/p/want-to-model-a-land-value-tax-shift).
+- [Courtyard Urbanist](https://courtyardurbanist.com/), including its [ROAD to Housing Act piece on point-access blocks](https://courtyardurbanist.com/p/the-road-to-housing-act-creates-a).
+
 ## Save, share and recover
 
 Edits save locally in this browser. Reloading restores scenario inputs and loads the referenced evidence before recalculating; stored or imported scores are not trusted.

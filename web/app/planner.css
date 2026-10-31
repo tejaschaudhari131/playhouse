@@ -1171,6 +1171,36 @@
 .lvt-legend i { width: 13px; height: 13px; border-radius: 3px; border: 1px solid #0002; }
 .lvt-method summary { cursor: pointer; font-weight: 650; }
 .lvt-method p { margin: 6px 0 0; font-size: 12px; }
+.studio .policy-scenarios-button { padding: 9px 11px; border: 1px solid #8f3b1f; border-radius: 8px; background: #fff; color: #8f3b1f; font-size: 12px; font-weight: 650; }
+.studio .policy-scenarios-button[aria-pressed=true] { background: #8f3b1f; color: #fff; }
+.policy-scenarios { display: grid; gap: 12px; font-size: 13px; line-height: 1.45; }
+.scenario-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.studio .scenario-picker button { min-height: 40px; padding: 6px 9px; border: 1px solid #d3ddd2; border-radius: 8px; background: #fff; color: #243329; font-size: 12.5px; font-weight: 650; text-align: left; }
+.studio .scenario-picker button[aria-pressed=true] { border-color: #8f3b1f; background: #fbe4dc; color: #6e2c15; box-shadow: inset 3px 0 0 #8f3b1f; }
+.policy-scenarios .scenario-card { margin: 0; }
+.policy-scenario-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.policy-scenario-head h3 { margin: 0; }
+.scenario-enables { margin: 0; }
+.scenario-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; }
+.studio .scenario-actions button { min-height: 36px; padding: 6px 11px; border: 1px solid #7b98b6; border-radius: 8px; background: #fff; color: #244869; font-weight: 650; text-align: left; }
+.studio .scenario-actions button[aria-pressed=true] { background: #e5eef8; border-color: #2f5d8a; }
+.studio .scenario-actions .scenario-example { border-color: #284f3e; background: #284f3e; color: #fff; }
+.scenario-example small { display: block; font-weight: 400; font-size: 11px; opacity: .9; }
+.scenario-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.scenario-table caption { padding-bottom: 4px; color: #5d6a60; font-size: 11.5px; text-align: left; }
+.scenario-table th, .scenario-table td { padding: 5px 4px; border-bottom: 1px solid #e3e8e2; text-align: left; vertical-align: top; font-weight: 400; }
+.scenario-table thead th { color: #5d6a60; font-weight: 650; }
+.scenario-table tbody th { width: 34%; color: #3d4b41; font-weight: 650; }
+.scenario-table td:last-child { background: #f6f9f3; }
+.scenario-rules, .scenario-evaluate { margin: 6px 0 0; padding-left: 18px; }
+.scenario-rules li, .scenario-evaluate li { margin: 2px 0; }
+.scenario-note { margin: 10px 0 0; color: #5d6a60; font-size: 11.5px; }
+.prior-work { padding: 10px 12px; border: 1px solid #d3ddd2; border-radius: 10px; background: #fff; }
+.prior-work summary { cursor: pointer; font-weight: 650; }
+.prior-work ul { display: grid; gap: 7px; margin: 8px 0 0; padding: 0; list-style: none; }
+.prior-work li { display: grid; gap: 1px; }
+.prior-work li > a { font-weight: 650; }
+.prior-work span { color: #4d5a50; font-size: 12px; }
 
 /* Seasonal shadow study */
 .map-sun-toggle [role=radiogroup] { display: flex; gap: 2px; }
