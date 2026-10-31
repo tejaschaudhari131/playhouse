@@ -1,11 +1,16 @@
 import { architecturalMassing, EXISTING_FACADE_COLOR, EXISTING_ROOF_COLOR } from './architecture3d.js'
+import { categoryColorExpression } from './buildingTypes.js'
 
 const USE_COLOR = ['coalesce', ['get', 'use_color'], '#cbd5e1']
 const INSPECTED = ['boolean', ['feature-state', 'inspected'], false]
 
-/** Both roof and walls retain the recorded-use hue in the type view, at every zoom. */
-export function existingBuildingColors(buildingStyle = 'types') {
+/** Both roof and walls retain the recorded-use hue in the type view, at every zoom. "Highlight building types" overrides either style. */
+export function existingBuildingColors(buildingStyle = 'types', highlight = false) {
   const realistic = buildingStyle === 'realistic'
+  if (highlight) {
+    const category = categoryColorExpression()
+    return { overview: ['case', INSPECTED, '#35b6bb', category], facade: ['case', INSPECTED, '#35b6bb', category], roof: ['case', INSPECTED, '#1f7f84', category] }
+  }
   return {
     overview: ['case', INSPECTED, '#35b6bb', USE_COLOR],
     facade: ['case', INSPECTED, '#35b6bb', realistic ? EXISTING_FACADE_COLOR : USE_COLOR],

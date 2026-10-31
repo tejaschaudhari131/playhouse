@@ -151,6 +151,22 @@ Position on map stays active when cycling housing types. The colored preview and
 
 Inspect a proposed building and choose **Edit shape & position**. Change the shape at its existing location, then Save or Cancel. The saved plan is unchanged until Save, which is one undoable action and keeps the building's ID and list position. Changing sites requires saving or cancelling first. Scenario export is explicit; autosave writes only to this device's local storage and does not download files.
 
+## Highlight building types
+
+**Highlight building types** on the map recolours existing buildings by the County assessment use of the parcel they stand on (`land_use` = `USEDESC`, `land_use_class` = `CLASSDESC`). Rules are checked in this order (`web/lib/buildingTypes.js`):
+
+| Category | County uses |
+| --- | --- |
+| Vacant lot | Any `VACANT …` use, builder's lots, developmental land and common greenbelt; also public or unclassified parcels flagged as vacant lots. Drawn as a green lot fill, never as a building. A building on land recorded as vacant shows as *Use unknown*. |
+| Single-family | `SINGLE FAMILY`, `ROWHOUSE`, `TOWNHOUSE`, mobile homes, houses used as offices or shops; other unmatched residential uses. |
+| Two-family / duplex | `TWO FAMILY`. |
+| Small multifamily · 3–4 | `THREE FAMILY`, `FOUR FAMILY`, `DWG APT CONVERSION`. |
+| Apartments · 5+ | Every `APART…` use, apartment condominiums, condominiums, independent living, housing authority and HUD projects. |
+| Commercial / mixed-use | Shops or offices with apartments over, and any remaining commercial, industrial or agricultural class. |
+| Institutional / other | Churches, schools, colleges, hospitals, nursing and group homes, government, fire, parks, cemeteries, utilities and outbuilding/common-area records. |
+
+Uses the County records as `UNKNOWN`, or that match no rule, show as *Use unknown*. The colours apply to the 2D overview, 3D extrusions (façade and roof) and the Three.js meshes, whose walls and roofs mix 78% toward the category colour while glass, doors and trim keep their own. Unchecking a type hides those footprints on every layer; the inspected building keeps its teal highlight. Proposed and placed buildings use a 40%-lighter tint of their typology's category: house and ADU as single-family, duplex as two-family, triplex as small multifamily and both apartment types as apartments. With highlighting on, a preview's placement status stays visible in its ground rim. Highlighting never changes scores.
+
 ## 3D buildings, block and shadows
 
 ### Real-world building meshes

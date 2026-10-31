@@ -27,6 +27,7 @@ import { buildingShadows, sunFor, sunLight } from '../lib/sunShadows.js'
 import { envelopeFeatures } from '../lib/zoningEnvelope.js'
 import { cleanRing, insetRing, localFrame, openRing, toPolygon } from '../lib/localFrame.js'
 import { BUILDINGS } from '../lib/buildings.js'
+import { BUILDING_TYPE_CATEGORIES, allFilters, hiddenCategoryFilter, parcelCategory, plannedCategoryColor, typologyCategory } from '../lib/buildingTypes.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
 const fc = features => ({ type: 'FeatureCollection', features })
@@ -43,7 +44,7 @@ function rimFeature(geometry, color, width = .35) {
 // Official neighborhood union extent: navigation bounds, not a polygon mask.
 
 
-export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types' }) {
+export default function PlannerMap({ buildingRows = [], showBuildingLabels = false, buildingFocusRequest = null, onSiteBuildingSelect, parcelIndex, buildingIndex, neighborhoods, stops, showExisting, selected, buildingPreview, stop, proposed, additionalDepartures, view3d, onSelect, onStop, tool, placing, onPlace, onHover, placedBuildings = [], demolitions = [], demolitionEffect = null, constructionEffect = null, selectedBuilding = null, onBuildingSelect, focusRequest = 0, network, visibleNeighborhoodIds = [], networkResult, reservations, connections, routes = [], drawing, draftNode, onDraw, discoveryPins = [], emptyPins = [], onViewport, streetView = false, sunTime = 'noon', zoningEnvelope = null, buildingStyle = 'types', typeHighlight = null }) {
   const container = useRef(null), mapRef = useRef(null), callbacks = useRef({ onSelect, onStop, tool, placing, onPlace })
   const [ready, setReady] = useState(false), [error, setError] = useState(null)
   const [viewport, setViewport] = useState(null)
@@ -78,6 +79,10 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   const [threeStatus, setThreeStatus] = useState('idle'), [meshFocus, setMeshFocus] = useState(null), [constructing, setConstructing] = useState(null)
   const threeWanted = buildingStyle === 'realistic' && !!view3d && detail && viewport.zoom >= 16, threeActive = threeWanted && threeStatus === 'ready'
   const threeController = threeActive ? three.current?.controller ?? null : null
+  const highlightOn = !!typeHighlight, hiddenKey = (typeHighlight?.hidden || []).join('|')
+  const hiddenTypes = useMemo(() => hiddenKey ? hiddenKey.split('|') : [], [hiddenKey])
+  const meshHighlight = useMemo(() => highlightOn ? { colors: Object.fromEntries(BUILDING_TYPE_CATEGORIES.map(c => [c.id, c.color])), hidden: hiddenTypes } : null, [highlightOn, hiddenTypes])
+  const plannedColor = useCallback((typeId, fallback) => highlightOn ? plannedCategoryColor(typologyCategory(typeId)) : fallback, [highlightOn])
   const demolishedKeys = useMemo(() => new Set(demolitions.map(demolitionKey).filter(Boolean)), [demolitions])
   const meshCandidates = useMemo(() => threeActive && showExisting && meshFocus ? neighborhoodSelection(visibleBuildings, meshFocus, { exclude: demolishedKeys }) : [], [threeActive, showExisting, meshFocus, visibleBuildings, demolishedKeys])
   const meshKey = meshCandidates.map(f => String(f.properties.id ?? f.id)).join('|')
@@ -142,12 +147,13 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addSource('districts', { type: 'geojson', data: neighborhoods })
       map.addSource('stops', { type: 'geojson', data: stops || empty() })
       map.addSource('existing-buildings', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://mapservices.pasda.psu.edu/server/rest/services/pasda/AlleghenyCounty/MapServer/11">Allegheny County / PASDA buildings</a> · Heights: County / <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, ODbL</a>' })
-      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
+      for (const id of ['empty-sites', 'discovery', 'placed-buildings', 'building', 'selected', 'selected-building', 'site-building-labels', 'service', 'network-nodes', 'parks', 'reservations', 'connections', 'saved-routes', 'draft-node', 'building-massing', 'placed-massing', 'site-ground', 'trees', 'shadows', 'zoning-envelope', 'selected-building-rim', 'vacant-lots']) map.addSource(id, { type: 'geojson', data: empty(), ...(['empty-sites', 'discovery'].includes(id) ? { promoteId: 'pin' } : {}) })
       map.addSource('walking-network', { type: 'geojson', data: empty(), promoteId: 'id', attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL</a>' })
       map.addLayer({ id: 'district-line', type: 'line', source: 'districts', paint: { 'line-color': '#78978c', 'line-width': 2, 'line-dasharray': [3, 3] } })
       map.addLayer({ id: 'district-fill', type: 'fill', source: 'districts', maxzoom: DETAIL_ZOOM, paint: { 'fill-color': '#78978c', 'fill-opacity': .12 } }, 'district-line')
       map.addLayer({ id: 'parcel-fill', type: 'fill', source: 'parcels', minzoom: DETAIL_EXIT_ZOOM, paint: { 'fill-color': ['case', ['get', 'vacant'], '#81b99c', '#e6e9e3'], 'fill-opacity': .28 } })
       map.addLayer({ id: 'parcel-line', type: 'line', source: 'parcels', minzoom: DETAIL_EXIT_ZOOM, paint: { 'line-color': '#788f84', 'line-width': .6, 'line-opacity': .55 } })
+      map.addLayer({ id: 'vacant-lot-fill', type: 'fill', source: 'vacant-lots', minzoom: DETAIL_EXIT_ZOOM, paint: { 'fill-color': BUILDING_TYPE_CATEGORIES.find(c => c.id === 'vacant').color, 'fill-opacity': .55 } })
       map.addLayer({ id: 'empty-site-fill', type: 'fill', source: 'empty-sites', minzoom: DETAIL_EXIT_ZOOM, paint: { 'fill-color': '#fbbf24', 'fill-opacity': .45 } })
       map.addLayer({ id: 'empty-site-outline', type: 'line', source: 'empty-sites', minzoom: DETAIL_EXIT_ZOOM, paint: { 'line-color': '#a16207', 'line-width': 2 } })
       map.addLayer({ id: 'discovery-outline', type: 'line', source: 'discovery', paint: { 'line-color': '#0891b2', 'line-width': 2 } })
@@ -162,7 +168,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
       map.addLayer({ id: 'shadows', type: 'fill', source: 'shadows', paint: { 'fill-color': '#1d2733', 'fill-opacity': ['case', ['==', ['get', 'kind'], 'existing'], .14, .22], 'fill-antialias': false } }, 'connection-line')
       map.addLayer({ id: 'draft-point', type: 'circle', source: 'draft-node', paint: { 'circle-color': '#f3b45b', 'circle-radius': 7, 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } })
       map.addLayer({ id: 'site-ground', type: 'fill-extrusion', source: 'site-ground', paint: { ...extrusion, 'fill-extrusion-vertical-gradient': false, 'fill-extrusion-opacity': 1 } })
-      const colors = existingBuildingColors(buildingStyle)
+      const colors = existingBuildingColors(buildingStyle, !!typeHighlight)
       map.addLayer({ id: 'existing-buildings-overview', type: 'fill', source: 'existing-buildings', minzoom: DETAIL_EXIT_ZOOM, maxzoom: 16, paint: { 'fill-color': colors.overview, 'fill-opacity': .8 } })
       // Realistic fallback uses a warm facade and charcoal roof; the type view keeps both in the legend hue.
       map.addLayer({ id: 'existing-buildings-fill', type: 'fill-extrusion', source: 'existing-buildings', minzoom: 16, paint: { 'fill-extrusion-height': ['max', 0, ['-', ['get', 'height_m'], ROOF_CAP_M]], 'fill-extrusion-color': colors.facade, 'fill-extrusion-opacity': .9, 'fill-extrusion-vertical-gradient': true } })
@@ -323,10 +329,16 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   useEffect(() => {
     const map = readyMap()
     if (!map) return
-    const colors = existingBuildingColors(buildingStyle)
+    const colors = existingBuildingColors(buildingStyle, !!typeHighlight)
+    map.setPaintProperty('existing-buildings-overview', 'fill-color', colors.overview)
     map.setPaintProperty('existing-buildings-fill', 'fill-extrusion-color', colors.facade)
     map.setPaintProperty('existing-buildings-roof', 'fill-extrusion-color', colors.roof)
-  }, [ready, buildingStyle])
+  }, [ready, buildingStyle, highlightOn])
+  useEffect(() => {
+    if (!ready) return
+    const showVacant = highlightOn && !hiddenTypes.includes('vacant')
+    updateFeatures('vacant-lots', showVacant ? visibleParcels.filter(f => parcelCategory(f.properties) === 'vacant') : [])
+  }, [ready, visibleParcels, highlightOn, hiddenKey])
   useEffect(() => {
     const map = readyMap()
     if (map) map.getCanvas().style.cursor = placing || drawing ? 'crosshair' : ''
@@ -376,14 +388,16 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     map.getSource('building').setData(fc(building))
     const lot = selected ? lotContext(selected.properties.pin, selected.geometry) : {}
     streetBearing.current = building[0] ? facadeBearing(building[0].geometry, lot.parcel, lot.neighbors) : null
-    map.getSource('building-massing').setData(fc(building.flatMap(b => parts(buildingMassing({ buildingStyle, geometry: b.geometry, typeId: b.properties.typeId, height: b.properties.height, floors: b.properties.floors, color: b.properties.color, state: b.properties.state || 'valid', ...lot })))))
-  }, [ready, buildingStyle, buildingPreview, tool, selected, lotContext])
+    // Highlighting colours the body by typology; the status colour moves to a ground rim so fit and zoning still read.
+    const rims = highlightOn ? building.map(b => rimFeature(b.geometry, b.properties.color, .45)).filter(Boolean) : []
+    map.getSource('building-massing').setData(fc([...building.flatMap(b => parts(buildingMassing({ buildingStyle, geometry: b.geometry, typeId: b.properties.typeId, height: b.properties.height, floors: b.properties.floors, color: plannedColor(b.properties.typeId, b.properties.color), state: highlightOn ? 'placed' : b.properties.state || 'valid', ...lot }))), ...rims]))
+  }, [ready, buildingStyle, buildingPreview, tool, selected, lotContext, highlightOn, plannedColor])
 
   useEffect(() => {
     const map = readyMap()
     if (!map) return
     const drawn = placedBuildings.filter(b => b.massing.geometry)
-    map.getSource('placed-buildings').setData(fc(drawn.map(b => ({ type: 'Feature', geometry: b.massing.geometry, properties: { id: b.id, pin: b.pin, height: b.height, color: placedBuildingColor(b.typeId), valid: b.eligible } }))))
+    map.getSource('placed-buildings').setData(fc(drawn.map(b => ({ type: 'Feature', geometry: b.massing.geometry, properties: { id: b.id, pin: b.pin, height: b.height, color: plannedColor(b.typeId, placedBuildingColor(b.typeId)), valid: b.eligible } }))))
     const rims = drawn.filter(b => !b.eligible).flatMap(b => {
       const rim = rimFeature(b.massing.geometry, '#dc2626')
       return rim ? [{ ...rim, properties: { ...rim.properties, id: b.id, pin: b.pin } }] : []
@@ -392,10 +406,10 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const massing = drawn.flatMap(b => {
       const lot = lotContext(b.pin, b.massing.geometry), bearing = facadeBearing(b.massing.geometry, lot.parcel, lot.neighbors)
       if (bearing !== null) placedBearings.current.set(b.pin, bearing)
-      return parts(buildingMassing({ buildingStyle, geometry: b.massing.geometry, typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, color: placedBuildingColor(b.typeId), ...lot }), { id: b.id, pin: b.pin })
+      return parts(buildingMassing({ buildingStyle, geometry: b.massing.geometry, typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, color: plannedColor(b.typeId, placedBuildingColor(b.typeId)), ...lot }), { id: b.id, pin: b.pin })
     })
     map.getSource('placed-massing').setData(fc([...massing, ...rims]))
-  }, [ready, buildingStyle, placedBuildings, lotContext])
+  }, [ready, buildingStyle, placedBuildings, lotContext, plannedColor])
 
   const showDraft = ['housing', 'compare'].includes(tool)
   const envelope = useMemo(() => showDraft && selected && zoningEnvelope
@@ -494,10 +508,12 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     map.setPaintProperty('placed-buildings-fill', 'fill-extrusion-opacity', active ? 0 : .97)
     map.setPaintProperty('building-fill', 'fill-extrusion-opacity', active ? 0 : .8)
     const ids = active ? meshedIds : [], meshed = ['in', ['to-string', ['get', 'id']], ['literal', ids]]
-    map.setFilter('existing-buildings-fill', ids.length ? ['!', meshed] : null)
-    map.setFilter('existing-buildings-roof', ids.length ? ['!', meshed] : null)
-    map.setFilter('existing-buildings-hit', meshed)
-  }, [ready, threeActive, threeStatus, meshedIds])
+    const hidden = highlightOn ? hiddenCategoryFilter(hiddenTypes) : null
+    map.setFilter('existing-buildings-fill', allFilters(ids.length ? ['!', meshed] : null, hidden))
+    map.setFilter('existing-buildings-roof', allFilters(ids.length ? ['!', meshed] : null, hidden))
+    map.setFilter('existing-buildings-overview', hidden)
+    map.setFilter('existing-buildings-hit', allFilters(meshed, hidden))
+  }, [ready, threeActive, threeStatus, meshedIds, highlightOn, hiddenTypes])
   useEffect(() => {
     const map = readyMap()
     if (!map || !threeWanted) return
@@ -509,8 +525,8 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     if (!threeController) return
     const origin = meshFocus ?? (selected ? geometryCenter(selected.geometry) : null)
     if (origin) threeController.setOrigin(origin)
-    threeController.setNeighborhood(meshCandidates, { inspectedKey })
-  }, [threeController, meshKey, meshFocus, inspectedKey, selected])
+    threeController.setNeighborhood(meshCandidates, { inspectedKey, highlight: meshHighlight })
+  }, [threeController, meshKey, meshFocus, inspectedKey, selected, meshHighlight])
   useEffect(() => {
     if (!threeController) return
     const item = (key, geometry, pin, props) => {
@@ -520,14 +536,14 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     const items = []
     if (showDraft && buildingPreview && selected) {
       const p = buildingPreview.properties
-      items.push(item('preview', buildingPreview.geometry, selected.properties.pin, { typeId: p.typeId, height: p.height, floors: p.floors, state: p.state || 'valid', hidden: !!constructing }))
+      items.push(item('preview', buildingPreview.geometry, selected.properties.pin, { typeId: p.typeId, height: p.height, floors: p.floors, state: p.state || 'valid', hidden: !!constructing, tint: highlightOn ? plannedColor(p.typeId) : null }))
     }
     for (const b of placedBuildings) if (b.massing.geometry) {
       const key = `${b.id}:${b.pin}`
-      items.push(item(key, b.massing.geometry, b.pin, { typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, state: 'placed', flagged: !b.eligible, hidden: constructing === key }))
+      items.push(item(key, b.massing.geometry, b.pin, { typeId: b.typeId, height: b.height, floors: b.floors ?? BUILDINGS[b.typeId]?.floors, state: 'placed', flagged: !b.eligible, hidden: constructing === key, tint: highlightOn ? plannedColor(b.typeId) : null }))
     }
     threeController.setProposed(items)
-  }, [threeController, buildingPreview, placedBuildings, showDraft, selected, lotContext, constructing])
+  }, [threeController, buildingPreview, placedBuildings, showDraft, selected, lotContext, constructing, highlightOn, plannedColor])
 
   useEffect(() => {
     const map = readyMap()
@@ -604,5 +620,5 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
     focus()
   }, [ready, buildingFocusRequest, buildingRows, selected?.properties.pin])
 
-  return <><div ref={container} className="planner-map" data-building-style={buildingStyle} data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-active={threeActive} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
+  return <><div ref={container} className="planner-map" data-building-style={buildingStyle} data-type-highlight={highlightOn ? hiddenKey || 'all' : 'off'} data-detail-level={!detail ? 'overview' : viewport.zoom < 16 ? 'footprints' : '3d'} data-visible-neighborhoods={visibleKey} data-visible-parcels={visibleParcels.length} data-visible-buildings={visibleBuildings.length} data-visible-roads={visibleRoads.length} data-three-buildings={threeStatus} data-three-active={threeActive} data-three-meshed={threeActive ? meshedIds.length : 0} aria-label="3D parcel planning map. Select a parcel on the map or use the address search." />{error && <div className="planner-map-error" role="alert">{error}</div>}</>
 }

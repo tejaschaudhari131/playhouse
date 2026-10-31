@@ -14,17 +14,30 @@ function geometryFrom({ position, normal, uv, color }) {
   return g
 }
 
-/** Concatenate per-material arrays of several buildings, shifting each by its anchor offset (metres). */
+/** Wall and roof materials take a category tint under "Highlight building types"; glass, doors and trim keep their own colour. */
+export const TINTED_MATERIALS = new Set(['siding', 'brick', 'brickBuff', 'rustic', 'concrete', 'panel', 'limestone', 'shingle', 'ridgeCap', 'roofFlat', 'metalRoof',
+  'nbBrick', 'nbSiding', 'nbCommercial', 'nbOffice', 'nbApartment', 'aptFacade'])
+const TINT_MIX = .78
+export const hexToRgb = hex => { const n = parseInt(String(hex).replace('#', ''), 16); return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255] }
+
+/** Mix a material's vertex colours toward `tint` (0–1 RGB) into `target` (in place when target is the source). */
+export function tintColors(key, source, tint, target = source, at = 0) {
+  if (!tint || !TINTED_MATERIALS.has(key)) { if (target !== source) target.set(source, at); return target }
+  for (let i = 0; i < source.length; i++) target[at + i] = source[i] * (1 - TINT_MIX) + tint[i % 3] * TINT_MIX
+  return target
+}
+
+/** Concatenate per-material arrays of several buildings, shifting each by its anchor offset (metres east, north, up). */
 export function mergeBuildings(parts) {
   const out = new Map()
   for (const [key, list] of parts) {
     const size = list.reduce((n, { arrays }) => n + arrays.position.length, 0)
     const position = new Float32Array(size), normal = new Float32Array(size), color = new Float32Array(size), uv = new Float32Array(size / 3 * 2)
     let at = 0
-    for (const { arrays, offset } of list) {
-      const p = arrays.position
-      for (let i = 0; i < p.length; i += 3) { position[at + i] = p[i] + offset[0]; position[at + i + 1] = p[i + 1] + offset[1]; position[at + i + 2] = p[i + 2] }
-      normal.set(arrays.normal, at); color.set(arrays.color, at); uv.set(arrays.uv, at / 3 * 2)
+    for (const { arrays, offset, tint } of list) {
+      const p = arrays.position, dz = offset[2] || 0
+      for (let i = 0; i < p.length; i += 3) { position[at + i] = p[i] + offset[0]; position[at + i + 1] = p[i + 1] + offset[1]; position[at + i + 2] = p[i + 2] + dz }
+      normal.set(arrays.normal, at); tintColors(key, arrays.color, tint, color, at); uv.set(arrays.uv, at / 3 * 2)
       at += p.length
     }
     out.set(key, { position, normal, uv, color })
@@ -74,10 +87,11 @@ export class BuildingScene {
     this.sky.intensity = 1.25 + Math.sin(alt) * .35
     this.sunDirection = this.sun.position.clone().normalize()
   }
-  setNeighborhood(features = [], { inspectedKey = null } = {}) {
-    const key = features.map(buildingCacheKey).join('\n')
+  /** `highlight`: { colors: { category: hex }, hidden: [category] } tints walls and roofs by `type_category` and drops hidden ones. */
+  setNeighborhood(features = [], { inspectedKey = null, highlight = null } = {}) {
+    const key = features.map(buildingCacheKey).join('\n') + '\n' + JSON.stringify(highlight)
     if (key === this.selectionKey && inspectedKey === this.inspectedKey) return false
-    this.features = features; this.selectionKey = key; this.inspectedKey = inspectedKey
+    this.features = features; this.selectionKey = key; this.inspectedKey = inspectedKey; this.highlight = highlight
     this.rebuildNeighborhood()
     return true
   }
@@ -98,14 +112,18 @@ export class BuildingScene {
     this.meshed = 0
     if (!this.origin) return
     const plain = new Map(), highlighted = new Map()
+    const tints = new Map(Object.entries(this.highlight?.colors || {}).map(([id, hex]) => [id, hexToRgb(hex)])), hidden = new Set(this.highlight?.hidden || [])
     for (const feature of this.features) {
+      const category = feature.properties?.type_category || 'unknown'
+      if (this.highlight && hidden.has(category)) continue
       const built = this.built(feature)
       if (!built) continue
       this.meshed++
       const target = this.inspectedKey && footprintKey(feature) === this.inspectedKey ? highlighted : plain, offset = this.offset(built.anchor)
+      const tint = target === plain ? tints.get(category) ?? null : null
       for (const [key, arrays] of built.geometries) {
         if (!target.has(key)) target.set(key, [])
-        target.get(key).push({ arrays, offset })
+        target.get(key).push({ arrays, offset, tint })
       }
     }
     for (const [parts, highlight] of [[plain, false], [highlighted, true]]) for (const [key, arrays] of mergeBuildings(parts)) {
@@ -126,7 +144,7 @@ export class BuildingScene {
     for (const item of items) {
       const ring = item.geometry?.type === 'Polygon' ? item.geometry.coordinates[0] : null
       if (!ring) continue
-      const signature = JSON.stringify([item.key, ring, item.front, item.typeId, item.height, item.floors, item.state, !!item.flagged])
+      const signature = JSON.stringify([item.key, ring, item.front, item.typeId, item.height, item.floors, item.state, !!item.flagged, item.tint ?? null])
       let entry = this.proposedItems.get(signature) || next.get(signature)
       if (!entry) {
         const corners = ring.slice(0, -1), anchor = [corners.reduce((n, p) => n + p[0], 0) / corners.length, corners.reduce((n, p) => n + p[1], 0) / corners.length]
@@ -137,7 +155,9 @@ export class BuildingScene {
         } catch { built = null }
         const group = new Group()
         group.matrixAutoUpdate = false
+        const tint = item.tint ? hexToRgb(item.tint) : null
         if (built) for (const [key, arrays] of built.geometries) {
+          tintColors(key, arrays.color, tint)
           const mesh = new Mesh(geometryFrom(arrays), this.materials.get(key))
           mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; mesh.userData.material = key
           group.add(mesh)

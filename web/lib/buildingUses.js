@@ -1,3 +1,5 @@
+import { buildingCategory } from './buildingTypes.js'
+
 /** Recorded parcel use, never the recommended type or a height-derived dwelling count. */
 export const USE_LEGEND = [
   { id: 'single_family', label: 'Single-family', color: '#1d4e89', simulated: '#528bd0' },
@@ -34,7 +36,7 @@ export function colorBuildingUses(buildings, byPin) {
   return { ...buildings, features: buildings.features.map(feature => {
     const parcel = byPin.get(feature.properties.pin)?.properties
     const use = recordedUse(parcel, feature.properties)
-    return { ...feature, properties: { ...feature.properties, use_type: use, use_color: USE_BY_ID[use].color,
+    return { ...feature, properties: { ...feature.properties, use_type: use, use_color: USE_BY_ID[use].color, type_category: buildingCategory(parcel),
       use_label: USE_BY_ID[use].label, recorded_land_use: parcel?.land_use || 'Unknown',
       use_evidence: parcel ? 'Matched parcel assessment use; individual footprint occupancy is unverified.' : 'No matched parcel assessment use.' } }
   }) }
