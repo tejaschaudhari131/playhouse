@@ -31,6 +31,7 @@ import config
 from score import chas_low_income_renter_cost_burden, model_card, score_parcel
 from sites import parse_city_owned, parse_condemned, parse_tax_delinquency, site_flags
 from hud_income_limits import register_source as register_hud_income_source
+from refresh_assessed_values import VALUE_KEYS, assessed_values
 from util import (
     arcgis_features,
     cached_download,
@@ -1144,6 +1145,7 @@ def assemble(
             record["lot_sqft"] = number_or_none(assessment.get("LOTAREA"))
             record["year_built"] = number_or_none(assessment.get("YEARBLT"))
             record["living_sqft"] = number_or_none(assessment.get("FINISHEDLIVINGAREA"))
+            record.update(assessed_values(assessment))
             if is_valid_sale(assessment):
                 sold = parse_sale_date(assessment.get("SALEDATE"))
                 price = number_or_none(assessment.get("SALEPRICE"))
@@ -1258,6 +1260,7 @@ def _public_feature(record):
         "lot_sqft": record.get("lot_sqft"),
         "year_built": None if record.get("year_built") is None else int(record["year_built"]),
         "living_sqft": record.get("living_sqft"),
+        **{key: record.get(key) for key in VALUE_KEYS},
         "last_valid_sale_year": record.get("last_valid_sale_year"),
         "last_valid_sale_price": record.get("last_valid_sale_price"),
         "zoning_code": record.get("zoning_code"),

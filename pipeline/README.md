@@ -26,6 +26,8 @@ Outputs:
 
 `sites.py` reduces the City-owned, tax-delinquency, and condemned layers to booleans and status codes joined on the parcel ID. `score.py` adds the tract displacement screen and the per-type carbon estimate; published inputs (EIA RECS 2020) and chosen tiers are listed separately in `score_model.json`.
 
+`refresh_assessed_values.py` adds `assessed_land`, `assessed_building` (County `LOCALLAND` / `LOCALBUILDING`, the values for City and school taxes) and `tax_status` (`taxable`, `exempt` or `purta`, from `TAXCODE`) to the processed parcels without rebuilding other layers. It requests only `ASSESSMENT_VALUE_FIELDS`; a full `run_pipeline.py` build writes the same fields. Assessed value is not market value.
+
 Raw downloads stay in `data/raw/` and are gitignored. Pass `--refresh` to pull them again.
 
 Owner names, change-notice mailing addresses, and buyer, seller, grantor, and grantee names are not requested and not written. `build_dataset.py` refuses a parcel file whose keys contain `owner`, `changenotice`, `mailing`, `buyer`, `seller`, `grantor`, `grantee`, or `billing`, and refuses a WPRDC dump whose header does. See `docs/DATA_NOTES.md`.
