@@ -27,7 +27,7 @@ import { buildingShadows, sunFor, sunLight } from '../lib/sunShadows.js'
 import { envelopeFeatures } from '../lib/zoningEnvelope.js'
 import { cleanRing, insetRing, localFrame, openRing, toPolygon } from '../lib/localFrame.js'
 import { BUILDINGS } from '../lib/buildings.js'
-import { BUILDING_TYPE_CATEGORIES, allFilters, hiddenCategoryFilter, parcelCategory, plannedCategoryColor, typologyCategory } from '../lib/buildingTypes.js'
+import { BUILDING_TYPE_CATEGORIES, allFilters, hiddenCategoryFilter, plannedCategoryColor, typologyCategory } from '../lib/buildingTypes.js'
 
 const empty = () => ({ type: 'FeatureCollection', features: [] })
 const fc = features => ({ type: 'FeatureCollection', features })
@@ -337,7 +337,7 @@ export default function PlannerMap({ buildingRows = [], showBuildingLabels = fal
   useEffect(() => {
     if (!ready) return
     const showVacant = highlightOn && !hiddenTypes.includes('vacant')
-    updateFeatures('vacant-lots', showVacant ? visibleParcels.filter(f => parcelCategory(f.properties) === 'vacant') : [])
+    updateFeatures('vacant-lots', showVacant ? visibleParcels.filter(f => f.properties.type_category === 'vacant') : [])
   }, [ready, visibleParcels, highlightOn, hiddenKey])
   useEffect(() => {
     const map = readyMap()

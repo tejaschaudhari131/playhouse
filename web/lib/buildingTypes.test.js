@@ -62,3 +62,12 @@ test('prepared footprints carry the parcel category', () => {
   assert.equal(two.properties.type_category, 'two_family')
   assert.equal(none.properties.type_category, 'unknown')
 })
+
+test('map parcels carry their category so vacant lots can be highlighted', async () => {
+  const { slimParcels } = await import('./plannerGeometry.js')
+  const slim = slimParcels({ type: 'FeatureCollection', features: [
+    { type: 'Feature', geometry: null, properties: { pin: 'A', land_use: 'VACANT LAND', land_use_class: 'RESIDENTIAL', vacant_lot: true, area: 'X' } },
+    { type: 'Feature', geometry: null, properties: { pin: 'B', land_use: 'TWO FAMILY', land_use_class: 'RESIDENTIAL', area: 'X' } },
+  ] })
+  assert.deepEqual(slim.features.map(f => f.properties.type_category), ['vacant', 'two_family'])
+})
